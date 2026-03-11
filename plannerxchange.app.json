@@ -1,0 +1,16 @@
+{
+  "slug": "sample-advisor-tool",
+  "name": "Sample Advisor Tool",
+  "version": "0.1.0",
+  "framework": "react",
+  "entryPoint": "src/plugin.tsx",
+  "permissions": [
+    "tenant.read",
+    "user.read"
+  ],
+  "configSchemaVersion": 1,
+  "visibility": "private",
+  "categories": [
+    "cash-flow"
+  ]
+}
