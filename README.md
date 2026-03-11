@@ -9,6 +9,19 @@ It is designed to show the minimum v1 publication shape:
 - a local preview host that mounts the plugin with mock PlannerXchange runtime context
 - a `plannerxchange/` markdown context pack for AI-assisted student builds
 
+Required publication metadata should live in `plannerxchange.app.json` whenever possible.
+
+Examples:
+
+- `name`
+- `slug`
+- `framework`
+- `visibility`
+- `categories`
+- `summary`
+- `description`
+- optional media URLs
+
 ## Current status
 
 This starter is now self-contained enough to copy into a separate builder repository, including the
@@ -34,6 +47,10 @@ Recommended workshop flow:
 4. student builds an app aligned to `plannerxchange.app.json`
 5. student commits and pushes to their own repository
 6. student logs into PlannerXchange and links the repository for governed publication
+
+The intended UI should require little more than the GitHub URL. PlannerXchange should read the
+required metadata from `plannerxchange.app.json` and only ask for optional merchandising overrides
+when needed.
 
 ## Builder checklist
 

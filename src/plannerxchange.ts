@@ -36,6 +36,11 @@ export interface PlannerXchangeManifest {
   slug: string;
   name: string;
   version: string;
+  summary?: string;
+  description?: string;
+  priceLabel?: string;
+  thumbnailUrl?: string;
+  previewVideoUrl?: string;
   framework: FrontendFramework;
   entryPoint: string;
   permissions: AppPermissionScope[];
