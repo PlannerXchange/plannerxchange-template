@@ -13,6 +13,7 @@
   ],
   "configSchemaVersion": 1,
   "visibility": "private",
+  "dataPortabilityMode": "plannerxchange_portable",
   "categories": [
     "cash-flow"
   ]

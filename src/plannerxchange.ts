@@ -1,9 +1,13 @@
 export type UserType = "firm_user" | "client_user";
-export type FrontendFramework = "react" | "vue" | "nextjs" | "html-js";
+export type KnownFrontendFramework = "react" | "vue" | "nextjs" | "html-js";
+export type FrontendFramework = KnownFrontendFramework | (string & {});
 export type AppVisibility =
   | "private"
   | "shared_with_specific_users"
   | "marketplace_listed";
+export type AppDataPortabilityMode =
+  | "plannerxchange_portable"
+  | "app_managed_nonportable";
 export type AppPermissionScope =
   | "tenant.read"
   | "user.read"
@@ -46,6 +50,7 @@ export interface PlannerXchangeManifest {
   permissions: AppPermissionScope[];
   configSchemaVersion: number;
   visibility: AppVisibility;
+  dataPortabilityMode: AppDataPortabilityMode;
   categories: string[];
 }
 

@@ -17,10 +17,21 @@ Examples:
 - `slug`
 - `framework`
 - `visibility`
+- `dataPortabilityMode`
 - `categories`
 - `summary`
 - `description`
 - optional media URLs
+
+`dataPortabilityMode` is a core product choice:
+
+- `plannerxchange_portable`
+  - use this when the app is meant to participate in PlannerXchange-governed shared data portability
+  - the app should use PlannerXchange APIs and shared data contracts for shared planner, firm, or client data
+
+- `app_managed_nonportable`
+  - use this when the app manages its own backend and data model
+  - the app can still publish through PlannerXchange, but its app-owned data is not treated as portable across apps
 
 ## Current status
 
@@ -55,9 +66,11 @@ when needed.
 ## Builder checklist
 
 - Keep `plannerxchange.app.json` aligned with `src/plugin.tsx`.
+- Declare the correct `dataPortabilityMode` before linking the repo.
 - Do not add app-owned login flows.
 - Assume PlannerXchange owns auth, tenant resolution, branding, and disclosures.
-- Build against approved PlannerXchange APIs rather than direct shared-data storage access.
+- Use PlannerXchange APIs for shared portable data.
+- If the app is intentionally nonportable, be explicit about that and avoid requesting shared-data scopes you do not need.
 - Keep requested permission scopes minimal.
 
 ## Files
@@ -65,16 +78,15 @@ when needed.
 - `plannerxchange.app.json`: publish manifest
 - `plannerxchange/app-brief.md`: the student-facing project brief
 - `plannerxchange/context.md`: platform constraints and design reminders
-- `plannerxchange/data-contract.md`: current shared-data and auth assumptions
+- `plannerxchange/data-contract.md`: current shared-data, portability, and auth assumptions
 - `plannerxchange/publish-notes.md`: publication and review expectations
 - `src/plugin.tsx`: PlannerXchange plugin entrypoint
 - `src/main.tsx`: local preview host
 - `src/dev-context.ts`: mock runtime context for local development
 
-## Preparing `plannerxchange-template`
+## Scope
 
-When you publish this starter into `https://github.com/PlannerXchange/plannerxchange-template`,
-keep the template repo intentionally small:
+This repository should stay intentionally small:
 
 - starter code only
 - `plannerxchange/` markdown pack
@@ -82,6 +94,3 @@ keep the template repo intentionally small:
 
 Do not mirror the full platform docs tree into the student repo. The template should carry the
 high-signal subset students and their coding agents actually need.
-
-Use `scripts/sync-plannerxchange-template.ps1` from the platform repo to sync the exact approved
-file set into a local clone of `plannerxchange-template`.

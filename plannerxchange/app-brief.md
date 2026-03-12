@@ -13,5 +13,6 @@ Questions:
 
 1. What specific workflow is this app replacing or improving?
 2. Who will use it first: advisor, firm admin, or client?
-3. Is the app mostly a calculator/worksheet, or does it need shared PlannerXchange data?
+3. Does this app need PlannerXchange-portable shared data, or will it manage its own app-specific backend and data?
 4. Does it need to be private, shared to specific users, or marketplace listed later?
+5. If the app will be marketplace listed, do you want other advisors to benefit from portable shared data or is portability not part of the value proposition?
