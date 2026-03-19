@@ -7,6 +7,12 @@ export const mockRuntimeContext: ShellRuntimeContext = {
   userId: "advisor-user-001",
   userType: "firm_user",
   role: "advisor_user",
+  appId: "starter-app",
+  appInstallationId: "starter-installation",
+  publicationEnvironment: "dev",
+  visibility: "private",
+  dataPortabilityMode: "plannerxchange_portable",
+  permissions: ["tenant.read", "user.read", "branding.read", "legal.read"],
   branding: {
     tenantId: "plannerxchange-marketplace",
     enterpriseId: "plannerxchange-marketplace-enterprise",

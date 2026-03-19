@@ -13,6 +13,10 @@ Questions:
 
 1. What specific workflow is this app replacing or improving?
 2. Who will use it first: advisor, firm admin, or client?
-3. Does this app need PlannerXchange-portable shared data, or will it manage its own app-specific backend and data?
-4. Does it need to be private, shared to specific users, or marketplace listed later?
-5. If the app will be marketplace listed, do you want other advisors to benefit from portable shared data or is portability not part of the value proposition?
+3. Does this app persist data at all?
+4. If it persists data, is that data PX canonical data or app-owned / partner-managed data?
+5. If it saves builder-owned work product, should that live in PX app-data or outside PX?
+6. Does the app need access to client, account, household, or other regulated data?
+7. Does the app need stricter intra-firm scoping, such as limiting each advisor to their own book of business?
+8. Should those stricter intra-firm boundaries be configurable by firm users or admins rather than hardcoded?
+9. Does the app depend on external integrations such as Wealthbox, Plaid, Altruist, Holistiplan, or another partner system?

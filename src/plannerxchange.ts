@@ -11,9 +11,14 @@ export type AppDataPortabilityMode =
 export type AppPermissionScope =
   | "tenant.read"
   | "user.read"
-  | "client.read"
-  | "client.write"
-  | "notes.write";
+  | "client.summary.read"
+  | "client.sensitive.read"
+  | "app_access.read"
+  | "feature_entitlements.read"
+  | "branding.read"
+  | "legal.read"
+  | "app_data.read"
+  | "app_data.write";
 
 export interface BrandingProfile {
   tenantId: string;
@@ -61,6 +66,12 @@ export interface ShellRuntimeContext {
   userId: string;
   userType: UserType;
   role: string;
+  appId: string;
+  appInstallationId: string;
+  publicationEnvironment: "dev" | "prod";
+  visibility: AppVisibility;
+  dataPortabilityMode: AppDataPortabilityMode;
+  permissions: AppPermissionScope[];
   branding: BrandingProfile;
   legal: LegalProfile;
 }

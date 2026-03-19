@@ -35,6 +35,14 @@ export function App({
           <span className="starter-label">Role</span>
           <strong>{context.role}</strong>
         </article>
+        <article className="starter-card">
+          <span className="starter-label">App</span>
+          <strong>{context.appId}</strong>
+        </article>
+        <article className="starter-card">
+          <span className="starter-label">Install</span>
+          <strong>{context.appInstallationId}</strong>
+        </article>
       </section>
 
       <section className="starter-layout">
@@ -45,6 +53,8 @@ export function App({
             <li>Entry point: {manifest.entryPoint}</li>
             <li>Permissions: {manifest.permissions.join(", ")}</li>
             <li>Visibility: {manifest.visibility}</li>
+            <li>Portability: {manifest.dataPortabilityMode}</li>
+            <li>Environment: {context.publicationEnvironment}</li>
           </ul>
         </article>
 

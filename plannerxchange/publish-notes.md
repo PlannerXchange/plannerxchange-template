@@ -14,7 +14,9 @@ Important:
 - installation is separate from publication
 - marketplace listing is separate from selective sharing
 - portability is separate from visibility
-- nonportable apps can still publish, but they should not claim PlannerXchange-managed cross-app data portability
+- nonportable apps can still publish, but they should not claim eligibility for the PX portability contract
+- `plannerxchange_portable` means the code is built to PX canonical data contracts
+- builder membership tier and shell enablement decisions are handled inside PlannerXchange, not in this repo
 
 Student checklist before linking the repo:
 
@@ -28,8 +30,12 @@ Student checklist before linking the repo:
 Review guidance:
 
 - universal security and governance checks apply to every app
-- portable apps get stricter checks for shared-data access patterns
-- nonportable apps may use their own backend, but they must not request shared-data scopes casually
+- apps built to PX canonical data contracts get stricter checks for PX data access patterns
+- nonportable apps may use their own backend, and they may still read approved PX canonical data, but they must not request PX-canonical scopes casually
+- apps that save builder-owned work product inside PX should use the governed PX app-data contract rather than trying to mutate immutable PX reference facts
+- apps that touch client data, PII, or external egress paths should expect stricter review
+- Day 1 external AI-provider or third-party egress of PX client data is not allowed
+- apps that pass the full PlannerXchange governance and client-data safety review may earn a `PX Approved` trust badge
 - PlannerXchange may show badges such as `Portable Data` or `App-Managed Data` in the catalog
 
 First workshop-friendly path:

@@ -23,15 +23,38 @@ Examples:
 - `description`
 - optional media URLs
 
-`dataPortabilityMode` is a core product choice:
+`dataPortabilityMode` is a build-contract choice:
 
 - `plannerxchange_portable`
-  - use this when the app is meant to participate in PlannerXchange-governed shared data portability
-  - the app should use PlannerXchange APIs and shared data contracts for shared planner, firm, or client data
+  - use this when the app uses PlannerXchange canonical data contracts
+  - the app should use PlannerXchange APIs and PX-governed data contracts for firm, advisor, client, account, household, or other PX-canonical domains
+  - builder-owned work product may still be saved through approved PX app-data APIs
+  - this is the preferred default when the app persists PlannerXchange-governed data
 
 - `app_managed_nonportable`
-  - use this when the app manages its own backend and data model
-  - the app can still publish through PlannerXchange, but its app-owned data is not treated as portable across apps
+  - use this when the app's business persistence lives in app-owned or partner-managed systems rather than PX canonical data contracts
+  - the app may still use approved PX app-data APIs for builder-owned work product when PX-hosted persistence is preferred
+  - the app can still publish through PlannerXchange, but its app-owned data is not eligible for the PX portability contract
+
+Important:
+
+- this template does not teach membership-tier or entitlement rules
+- `plannerxchange_portable` is an architecture declaration, not a statement about what the current builder account is allowed to enable in the shell
+- platform review and product entitlements are handled inside PlannerXchange, not in this repo
+
+## Platform Contract Map
+
+This starter mirrors the high-signal subset of these PlannerXchange builder-spec areas:
+
+- runtime overview
+- auth and session
+- canonical-data API
+- app-data API
+- app access and feature entitlements
+- branding and legal
+- publish requirements
+
+If you have access to the PlannerXchange platform repo, review the corresponding `docs/builder-spec/` files for the full contract.
 
 ## Current status
 
@@ -69,8 +92,12 @@ when needed.
 - Declare the correct `dataPortabilityMode` before linking the repo.
 - Do not add app-owned login flows.
 - Assume PlannerXchange owns auth, tenant resolution, branding, and disclosures.
-- Use PlannerXchange APIs for shared portable data.
-- If the app is intentionally nonportable, be explicit about that and avoid requesting shared-data scopes you do not need.
+- Use PlannerXchange APIs and canonical contracts for PX-governed data.
+- Save builder-owned work product such as scenarios, recommendations, questionnaire responses, and projections through approved PX app-data APIs or explicit app-owned persistence.
+- Treat `firmId` as the maximum data boundary for PX canonical data. Stricter intra-firm scoping is fine; broader scope is not.
+- If the app is nonportable, it may still read approved PX canonical data through PX APIs by default.
+- If the app is intentionally nonportable, be explicit about that and avoid requesting PX-canonical scopes you do not need.
+- Do not treat immutable PX reference facts as app-writable just because the app can read them.
 - Keep requested permission scopes minimal.
 
 ## Files
@@ -78,7 +105,7 @@ when needed.
 - `plannerxchange.app.json`: publish manifest
 - `plannerxchange/app-brief.md`: the student-facing project brief
 - `plannerxchange/context.md`: platform constraints and design reminders
-- `plannerxchange/data-contract.md`: current shared-data, portability, and auth assumptions
+- `plannerxchange/data-contract.md`: current PX canonical data, portability, and auth assumptions
 - `plannerxchange/publish-notes.md`: publication and review expectations
 - `src/plugin.tsx`: PlannerXchange plugin entrypoint
 - `src/main.tsx`: local preview host
@@ -94,3 +121,7 @@ This repository should stay intentionally small:
 
 Do not mirror the full platform docs tree into the student repo. The template should carry the
 high-signal subset students and their coding agents actually need.
+
+This repository is the public builder starter only. Internal platform architecture, persistence,
+security, KMS, infrastructure, and runbook docs remain private in `plannerxchange-platform` and are
+not duplicated here.
