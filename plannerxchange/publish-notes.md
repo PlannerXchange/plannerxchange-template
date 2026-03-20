@@ -37,6 +37,14 @@ Review guidance:
 - Day 1 external AI-provider or third-party egress of PX client data is not allowed
 - apps that pass the full PlannerXchange governance and client-data safety review may earn a `PX Approved` trust badge
 - PlannerXchange may show badges such as `Portable Data` or `App-Managed Data` in the catalog
+- apps that appear not to be white-label-ready may receive non-blocking risk findings
+
+White-label readiness signals:
+
+- if the app renders branded chrome, it should request `branding.read`
+- if the app requests `branding.read`, the source should actually consume PlannerXchange branding context
+- avoid hardcoded logo or favicon assets when the app is expected to inherit firm branding
+- if the app shows a logo, keep sizing responsive so firm-uploaded assets still look correct even when proportions differ from the mock preview
 
 First workshop-friendly path:
 

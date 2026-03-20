@@ -73,6 +73,19 @@ Provenance-aware UI guidance:
 - show the `asOf` date when the app is rendering partner-sourced or imported information
 - keep partner-sourced labels visible so users do not confuse third-party reference facts with app-authored recommendations or projections
 
+White-label UI guidance:
+
+- if the app renders its own branded header, nav, summary card, or disclosure area, consume PX branding and legal context instead of hardcoding one static brand
+- if the app shows a logo, size it responsively rather than assuming one exact width or aspect ratio
+- expect PX branding to include `logoUrl`, `faviconUrl`, `primaryColor`, `secondaryColor`, `fontColor`, and `supportEmail`
+- missing logo or favicon should not break the app; fall back cleanly to text or a simple mark
+
+Brand asset standards:
+
+- logo: `svg` preferred, transparent `png` fallback, recommended minimum width `512px`, max `1 MB`
+- favicon: square `svg`, `png`, or `ico`, recommended raster minimum `256x256`, max `256 KB`
+- colors: use hex values and expect a platform-provided `fontColor` when the app renders colored surfaces
+
 Before adding data writes, decide:
 
 1. Is this PX canonical data or app-owned / partner-managed data?

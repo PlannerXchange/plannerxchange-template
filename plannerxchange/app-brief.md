@@ -20,3 +20,4 @@ Questions:
 7. Does the app need stricter intra-firm scoping, such as limiting each advisor to their own book of business?
 8. Should those stricter intra-firm boundaries be configurable by firm users or admins rather than hardcoded?
 9. Does the app depend on external integrations such as Wealthbox, Plaid, Altruist, Holistiplan, or another partner system?
+10. Does the app render branded chrome, logos, or disclosure text that should inherit PlannerXchange private-label settings?

@@ -26,6 +26,7 @@ export interface BrandingProfile {
   firmId?: string;
   primaryColor: string;
   secondaryColor?: string;
+  fontColor?: string;
   logoUrl?: string;
   faviconUrl?: string;
   supportEmail?: string;

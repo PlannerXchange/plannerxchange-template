@@ -1,4 +1,6 @@
 import type { ShellRuntimeContext } from "./plannerxchange";
+import mockFirmFaviconUrl from "./assets/mock-firm-favicon.svg";
+import mockFirmLogoUrl from "./assets/mock-firm-logo.svg";
 
 export const mockRuntimeContext: ShellRuntimeContext = {
   tenantId: "plannerxchange-marketplace",
@@ -17,8 +19,11 @@ export const mockRuntimeContext: ShellRuntimeContext = {
     tenantId: "plannerxchange-marketplace",
     enterpriseId: "plannerxchange-marketplace-enterprise",
     firmId: "friendly-advisor-firm",
-    primaryColor: "#102033",
-    secondaryColor: "#DDA94B",
+    primaryColor: "#e8613c",
+    secondaryColor: "#1a1a2e",
+    fontColor: "#ffffff",
+    logoUrl: mockFirmLogoUrl,
+    faviconUrl: mockFirmFaviconUrl,
     supportEmail: "support@plannerxchange.ai"
   },
   legal: {

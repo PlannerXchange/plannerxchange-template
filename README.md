@@ -92,6 +92,7 @@ when needed.
 - Declare the correct `dataPortabilityMode` before linking the repo.
 - Do not add app-owned login flows.
 - Assume PlannerXchange owns auth, tenant resolution, branding, and disclosures.
+- If the app renders branded chrome, inherit logo, favicon, primary color, secondary color, and font color from PlannerXchange runtime context instead of hardcoding one static brand.
 - Use PlannerXchange APIs and canonical contracts for PX-governed data.
 - Save builder-owned work product such as scenarios, recommendations, questionnaire responses, and projections through approved PX app-data APIs or explicit app-owned persistence.
 - Treat `firmId` as the maximum data boundary for PX canonical data. Stricter intra-firm scoping is fine; broader scope is not.
@@ -99,6 +100,7 @@ when needed.
 - If the app is intentionally nonportable, be explicit about that and avoid requesting PX-canonical scopes you do not need.
 - Do not treat immutable PX reference facts as app-writable just because the app can read them.
 - Keep requested permission scopes minimal.
+- If the app shows a logo, size it responsively because different firms may upload different logo proportions.
 
 ## Files
 

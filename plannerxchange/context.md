@@ -13,6 +13,7 @@ Builder apps should not:
 - implement their own login flow
 - assume control of the top-level domain
 - bypass PlannerXchange publication rules
+- hardcode one firm's logo, favicon, or color palette when the app is meant to inherit PlannerXchange private-label settings
 
 The `framework` field in the manifest is descriptive metadata for review and support context.
 What PlannerXchange actually needs is a shell-compatible web artifact with a stable entry point.
@@ -74,3 +75,5 @@ Important:
 - build to the PX canonical contract when the app needs PX-governed data
 - platform review and shell enablement decisions happen inside PlannerXchange
 - the app should consume PX runtime and data APIs; it should not try to create firms, create users, accept invitations, or own identity provisioning flows
+- if the app renders branded chrome, request `branding.read` and use resolved logo, favicon, primary color, secondary color, and font color values from the runtime context or approved API payloads
+- logo rendering should stay responsive because different firms may upload different aspect ratios and file formats within PX guidance
