@@ -6,6 +6,7 @@ The public `plannerxchange-template` repository should contain exactly this star
 - `README.md`
 - `TEMPLATE_FILES.md`
 - `index.html`
+- `package-lock.json`
 - `package.json`
 - `plannerxchange.app.json`
 - `tsconfig.json`
@@ -22,6 +23,13 @@ The public `plannerxchange-template` repository should contain exactly this star
 - `src/styles.css`
 
 Keep the public template repo intentionally small.
+
+This starter is npm-first. Commit `package-lock.json` so workshop installs, AI-assisted debugging,
+and CI validation resolve the same dependency tree by default.
+
+Generated build output is intentionally not checked into the starter by default.
+Before PlannerXchange publication, builders should run the production build and commit the resulting
+`dist/` directory, including `dist/plannerxchange.publish.json`.
 
 Do not copy:
 

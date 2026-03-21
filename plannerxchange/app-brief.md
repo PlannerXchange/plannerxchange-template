@@ -21,3 +21,4 @@ Questions:
 8. Should those stricter intra-firm boundaries be configurable by firm users or admins rather than hardcoded?
 9. Does the app depend on external integrations such as Wealthbox, Plaid, Altruist, Holistiplan, or another partner system?
 10. Does the app render branded chrome, logos, or disclosure text that should inherit PlannerXchange private-label settings?
+11. What built artifact should PlannerXchange launch for the manifest `entryPoint`, and does the production build emit the matching publish manifest?

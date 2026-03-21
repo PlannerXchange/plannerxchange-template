@@ -12,6 +12,8 @@ export const mockRuntimeContext: ShellRuntimeContext = {
   appId: "starter-app",
   appInstallationId: "starter-installation",
   publicationEnvironment: "dev",
+  appBasename: "/apps/starter-app",
+  initialPath: "/",
   visibility: "private",
   dataPortabilityMode: "plannerxchange_portable",
   permissions: ["tenant.read", "user.read", "branding.read", "legal.read"],

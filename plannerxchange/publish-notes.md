@@ -14,18 +14,24 @@ Important:
 - installation is separate from publication
 - marketplace listing is separate from selective sharing
 - portability is separate from visibility
+- PlannerXchange launches hosted build artifacts from the committed `dist/` directory, not raw source files
 - nonportable apps can still publish, but they should not claim eligibility for the PX portability contract
 - `plannerxchange_portable` means the code is built to PX canonical data contracts
 - builder membership tier and shell enablement decisions are handled inside PlannerXchange, not in this repo
+- the manifest `entryPoint` remains a source path such as `src/plugin.tsx`
+- the build must emit `dist/plannerxchange.publish.json` so PlannerXchange can resolve that source path to the hosted JS module and emitted CSS assets
 
 Student checklist before linking the repo:
 
 - confirm `plannerxchange.app.json` matches the actual app
+- keep `entryPoint` pointed at the source plugin module, not a built filename
 - set the correct `dataPortabilityMode`
 - keep permissions minimal
 - keep the app shell-compatible
 - avoid custom auth or top-level routing
 - write a clear summary and description for the listing
+- run `npm run build`
+- commit and push the generated `dist/` directory, including `dist/plannerxchange.publish.json`
 
 Review guidance:
 
@@ -52,3 +58,9 @@ First workshop-friendly path:
 - publish to `dev`
 - launch and verify in the firm workspace
 - only later consider broader sharing or marketplace listing
+
+Practical artifact rule:
+
+- if `dist/` is missing, publish will fail
+- if `dist/plannerxchange.publish.json` does not map the manifest `entryPoint`, publish will fail
+- if the build emits CSS, PlannerXchange should host and load those emitted CSS assets alongside the JS module

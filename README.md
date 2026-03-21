@@ -7,6 +7,7 @@ It is designed to show the minimum v1 publication shape:
 - `plannerxchange.app.json`
 - a shell-compatible `src/plugin.tsx` entrypoint
 - a local preview host that mounts the plugin with mock PlannerXchange runtime context
+- a production build that emits a publish manifest mapping the source `entryPoint` to the built artifact PlannerXchange will host
 - a `plannerxchange/` markdown context pack for AI-assisted student builds
 
 Required publication metadata should live in `plannerxchange.app.json` whenever possible.
@@ -64,12 +65,21 @@ This starter is now self-contained enough to copy into a separate builder reposi
 It intentionally includes a local `src/plannerxchange.ts` contract shim so the public template repo
 does not depend on unpublished internal packages.
 
+This starter is npm-first and should keep `package-lock.json` committed so installs stay repeatable
+across workshop runs, AI-assisted coding sessions, and future CI checks.
+
+The production build emits `dist/plannerxchange.publish.json`.
+
+That file maps the manifest's source `entryPoint` such as `src/plugin.tsx` to the built JS module and
+any emitted CSS assets that PlannerXchange should host and launch.
+
 ## Local development
 
 1. Copy this folder into the target builder repo.
 2. Run `npm install`.
 3. Run `npm run dev`.
 4. Open the Vite preview and confirm the plugin renders with the mock shell context.
+5. Run `npm run build` before publication to generate `dist/` and `dist/plannerxchange.publish.json`.
 
 ## Student workflow
 
@@ -79,8 +89,9 @@ Recommended workshop flow:
 2. student reads the `plannerxchange/` markdown files first
 3. student uses an AI coding agent against the local repo
 4. student builds an app aligned to `plannerxchange.app.json`
-5. student commits and pushes to their own repository
-6. student logs into PlannerXchange and links the repository for governed publication
+5. student runs `npm run build`
+6. student commits and pushes source plus the generated `dist/` output
+7. student logs into PlannerXchange and links the repository for governed publication
 
 The intended UI should require little more than the GitHub URL. PlannerXchange should read the
 required metadata from `plannerxchange.app.json` and only ask for optional merchandising overrides
@@ -89,9 +100,15 @@ when needed.
 ## Builder checklist
 
 - Keep `plannerxchange.app.json` aligned with `src/plugin.tsx`.
+- Keep `entryPoint` source-oriented, such as `src/plugin.tsx`; do not replace it with a hashed build file.
+- Run `npm run build` before publish and commit the generated `dist/` output.
+- Do not hand-edit `dist/plannerxchange.publish.json`; let the build regenerate it.
 - Declare the correct `dataPortabilityMode` before linking the repo.
 - Do not add app-owned login flows.
 - Assume PlannerXchange owns auth, tenant resolution, branding, and disclosures.
+- Configure your router `basename` to the `appBasename` value from the shell context props (`/apps/<your-app-slug>`). Use `BrowserRouter` (or Vue Router with `createWebHistory`) — not `MemoryRouter` — so deep links and browser history work correctly.
+- Do not add auth routes, sign-in pages, or routes outside your `/apps/<appSlug>` prefix.
+- Initialize your router at the `initialPath` context prop so deep links land on the correct view.
 - If the app renders branded chrome, inherit logo, favicon, primary color, secondary color, and font color from PlannerXchange runtime context instead of hardcoding one static brand.
 - Use PlannerXchange APIs and canonical contracts for PX-governed data.
 - Save builder-owned work product such as scenarios, recommendations, questionnaire responses, and projections through approved PX app-data APIs or explicit app-owned persistence.
@@ -112,6 +129,7 @@ when needed.
 - `src/plugin.tsx`: PlannerXchange plugin entrypoint
 - `src/main.tsx`: local preview host
 - `src/dev-context.ts`: mock runtime context for local development
+- `dist/plannerxchange.publish.json`: generated publish manifest that maps source `entryPoint` values to built artifact files
 
 ## Scope
 

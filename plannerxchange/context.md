@@ -18,6 +18,13 @@ Builder apps should not:
 The `framework` field in the manifest is descriptive metadata for review and support context.
 What PlannerXchange actually needs is a shell-compatible web artifact with a stable entry point.
 
+Important `entryPoint` rule:
+
+- keep `entryPoint` source-oriented, for example `src/plugin.tsx`
+- do not change it to a hashed build filename
+- the production build should emit `dist/plannerxchange.publish.json`
+- PlannerXchange resolves the source `entryPoint` through that generated publish manifest to the hosted JS module and any emitted CSS assets
+
 Common frontend values:
 
 - `react`
@@ -74,6 +81,48 @@ Important:
 - this repo does not encode the builder's PlannerXchange membership tier
 - build to the PX canonical contract when the app needs PX-governed data
 - platform review and shell enablement decisions happen inside PlannerXchange
+- shell publication launches built artifacts from `dist/`, not raw source files from `src/`
 - the app should consume PX runtime and data APIs; it should not try to create firms, create users, accept invitations, or own identity provisioning flows
 - if the app renders branded chrome, request `branding.read` and use resolved logo, favicon, primary color, secondary color, and font color values from the runtime context or approved API payloads
 - logo rendering should stay responsive because different firms may upload different aspect ratios and file formats within PX guidance
+
+## In-app routing
+
+PlannerXchange mounts your app at a shell-scoped path prefix:
+
+```
+/apps/<appSlug>/<...internalPath>
+```
+
+The shell resolves auth, tenant context, firm context, and app installation state before mounting the plugin. Everything after `/apps/<appSlug>` is your app's internal routing space. Multi-page apps with full navigation hierarchies are expected and supported.
+
+The shell passes two props into your plugin entry point:
+
+- `appBasename` — the full scoped prefix (e.g. `/apps/household-manager`); use this as your router `basename`
+- `initialPath` — the current in-app path (e.g. `/households/abc123`); initialize your router at this path so deep links work correctly
+
+Do not hardcode the prefix in your source. Always read `appBasename` from the context props.
+
+For **React Router v6**:
+
+```tsx
+createBrowserRouter(routes, { basename: context.appBasename })
+// or
+<BrowserRouter basename={context.appBasename}>
+```
+
+For **Vue Router**:
+
+```js
+createRouter({ history: createWebHistory(context.appBasename), routes })
+```
+
+Rules:
+
+- Do not claim routes outside `/apps/<appSlug>/*`
+- Do not add login, sign-up, or auth routes — the shell owns these
+- Do not navigate outside the scoped prefix
+- Use `BrowserRouter` with `basename` (not `MemoryRouter`) so deep links and browser history work correctly
+- Use relative paths in `<Link>` and `navigate()` calls — do not hardcode the prefix in href values
+
+Deep links work naturally. Users can bookmark `/apps/my-tool/households/abc123/accounts` and the shell will mount the app at the correct route.

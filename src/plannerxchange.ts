@@ -75,6 +75,18 @@ export interface ShellRuntimeContext {
   permissions: AppPermissionScope[];
   branding: BrandingProfile;
   legal: LegalProfile;
+  /**
+   * The shell-scoped path prefix for this app, e.g. "/apps/my-tool".
+   * Use this as the `basename` for your client-side router so in-app
+   * navigation stays within the shell-owned URL space.
+   */
+  appBasename: string;
+  /**
+   * The current in-app path relative to `appBasename`, e.g. "/households/abc123".
+   * Initialize your router at this path so deep links render the correct view.
+   * Defaults to "/" when the user navigates to the app root.
+   */
+  initialPath: string;
 }
 
 export interface PlannerXchangePluginModule {
