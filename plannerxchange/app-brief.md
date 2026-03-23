@@ -16,9 +16,10 @@ Questions:
 3. Does this app persist data at all?
 4. If it persists data, is that data PX canonical data or app-owned / partner-managed data?
 5. If it saves builder-owned work product, should that live in PX app-data or outside PX?
-6. Does the app need access to client, account, household, or other regulated data?
+6. Does the app need canonical data? PlannerXchange provides household, client, account, position, transaction, cost basis, security, and model data out-of-the-box. Which entities and permission scopes does the app need? See `data-contract.md` for available scopes and fields.
 7. Does the app need stricter intra-firm scoping, such as limiting each advisor to their own book of business?
 8. Should those stricter intra-firm boundaries be configurable by firm users or admins rather than hardcoded?
 9. Does the app depend on external integrations such as Wealthbox, Plaid, Altruist, Holistiplan, or another partner system?
 10. Does the app render branded chrome, logos, or disclosure text that should inherit PlannerXchange private-label settings?
 11. What built artifact should PlannerXchange launch for the manifest `entryPoint`, and does the production build emit the matching publish manifest?
+12. Does the app need to send outbound email (for example, delivering a questionnaire link, a completed-workflow confirmation, or a report)? If yes, declare `email.send` in the manifest permissions and read `docs/builder-spec/outbound-email-v1.md` before writing any email-related code.

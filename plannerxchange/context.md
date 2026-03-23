@@ -58,6 +58,13 @@ Boundary rule:
 - `firmId` is the maximum PX canonical data boundary
 - builders may impose stricter intra-firm scoping such as per-`advisor_user` access
 - stricter intra-firm scoping should preferably be configurable by the builder, firm, or user path rather than hardcoded as one fixed visibility model
+
+Outbound email:
+
+- if the app sends email (questionnaire links, completion confirmations, report delivery), declare `email.send` in the manifest permissions
+- call `POST /app-email/send` with the idToken from the active session and the `appInstallationId` from `ShellRuntimeContext`
+- the app does not manage sending credentials or provider configuration — PlannerXchange owns that
+- see `docs/builder-spec/outbound-email-v1.md` for the full API contract and required manifest declaration
 - builders should never assume cross-firm data access
 
 Data provenance model:
@@ -75,6 +82,24 @@ Reference facts versus work product:
 
 - immutable PX or partner reference facts such as account identifiers, positions, and transactions should not be treated as generically app-writable
 - builder-owned work product such as recommendations, questionnaire responses, scenarios, and projections should be saved separately through approved PX app-data APIs or explicit app-owned persistence
+
+## Canonical data available out-of-the-box
+
+PlannerXchange maintains canonical firm data that apps can read without building their own data layer:
+
+- **households** — top-level client groupings
+- **clients** — individual people (with PII protections; summary vs sensitive scopes)
+- **accounts** — financial accounts with balances, custodian info, and ownership
+- **positions** — point-in-time holdings within accounts (date-specific)
+- **transactions** — trade and cash activity (date-specific)
+- **cost basis** — tax-lot records (date-specific)
+- **securities** — platform-level security master with firm-specific overrides
+- **models** — target allocation templates with security weights
+- **sleeves** — composite of models
+
+Firms import this data through CSV upload or manual entry in the PlannerXchange shell. Builder apps declare permission scopes in the manifest and read the data through governed `/canonical/` API routes.
+
+For entity fields, API routes, scopes, and field-level required/optional guidance, see `data-contract.md` and `docs/builder-spec/canonical-data-api-v1.md`.
 
 Important:
 

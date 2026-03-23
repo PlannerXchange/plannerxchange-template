@@ -18,7 +18,8 @@ export type AppPermissionScope =
   | "branding.read"
   | "legal.read"
   | "app_data.read"
-  | "app_data.write";
+  | "app_data.write"
+  | "email.send";
 
 export interface BrandingProfile {
   tenantId: string;
