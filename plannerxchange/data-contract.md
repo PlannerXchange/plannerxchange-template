@@ -197,11 +197,11 @@ Fields marked **required** are guaranteed non-null on every record. Optional fie
 
 **Account:** `id`, `householdId`, `accountNumber`, `accountName`, `accountStatus`, `ownerClientIds` are required. `custodianName`, `accountType`, `taxType`, `accountBalance`, `balanceAsOfDate` are optional.
 
-**Position:** `id`, `accountId`, `asOfDate` are required. At least one of `symbol`/`cusip` is present. `quantity`, `price`, `marketValue`, `securityName` are optional.
+**Position:** `id`, `accountId`, `asOfDate` are required. At least one of `symbol`/`cusip` is present. `quantity`, `price`, `marketValue`, `securityName`, `securityType` are optional.
 
-**Transaction:** `id`, `accountId`, `date` are required. `symbol`, `description`, `amount`, `quantity`, `price`, `displayTransactionType` are optional.
+**Transaction:** `id`, `accountId`, `date` are required. `symbol`, `cusip`, `description`, `amount`, `quantity`, `price`, `displayTransactionType`, `detailedTransactionType`, `tradeDate`, `settleDate`, `netAmount`, `fees`, `commission`, `status` are optional.
 
-**Cost basis:** `id`, `accountId`, `asOfDate` are required. `symbol`, `acquisitionDate`, `quantity`, `costBasisAmount`, `currentValue`, `gainLoss`, `holdingPeriod` are optional.
+**Cost basis:** `id`, `accountId`, `asOfDate` are required. `symbol`, `cusip`, `description`, `acquisitionDate`, `quantity`, `costBasisAmount`, `currentValue`, `gainLoss`, `holdingPeriod`, `lotId` are optional.
 
 **Security:** `id`, `securityName`, `status`, `verificationStatus` are required. `ticker`, `cusip`, `symbol`, `securityType`, `fees` are optional. When a firm override exists, `displayName`, `returnExpectation`, `assetClassId`, `benchmark` are included in a `firmOverride` object.
 
@@ -214,6 +214,7 @@ Fields marked **required** are guaranteed non-null on every record. Optional fie
 - if the app needs to save derived work product (recommendations, projections, scenarios), use the PX app-data API (see `docs/builder-spec/app-data-api-v1.md`)
 - do not cache canonical data in IndexedDB or long-lived local storage — re-fetch from the API to ensure freshness
 - do not export or send PX canonical client data to external AI providers or third parties in Day 1
-- handle null on all optional fields — not every firm imports every field
+- handle null on all optional fields — not every firm imports every field, and different custodian exports include different columns
+- firms populate canonical data through PlannerXchange's CSV import wizard, which supports common custodian formats (Altruist, Schwab, Fidelity, etc.) with fuzzy column matching — but data completeness depends on what the firm uploaded
 - respect `verificationStatus` on securities: `unverified` or `review_needed` securities may have incomplete or incorrect metadata
 - if the app renders household or account totals, the firm's data may be partial — do not imply completeness unless the firm confirms it
