@@ -5,7 +5,7 @@ Use these rules while building:
 - treat PlannerXchange as the source of auth and session context
 - consume runtime context from the shell/plugin contract
 - do not invent separate planner identity or tenant models
-- do not treat firm creation, user creation, invitation acceptance, or membership assignment as app-owned builder responsibilities
+- do not treat firm creation, user creation, invitation acceptance, membership assignment, invite-link handling, email verification, or initial password setup as app-owned builder responsibilities
 - assume PX canonical data contracts and governed APIs are stricter than standalone frontend code
 - decide early whether the app is `plannerxchange_portable` or `app_managed_nonportable`
 
@@ -78,6 +78,7 @@ Outbound email guidance:
 - if the app needs to send transactional email (questionnaire links, workflow confirmations, report delivery), declare `email.send` in the manifest `permissions` array
 - call `POST /app-email/send` through the PlannerXchange API — the app never holds sending credentials
 - PlannerXchange resolves the sending identity: firm-verified address if configured, otherwise `noreply@plannerxchange.ai`
+- do not use the outbound email API for identity invitations, verification links, password setup, password reset, or onboarding access links; those are PlannerXchange-owned auth flows
 - pass the recipient's email from PX canonical client data when available; require `client.summary.read` for that access
 - pass `clientUserId` and `appRecordId` in the email request for audit traceability
 - the reply-to address defaults to the active user's email; override it explicitly if the firm wants replies routed elsewhere

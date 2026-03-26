@@ -29,6 +29,7 @@ Student checklist before linking the repo:
 - keep permissions minimal
 - keep the app shell-compatible
 - avoid custom auth or top-level routing
+- avoid custom invite, verification, password-setup, password-reset, or onboarding-entry UX
 - write a clear summary and description for the listing
 - run `npm run build`
 - commit and push the generated `dist/` directory, including `dist/plannerxchange.publish.json`
@@ -38,6 +39,7 @@ Review guidance:
 - universal security and governance checks apply to every app
 - apps built to PX canonical data contracts get stricter checks for PX data access patterns
 - nonportable apps may use their own backend, and they may still read approved PX canonical data, but they must not request PX-canonical scopes casually
+- app-owned identity UX such as custom invite redemption, email verification, or password-setup flows will be treated as governance findings because PlannerXchange owns auth and onboarding
 - apps that save builder-owned work product inside PX should use the governed PX app-data contract rather than trying to mutate immutable PX reference facts
 - apps that touch client data, PII, or external egress paths should expect stricter review
 - Day 1 external AI-provider or third-party egress of PX client data is not allowed

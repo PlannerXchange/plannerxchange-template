@@ -11,6 +11,7 @@ PlannerXchange owns:
 Builder apps should not:
 
 - implement their own login flow
+- implement invite redemption, email verification, password setup, password reset, or onboarding entry flows
 - assume control of the top-level domain
 - bypass PlannerXchange publication rules
 - hardcode one firm's logo, favicon, or color palette when the app is meant to inherit PlannerXchange private-label settings
@@ -67,6 +68,15 @@ Outbound email:
 - see `docs/builder-spec/outbound-email-v1.md` for the full API contract and required manifest declaration
 - builders should never assume cross-firm data access
 
+- do not use app email for sign-in links, invite acceptance, verification, password setup, password reset, or identity onboarding
+
+Auth lifecycle:
+
+- PlannerXchange owns the identity journey before your plugin mounts.
+- Founder self-onboarding, invited-advisor onboarding, and future invited-client onboarding are shell-managed platform flows.
+- PlannerXchange may send private-labeled invitation emails on behalf of a firm, but builder apps should treat those identity emails as platform-owned, not app-owned.
+- Once your app renders, assume the shell has already resolved session, firm membership, invite state, and branding context.
+
 Data provenance model:
 
 - PX canonical data
@@ -108,6 +118,7 @@ Important:
 - platform review and shell enablement decisions happen inside PlannerXchange
 - shell publication launches built artifacts from `dist/`, not raw source files from `src/`
 - the app should consume PX runtime and data APIs; it should not try to create firms, create users, accept invitations, or own identity provisioning flows
+- the app should not assume responsibility for invite-link UX, email-verification UX, or initial password choice UX
 - if the app renders branded chrome, request `branding.read` and use resolved logo, favicon, primary color, secondary color, and font color values from the runtime context or approved API payloads
 - logo rendering should stay responsive because different firms may upload different aspect ratios and file formats within PX guidance
 
@@ -146,6 +157,7 @@ Rules:
 
 - Do not claim routes outside `/apps/<appSlug>/*`
 - Do not add login, sign-up, or auth routes — the shell owns these
+- Do not add invite, verify-email, set-password, or reset-password routes; the shell owns these too
 - Do not navigate outside the scoped prefix
 - Use `BrowserRouter` with `basename` (not `MemoryRouter`) so deep links and browser history work correctly
 - Use relative paths in `<Link>` and `navigate()` calls — do not hardcode the prefix in href values

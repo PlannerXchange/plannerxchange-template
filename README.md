@@ -106,6 +106,7 @@ when needed.
 - Declare the correct `dataPortabilityMode` before linking the repo.
 - Do not add app-owned login flows.
 - Assume PlannerXchange owns auth, tenant resolution, branding, and disclosures.
+- Do not add app-owned invite links, email-verification flows, password-setup flows, password-reset flows, or onboarding entry flows.
 - Configure your router `basename` to the `appBasename` value from the shell context props (`/apps/<your-app-slug>`). Use `BrowserRouter` (or Vue Router with `createWebHistory`) — not `MemoryRouter` — so deep links and browser history work correctly.
 - Do not add auth routes, sign-in pages, or routes outside your `/apps/<appSlug>` prefix.
 - Initialize your router at the `initialPath` context prop so deep links land on the correct view.
@@ -118,6 +119,12 @@ when needed.
 - Do not treat immutable PX reference facts as app-writable just because the app can read them.
 - Keep requested permission scopes minimal.
 - If the app shows a logo, size it responsively because different firms may upload different logo proportions.
+
+Auth lifecycle reminder:
+
+- PlannerXchange owns founder onboarding, invited-advisor onboarding, and future invited-client onboarding.
+- PlannerXchange may send private-labeled invitation emails on behalf of a firm, but those identity emails are platform-owned, not app-owned.
+- If a user reaches your plugin, assume the shell already handled sign-in, invite redemption, email verification policy, and initial password choice.
 
 ## Files
 
