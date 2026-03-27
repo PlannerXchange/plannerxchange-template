@@ -79,7 +79,7 @@ Outbound email guidance:
 - call `POST /app-email/send` through the PlannerXchange API — the app never holds sending credentials
 - PlannerXchange resolves the sending identity: firm-verified address if configured, otherwise `noreply@plannerxchange.ai`
 - do not use the outbound email API for identity invitations, verification links, password setup, password reset, or onboarding access links; those are PlannerXchange-owned auth flows
-- pass the recipient's email from PX canonical client data when available; require `client.summary.read` for that access
+- pass the recipient's email from PX canonical client data when available; require `canonical.client.sensitive.read` if the app auto-fills the email from PX canonical client detail
 - pass `clientUserId` and `appRecordId` in the email request for audit traceability
 - the reply-to address defaults to the active user's email; override it explicitly if the firm wants replies routed elsewhere
 - PlannerXchange appends the firm's disclosure footer to all outbound HTML email automatically
@@ -139,15 +139,33 @@ Declare these in the manifest `permissions` array. Only request what the app act
 
 | Scope | Grants access to |
 |-------|-----------------|
-| `household.read` | Household list and detail |
-| `client.summary.read` | Client list with display name, status, flags — no raw PII |
-| `client.sensitive.read` | Full client detail including name, DOB, email, phone, address, SSN (masked) |
-| `account.read` | Account list, detail, and balance |
-| `position.read` | Positions within an account |
-| `transaction.read` | Transactions within an account |
-| `cost_basis.read` | Cost basis lots within an account |
-| `security.read` | Platform security master with firm overrides merged |
-| `model.read` | Models and their holdings |
+| `canonical.household.read` | Household list and detail |
+| `canonical.client.summary.read` | Client list with display name, status, flags — no raw PII |
+| `canonical.client.sensitive.read` | Full client detail including name, DOB, email, phone, and address |
+| `canonical.account.read` | Account list, detail, and balance |
+| `canonical.position.read` | Positions within an account |
+| `canonical.transaction.read` | Transactions within an account |
+| `canonical.cost_basis.read` | Cost basis lots within an account |
+| `canonical.security.read` | Platform security master with firm overrides merged |
+| `canonical.model.read` | Models and their holdings |
+| `canonical.sleeve.read` | Sleeves and sleeve allocations |
+
+### Installed-app request transport
+
+All builder-facing canonical routes require:
+
+- the active session bearer token
+- `x-plannerxchange-app-installation-id` sourced from `ShellRuntimeContext.appInstallationId`
+
+Temporary compatibility note:
+
+- `appInstallationId` query-string fallback may still work in some routes while SDK helpers stay minimal
+- student builders should treat the header as the required path for new code
+
+Shell-only boundary:
+
+- CSV import, custom-field admin, category mappings, security-allocation editing, and auto-classify are shell-owned workflows
+- student apps should only target the documented canonical read routes below unless PlannerXchange later publishes a new builder-facing contract
 
 ### API routes
 
@@ -155,21 +173,23 @@ All routes require the active session token. Responses are scoped to the current
 
 | Route | Scope | Description |
 |-------|-------|-------------|
-| `GET /canonical/households` | `household.read` | List households |
-| `GET /canonical/households/{id}` | `household.read` | Household detail |
-| `GET /canonical/clients` | `client.summary.read` | List clients (summary) |
-| `GET /canonical/households/{id}/clients` | `client.summary.read` | Clients in a household |
-| `GET /canonical/clients/{id}` | `client.sensitive.read` | Full client detail |
-| `GET /canonical/accounts` | `account.read` | List accounts |
-| `GET /canonical/households/{id}/accounts` | `account.read` | Accounts in a household |
-| `GET /canonical/accounts/{id}` | `account.read` | Account detail |
-| `GET /canonical/accounts/{id}/positions` | `position.read` | Positions (filter by `asOfDate`) |
-| `GET /canonical/accounts/{id}/transactions` | `transaction.read` | Transactions (filter by `startDate`, `endDate`) |
-| `GET /canonical/accounts/{id}/cost-basis` | `cost_basis.read` | Cost basis lots (filter by `asOfDate`) |
-| `GET /canonical/securities` | `security.read` | Securities (merged with firm overrides) |
-| `GET /canonical/securities/{id}` | `security.read` | Security detail (merged) |
-| `GET /canonical/models` | `model.read` | Models list |
-| `GET /canonical/models/{id}` | `model.read` | Model detail with holdings |
+| `GET /canonical/households` | `canonical.household.read` | List households |
+| `GET /canonical/households/{householdId}` | `canonical.household.read` | Household detail |
+| `GET /canonical/clients` | `canonical.client.summary.read` | List clients (summary) |
+| `GET /canonical/households/{householdId}/clients` | `canonical.client.summary.read` | Clients in a household |
+| `GET /canonical/households/{householdId}/clients/{clientId}` | `canonical.client.sensitive.read` | Full client detail |
+| `GET /canonical/accounts` | `canonical.account.read` | List accounts |
+| `GET /canonical/households/{householdId}/accounts` | `canonical.account.read` | Accounts in a household |
+| `GET /canonical/accounts/{accountId}` | `canonical.account.read` | Account detail |
+| `GET /canonical/accounts/{accountId}/positions` | `canonical.position.read` | Positions (filter by `asOfDate`) |
+| `GET /canonical/accounts/{accountId}/transactions` | `canonical.transaction.read` | Transactions (filter by `startDate`, `endDate`) |
+| `GET /canonical/accounts/{accountId}/cost-basis` | `canonical.cost_basis.read` | Cost basis lots (filter by `asOfDate`) |
+| `GET /canonical/securities` | `canonical.security.read` | Securities (merged with firm overrides) |
+| `GET /canonical/securities/{securityId}` | `canonical.security.read` | Security detail (merged) |
+| `GET /canonical/models` | `canonical.model.read` | Models list |
+| `GET /canonical/models/{modelId}/holdings` | `canonical.model.read` | Model holdings |
+| `GET /canonical/sleeves` | `canonical.sleeve.read` | Sleeves list |
+| `GET /canonical/sleeves/{sleeveId}/allocations` | `canonical.sleeve.read` | Sleeve allocations |
 
 ### Pagination
 
@@ -192,11 +212,13 @@ Fields marked **required** are guaranteed non-null on every record. Optional fie
 
 **Household:** `id`, `name`, `status` are required. `taxFilingStatus`, `taxState`, `notes`, `assignedAdvisorUserIds`, `customFields` are optional.
 
-**Client (summary):** `id`, `householdId`, `displayName`, `status` are returned. Raw PII fields require `client.sensitive.read`.
+**Client (summary):** `id`, `householdId`, `displayName`, `status` are returned. Raw PII fields require `canonical.client.sensitive.read`.
 
-**Client (sensitive):** `firstName`, `lastName` are required. `dateOfBirth`, `emailPrimary`, `phonePrimary`, address fields, `ssnTin` (always masked) are optional.
+**Client (sensitive):** `firstName`, `lastName` are required. `dateOfBirth`, `emailPrimary`, `phonePrimary`, and address fields are optional. `ssnTin` is not returned in builder-facing canonical API responses.
 
 **Account:** `id`, `householdId`, `accountNumber`, `accountName`, `accountStatus`, `ownerClientIds` are required. `custodianName`, `accountType`, `taxType`, `accountBalance`, `balanceAsOfDate` are optional.
+
+`accountNumber` should be treated as masked display data by default. Student apps should not assume full account numbers are available or render any account number field as raw unmasked text.
 
 **Position:** `id`, `accountId`, `asOfDate` are required. At least one of `symbol`/`cusip` is present. `quantity`, `price`, `marketValue`, `securityName`, `securityType` are optional.
 
@@ -206,16 +228,20 @@ Fields marked **required** are guaranteed non-null on every record. Optional fie
 
 **Security:** `id`, `securityName`, `status`, `verificationStatus` are required. `ticker`, `cusip`, `symbol`, `securityType`, `fees` are optional. When a firm override exists, `displayName`, `returnExpectation`, `assetClassId`, `benchmark` are included in a `firmOverride` object.
 
-**Model:** `id`, `name`, `status` are required. `description`, `assetManager` are optional. Detail responses include `holdings` array with `{ securityId, ticker, weight }`.
+**Model:** `id`, `name`, `status` are required. `description`, `assetManager` are optional. Holdings are read from the separate `/canonical/models/{modelId}/holdings` route.
+
+**Sleeve:** `id`, `name`, `status` are required. `description` is optional. Allocation responses include `{ modelId, weight }` items.
 
 ### Rules for builder apps consuming canonical data
 
 - canonical data is read-only for builder apps in v1
 - do not attempt to create, update, or delete canonical records — those operations belong to the PlannerXchange shell
 - if the app needs to save derived work product (recommendations, projections, scenarios), use the PX app-data API (see `docs/builder-spec/app-data-api-v1.md`)
+- app requests should always include `x-plannerxchange-app-installation-id` from the shell runtime context
 - do not cache canonical data in IndexedDB or long-lived local storage — re-fetch from the API to ensure freshness
 - do not export or send PX canonical client data to external AI providers or third parties in Day 1
 - handle null on all optional fields — not every firm imports every field, and different custodian exports include different columns
 - firms populate canonical data through PlannerXchange's CSV import wizard, which supports common custodian formats (Altruist, Schwab, Fidelity, etc.) with fuzzy column matching — but data completeness depends on what the firm uploaded
 - respect `verificationStatus` on securities: `unverified` or `review_needed` securities may have incomplete or incorrect metadata
+- do not build student-app workflows around shell-only canonical admin routes such as import setup, custom fields, category mappings, or auto-classify
 - if the app renders household or account totals, the firm's data may be partial — do not imply completeness unless the firm confirms it

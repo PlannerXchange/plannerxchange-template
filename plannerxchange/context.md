@@ -111,9 +111,24 @@ Firms import this data through CSV upload or manual entry in the PlannerXchange 
 
 For entity fields, API routes, scopes, and field-level required/optional guidance, see `data-contract.md` and `docs/builder-spec/canonical-data-api-v1.md`.
 
+Canonical request transport:
+
+- for builder-facing API calls beyond `/session` and `/shell/bootstrap`, send `x-plannerxchange-app-installation-id` from `ShellRuntimeContext.appInstallationId`
+- `appInstallationId` query-string fallback exists only as temporary compatibility; new app code should prefer the header
+- shell-only canonical admin routes such as import setup, custom-field admin, category mappings, and auto-classify are not part of the student app contract
+
+Marketplace billing boundary:
+
+- published app code should not own Stripe checkout, payout-account setup, coupon creation, refund issuance, or payout-ledger accounting
+- PlannerXchange shell owns app pricing-plan configuration, entitlements, coupon and refund authorization, and commercial access decisions
+- Stripe-hosted surfaces launched from PlannerXchange handle payout-account-native operations such as connected-account onboarding, bank details, and tax profile management
+- app code should rely on PlannerXchange app access and entitlements rather than direct Stripe state to decide whether a paid feature is available
+- quantity-based app pricing such as `per_account_monthly` and `per_client_monthly` only makes sense when PlannerXchange can govern those counts from canonical data
+
 Important:
 
 - this repo does not encode the builder's PlannerXchange membership tier
+- Explorer-tier builders should assume no PlannerXchange-hosted persistence and no portable canonical-data participation until they upgrade into a paid tier that enables it
 - build to the PX canonical contract when the app needs PX-governed data
 - platform review and shell enablement decisions happen inside PlannerXchange
 - shell publication launches built artifacts from `dist/`, not raw source files from `src/`

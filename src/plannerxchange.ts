@@ -8,12 +8,25 @@ export type AppVisibility =
 export type AppDataPortabilityMode =
   | "plannerxchange_portable"
   | "app_managed_nonportable";
+// Legacy summary-safe client-user routes and current canonical entity routes
+// use different scope families. Student apps should prefer the `canonical.*`
+// scopes when targeting `/canonical/*` APIs.
 export type AppPermissionScope =
   | "tenant.read"
   | "user.read"
   | "household.read"
   | "client.summary.read"
   | "client.sensitive.read"
+  | "canonical.household.read"
+  | "canonical.client.summary.read"
+  | "canonical.client.sensitive.read"
+  | "canonical.account.read"
+  | "canonical.position.read"
+  | "canonical.transaction.read"
+  | "canonical.cost_basis.read"
+  | "canonical.security.read"
+  | "canonical.model.read"
+  | "canonical.sleeve.read"
   | "account.read"
   | "position.read"
   | "transaction.read"
