@@ -59,7 +59,7 @@ If you have access to the PlannerXchange platform repo, review the corresponding
 
 The template context pack also includes current guidance for:
 
-- year-scoped household tax data as a PlannerXchange canonical domain direction
+- household tax reads through household summary fields plus year-scoped tax-filing records
 - provider-scoped external identity so households, clients, and accounts can support multiple external mappings over time
 
 ## Current status

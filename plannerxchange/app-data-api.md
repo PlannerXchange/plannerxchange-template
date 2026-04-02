@@ -1,0 +1,239 @@
+# PlannerXchange App Data API
+
+This document defines the builder-facing write contract for PlannerXchange-hosted app-owned work product.
+
+It is separate from the canonical-data read contract. Builder apps read canonical reference facts and write builder-owned work product through different API families.
+
+## Core rule
+
+Immutable or reference facts (accounts, positions, transactions, tax lots) are read-only through canonical data routes. Builder-owned work product (recommendations, scenario runs, questionnaire responses, projections, notes) is written through the app-data API.
+
+## Availability
+
+- Explorer-tier builders should assume no PlannerXchange-hosted app-data persistence
+- Externally hosted showcase apps should use their own persistence
+- Shell-published apps on paid tiers may use this contract when the tier entitles PlannerXchange-hosted persistence
+
+## Permission scopes
+
+| Scope | Purpose |
+|-------|---------|
+| `app_data.read` | Read app-data records for the current app and firm |
+| `app_data.write` | Create and update app-data records for the current app and firm |
+
+These are separate from canonical data scopes.
+
+## Record envelope
+
+Every app-data record has this shape:
+
+```json
+{
+  "recordId": "appdata_123",
+  "recordType": "recommendation_set",
+  "title": "2026 rebalance proposal",
+  "status": "draft",
+  "schemaVersion": 1,
+  "appId": "app_rebalancer",
+  "appInstallationId": "install_123",
+  "firmId": "firm_123",
+  "clientUserId": "client_456",
+  "householdId": null,
+  "accountId": null,
+  "sourceRefs": [
+    {
+      "sourceType": "canonical_account",
+      "sourceId": "acct_123",
+      "asOf": "2026-03-19T15:04:05Z"
+    },
+    {
+      "sourceType": "integration_exposed",
+      "sourceSystem": "altruist",
+      "sourceId": "portfolio_789",
+      "asOf": "2026-03-19T15:04:05Z"
+    }
+  ],
+  "payload": {
+    "summary": "Shift 8% from large-cap growth to short-duration treasuries.",
+    "recommendations": []
+  },
+  "createdAt": "2026-03-19T15:04:05Z",
+  "updatedAt": "2026-03-19T15:04:05Z",
+  "createdByUserId": "user_123",
+  "updatedByUserId": "user_123"
+}
+```
+
+## Source references
+
+The `sourceRefs` array tracks which data inputs were used to produce this work product. This enables provenance tracking, export, and future promotion to canonical data.
+
+Allowed source categories:
+
+| Category | Meaning |
+|----------|---------|
+| `canonical_*` | PlannerXchange canonical inputs (e.g. `canonical_account`, `canonical_position`) |
+| `integration_exposed` | Partner-hosted inputs surfaced through PlannerXchange integrations |
+| `app_owned_upload` | App-owned files or uploads |
+| `manual_entry` | User-entered data |
+
+Each source ref should include:
+
+- `sourceType` — category identifier
+- `sourceId` — the entity ID or resource key
+- `sourceSystem` — (for `integration_exposed`) the integration partner name
+- `asOf` — ISO timestamp of the data snapshot used
+
+## Recommended record types
+
+| Record type | Example use |
+|-------------|-------------|
+| `scenario_run` | Modeled portfolio scenario with parameters and results |
+| `recommendation_set` | Rebalancing recommendations or action items |
+| `questionnaire_response` | Client onboarding questionnaire answers |
+| `projection_run` | Cashflow projections, retirement simulations |
+| `note` | App-authored text snippets, summaries, annotations |
+
+## Recommended status values
+
+| Status | Meaning |
+|--------|---------|
+| `draft` | Work in progress, not yet shared or finalized |
+| `final` | Completed and ready for review or sharing |
+| `archived` | Soft-deleted or historical |
+
+## Routes
+
+### `GET /app-data`
+
+List builder-owned work-product records for the current app and firm.
+
+**Required scope:** `app_data.read`
+
+**Query parameters:** `recordType`, `clientUserId`, `householdId`, `accountId`, `status`, `limit`, `cursor`
+
+**Response:**
+
+```json
+{
+  "items": [
+    { "recordId": "appdata_123", "recordType": "recommendation_set", "..." : "..." }
+  ],
+  "pageInfo": { "limit": 25, "nextCursor": "cursor_123" }
+}
+```
+
+### `POST /app-data`
+
+Create a new work-product record.
+
+**Required scope:** `app_data.write`
+
+**Request body:**
+
+```json
+{
+  "recordType": "recommendation_set",
+  "title": "2026 rebalance proposal",
+  "status": "draft",
+  "schemaVersion": 1,
+  "clientUserId": "client_456",
+  "sourceRefs": [
+    {
+      "sourceType": "canonical_account",
+      "sourceId": "acct_123",
+      "asOf": "2026-03-19T15:04:05Z"
+    }
+  ],
+  "payload": {
+    "summary": "Shift 8% from large-cap growth to short-duration treasuries."
+  }
+}
+```
+
+**Response:** the created record with server-assigned `recordId`, `appId`, `appInstallationId`, `firmId`, `createdAt`, `createdByUserId`.
+
+### `GET /app-data/{recordId}`
+
+Fetch one record.
+
+**Required scope:** `app_data.read`
+
+**Response:** single record envelope.
+
+### `PATCH /app-data/{recordId}`
+
+Update mutable fields on an existing record.
+
+**Required scope:** `app_data.write`
+
+**Request body (partial update):**
+
+```json
+{
+  "status": "final",
+  "payload": {
+    "summary": "Approved rebalance recommendation."
+  }
+}
+```
+
+**Response:** the updated record.
+
+### `DELETE /app-data/{recordId}`
+
+Soft delete or archive a record.
+
+**Required scope:** `app_data.write`
+
+Direction: do not assume hard-delete by default.
+
+## Record ownership and boundaries
+
+Every record is anchored to:
+
+- `appId` — the app that created it
+- `appInstallationId` — the specific installation
+- `firmId` — the firm boundary
+
+Optional attachment targets:
+
+- `clientUserId`
+- `householdId`
+- `accountId`
+
+Boundary rules:
+
+- `firmId` is the maximum data boundary
+- Apps may impose stricter intra-firm scoping — prefer configurable over hardcoded
+- Apps should not assume cross-firm visibility
+
+## Mutation rules
+
+Builder apps **may**:
+
+- Create new work-product records
+- Update record payloads and status
+- Attach work product to the current app, firm, and optional client or account context
+
+Builder apps **may not**:
+
+- Overwrite immutable canonical reference facts through this contract
+- Treat partner-owned reference data as app-owned mutable data
+- Claim that app-data records are cross-app portable by default
+
+## Portability rule
+
+PlannerXchange-hosted app-data records are governed and exportable but are not canonical or cross-app portable by default. If PlannerXchange later promotes a record family to canonical data, that happens through an explicit contract change.
+
+## Review implications
+
+Apps using app-data writes should expect publication review for:
+
+- Scope minimization — does the app request more write access than it needs?
+- Firm-boundary compliance — does data stay within the correct `firmId`?
+- Source-reference integrity — are `sourceRefs` populated for traceability?
+- Sensitive-data handling — is client PII stored appropriately?
+- Auditability — can the record trail be reconstructed?
+
+Day 1 rule: external AI-provider or third-party egress of PX client data is not allowed.

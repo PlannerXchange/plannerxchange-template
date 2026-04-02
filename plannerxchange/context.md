@@ -98,7 +98,8 @@ Reference facts versus work product:
 PlannerXchange maintains canonical firm data that apps can read without building their own data layer:
 
 - **households** — top-level client groupings
-- **household tax filings** — expanding canonical household tax data, modeled as year-scoped filing records rather than extra fields on the household root
+- **household tax summary fields** — household-level freshness and status metadata such as `latestTaxYear`, `latestTaxDataSource`, `latestTaxSyncedAt`, and `taxDataStatus`
+- **household tax filings** — actual tax data, modeled as year-scoped filing records rather than extra fields on the household root
 - **clients** — individual people (with PII protections; summary vs sensitive scopes)
 - **accounts** — financial accounts with balances, custodian info, and ownership
 - **positions** — point-in-time holdings within accounts (date-specific)
@@ -111,6 +112,12 @@ PlannerXchange maintains canonical firm data that apps can read without building
 Firms import this data through CSV upload or manual entry in the PlannerXchange shell. Builder apps declare permission scopes in the manifest and read the data through governed `/canonical/` API routes.
 
 For entity fields, API routes, scopes, and field-level required/optional guidance, see `data-contract.md` and `docs/builder-spec/canonical-data-api-v1.md`.
+
+Tax-read rule:
+
+- use household summary fields for list views and quick household tax status
+- use household tax-filing records for actual year-specific tax analysis
+- do not infer tax history from the household root alone
 
 Integration identity direction:
 
@@ -144,6 +151,68 @@ Important:
 - the app should not assume responsibility for invite-link UX, email-verification UX, or initial password choice UX
 - if the app renders branded chrome, request `branding.read` and use resolved logo, favicon, primary color, secondary color, and font color values from the runtime context or approved API payloads
 - logo rendering should stay responsive because different firms may upload different aspect ratios and file formats within PX guidance
+
+## Plugin lifecycle
+
+The shell manages the plugin lifecycle through `mount()` and `unmount()` exports from the plugin entry point.
+
+### Mount
+
+The shell calls `mount(context)` when the user navigates to the app. The context object provides:
+
+- `appBasename` — the shell-scoped path prefix for the app's router
+- `initialPath` — the current in-app path for deep links
+- `appInstallationId` — the installation ID required for `x-plannerxchange-app-installation-id` headers
+- `userId` — the current authenticated user ID
+- `firmId` — the current firm context
+- `tenantId` — the current tenant
+- `containerElement` — the DOM element to render into
+
+### Unmount and cleanup
+
+The shell calls `unmount()` when the user navigates away. Builder apps **must** clean up:
+
+- unmount React roots (call `root.unmount()`)
+- cancel in-flight `fetch` requests via `AbortController`
+- clear any `setInterval` or `setTimeout` handles
+- remove global event listeners (window resize, message, keyboard)
+- revoke any `URL.createObjectURL` references
+
+If the app leaks event listeners, timers, or detached DOM nodes, the shell may flag it as a resource-leak risk during publish review.
+
+### Example plugin lifecycle
+
+```typescript
+import { createRoot, Root } from "react-dom/client";
+
+let root: Root | null = null;
+
+export async function mount(context: ShellRuntimeContext) {
+  const container = context.containerElement;
+  root = createRoot(container);
+  root.render(<App context={context} />);
+}
+
+export async function unmount() {
+  root?.unmount();
+  root = null;
+}
+```
+
+## Firm-side role definitions
+
+| Role | Authority |
+|------|-----------|
+| `platform_admin` | Internal PlannerXchange operators only. Not available to builder apps. |
+| `enterprise_admin` | Oversees app policy and marketplace behavior across many firms inside a dedicated enterprise context. |
+| `firm_admin` | Full firm-level administrative authority: install apps, configure integrations, manage billing, alter firm-wide settings. |
+| `advisor_user` | Firm-side advisor with discrete permission toggles. Does not automatically carry admin capabilities. |
+
+Builder rules:
+
+- do not assume every `advisor_user` can install apps, manage AI settings, or change billing
+- treat `firm_admin` as the role with the full permission set
+- if the app introduces stricter intra-firm boundaries, make them configurable rather than hardcoded
 
 ## In-app routing
 

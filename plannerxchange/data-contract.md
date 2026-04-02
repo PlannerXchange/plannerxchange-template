@@ -135,21 +135,37 @@ platform (global, shared across all firms)
 
 ### Household tax data direction
 
-PlannerXchange is expanding canonical household data with year-scoped household tax filing records.
+PlannerXchange canonical household data includes a household-level tax summary plus year-scoped household tax filing records for actual tax data.
 
 Modeling rules:
 
 - treat household tax data as filing records, not as many extra fields on the household root
 - one household may have many tax filings across years
 - one household may have more than one filing for the same tax year when filing units differ
+- use the household root only for quick summary metadata, not as the full tax record
 
-Planned filing shape:
+Household tax summary direction:
+
+- household summary fields: `latestTaxYear`, `latestTaxFilingId`, `latestTaxDataSource`, `latestTaxSyncedAt`, `taxDataStatus`
+- use these fields for list views, status chips, freshness indicators, and simple household-level filtering
+- do not assume they replace the tax-filing records
+
+Canonical tax-filing shape:
 
 - filing identity: `id`, `householdId`, `taxYear`, `filingUnitKey`, `filingScope`, `filingStatus`
 - taxpayer references: `primaryClientId`, optional `secondaryClientId`
-- source metadata: `sourceType`, `sourceSystem`, `sourceSyncStatus`, `sourceLastSyncedAt`
+- source metadata: `sourceType`, `sourceSystem`, `sourceRecordType`, `sourceRecordId`, `sourceSyncStatus`, `sourceLastSyncedAt`
 - summary metrics: `totalIncome`, `agi`, `taxableIncome`, `totalTax`, `averageRate`, `marginalBracket`, `marginalCapGainsBracket`
 - additional metric groups: income detail, gains and carryovers, deductions, medicare or IRMAA-related values, and advisor or tax notes
+
+Builder-agent guidance:
+
+- use household summary fields when the app needs only a quick tax-status or freshness signal
+- use tax-filing routes when the app needs actual tax values, multi-year history, or filing-unit detail
+- support more than one filing for the same year by keying off `taxYear` plus `filingUnitKey`, not `taxYear` alone
+- treat `filingScope = household_joint` as a household-level joint filing
+- treat `filingScope = client_individual` as an individual filing tied to `primaryClientId`
+- treat source metadata as provenance, not just decoration; apps should surface whether the record is manual, imported, or integration-synced
 
 Planned builder-facing route direction:
 
@@ -160,6 +176,31 @@ Planned scope direction:
 
 - `canonical.tax.summary.read`
 - `canonical.tax.detail.read`
+
+Tax-read patterns builder agents should support:
+
+1. Household overview pattern
+   Read household summary fields first, then lazy-load filings only when the user opens a tax-aware view.
+2. Tax-year comparison pattern
+   Query household tax filings and group them by `taxYear`, then render one or more filing cards per year.
+3. Client-aware tax pattern
+   For `client_individual` filings, use `primaryClientId` to join the filing back to the household client record before rendering client-specific tax analysis.
+
+Tax-read examples:
+
+```text
+household
+- latestTaxYear = 2024
+- latestTaxDataSource = holistiplan
+- latestTaxSyncedAt = 2026-04-01T18:42:00Z
+- taxDataStatus = synced
+
+tax filings
+- 2024 / joint / married_filing_jointly
+- 2023 / joint / married_filing_jointly
+- 2022 / client_cl_abc123 / married_filing_separately
+- 2022 / client_cl_def456 / married_filing_separately
+```
 
 ### External identity direction
 
@@ -199,6 +240,8 @@ Declare these in the manifest `permissions` array. Only request what the app act
 | `canonical.security.read` | Platform security master with firm overrides merged |
 | `canonical.model.read` | Models and their holdings |
 | `canonical.sleeve.read` | Sleeves and sleeve allocations |
+| `canonical.tax.summary.read` | Household tax status and tax-summary fields on households |
+| `canonical.tax.detail.read` | Household tax-filing records by year and filing unit |
 
 ### Installed-app request transport
 
@@ -225,6 +268,8 @@ All routes require the active session token. Responses are scoped to the current
 |-------|-------|-------------|
 | `GET /canonical/households` | `canonical.household.read` | List households |
 | `GET /canonical/households/{householdId}` | `canonical.household.read` | Household detail |
+| `GET /canonical/households/{householdId}/tax-filings` | `canonical.tax.detail.read` | Household tax filings by year and filing unit |
+| `GET /canonical/households/{householdId}/tax-filings/{taxFilingId}` | `canonical.tax.detail.read` | Single household tax filing detail |
 | `GET /canonical/clients` | `canonical.client.summary.read` | List clients (summary) |
 | `GET /canonical/households/{householdId}/clients` | `canonical.client.summary.read` | Clients in a household |
 | `GET /canonical/households/{householdId}/clients/{clientId}` | `canonical.client.sensitive.read` | Full client detail |
@@ -260,9 +305,11 @@ All list routes accept `limit` (default 25, max 100) and `cursor` for pagination
 
 Fields marked **required** are guaranteed non-null on every record. Optional fields may be null. Handle null gracefully for all optional fields.
 
-**Household:** `id`, `name`, `status` are required. `externalId`, `taxFilingStatus`, `taxState`, `notes`, `assignedAdvisorUserIds`, `customFields` are optional.
+**Household:** `id`, `name`, `status` are required. `externalId`, `taxFilingStatus`, `taxState`, `latestTaxYear`, `latestTaxFilingId`, `latestTaxDataSource`, `latestTaxSyncedAt`, `taxDataStatus`, `notes`, `assignedAdvisorUserIds`, `customFields` are optional.
 
-When household tax data is exposed through canonical APIs, treat it as separate household tax-filing records rather than assuming all tax values live directly on the household object.
+Use the household tax summary fields for lightweight household-level UX, but treat actual tax values as separate household tax-filing records rather than assuming all tax values live directly on the household object.
+
+**Household tax filing:** `id`, `householdId`, `taxYear`, `filingUnitKey`, `filingScope`, `filingStatus` are required. `primaryClientId`, `secondaryClientId`, source metadata fields, tax metrics, and notes are optional. Handle null on all optional tax metrics because firms may have partial tax detail for a given year.
 
 **Client (summary):** `id`, `householdId`, `displayName`, `status` are returned. Raw PII fields require `canonical.client.sensitive.read`.
 
@@ -283,6 +330,288 @@ When household tax data is exposed through canonical APIs, treat it as separate 
 **Model:** `id`, `name`, `status` are required. `description`, `assetManager` are optional. Holdings are read from the separate `/canonical/models/{modelId}/holdings` route.
 
 **Sleeve:** `id`, `name`, `status` are required. `description` is optional. Allocation responses include `{ modelId, weight }` items.
+
+### Full JSON response shapes
+
+These are the actual response payloads builder apps receive from each canonical route. All list routes use `{ items: [...], pageInfo: { limit, nextCursor } }`.
+
+**Household:**
+
+```json
+{
+  "id": "hh_abc123",
+  "firmId": "firm_123",
+  "name": "Smith Household",
+  "taxFilingStatus": "married_filing_jointly",
+  "taxState": "CA",
+  "latestTaxYear": 2024,
+  "latestTaxFilingId": "tax_2024_joint",
+  "latestTaxDataSource": "holistiplan",
+  "latestTaxSyncedAt": "2026-04-01T18:42:00Z",
+  "taxDataStatus": "synced",
+  "assignedAdvisorUserIds": ["fu_456"],
+  "status": "active",
+  "customFields": { "riskScore": "7" }
+}
+```
+
+**Household tax filing:**
+
+```json
+{
+  "id": "tax_2024_joint",
+  "householdId": "hh_abc123",
+  "taxYear": 2024,
+  "filingUnitKey": "joint",
+  "filingScope": "household_joint",
+  "filingStatus": "married_filing_jointly",
+  "primaryClientId": "cl_abc123",
+  "secondaryClientId": "cl_def456",
+  "sourceType": "integration_sync",
+  "sourceSystem": "holistiplan",
+  "sourceRecordType": "income_tax",
+  "sourceRecordId": "hp_income_tax_987",
+  "sourceSyncStatus": "synced",
+  "sourceLastSyncedAt": "2026-04-01T18:42:00Z",
+  "totalIncome": 315000.0,
+  "agi": 287500.0,
+  "taxableIncome": 251400.0,
+  "totalTax": 46820.0,
+  "averageRate": 0.163,
+  "marginalBracket": "24%",
+  "marginalCapGainsBracket": "15%",
+  "credits": 2000.0,
+  "amountYouOwe": 1450.0,
+  "taxLetterNote": "Large one-time capital gain in 2024."
+}
+```
+
+**Client (summary view — `canonical.client.summary.read`):**
+
+```json
+{
+  "id": "cl_abc123",
+  "firmId": "firm_123",
+  "householdId": "hh_abc123",
+  "displayName": "John Smith",
+  "status": "active",
+  "summaryFlags": {
+    "hasRestrictedPii": true,
+    "hasLinkedAccounts": true
+  }
+}
+```
+
+Summary reads do not return raw PII fields.
+
+**Client (sensitive view — `canonical.client.sensitive.read`):**
+
+```json
+{
+  "id": "cl_abc123",
+  "firmId": "firm_123",
+  "householdId": "hh_abc123",
+  "firstName": "John",
+  "lastName": "Smith",
+  "dateOfBirth": "1975-06-15",
+  "emailPrimary": "john.smith@example.com",
+  "phonePrimary": "+15551234567",
+  "state": "CA",
+  "status": "active",
+  "customFields": {}
+}
+```
+
+`ssnTin` is never returned in builder-facing API responses.
+
+**Account:**
+
+```json
+{
+  "id": "acct_abc123",
+  "firmId": "firm_123",
+  "householdId": "hh_abc123",
+  "accountNumber": "****5678",
+  "accountName": "John Smith IRA",
+  "custodianName": "Schwab",
+  "accountType": "IRA",
+  "taxType": "tax_deferred",
+  "accountStatus": "active",
+  "accountBalance": 250000.00,
+  "balanceAsOfDate": "2026-03-20",
+  "ownerClientIds": ["cl_abc123"]
+}
+```
+
+**Position:**
+
+```json
+{
+  "id": "pos_abc123",
+  "accountId": "acct_abc123",
+  "asOfDate": "2026-03-20",
+  "securityId": "sec_xyz",
+  "symbol": "AAPL",
+  "cusip": "037833100",
+  "securityName": "Apple Inc.",
+  "securityType": "equity",
+  "quantity": 100,
+  "price": 178.50,
+  "marketValue": 17850.00
+}
+```
+
+**Transaction:**
+
+```json
+{
+  "id": "txn_abc123",
+  "accountId": "acct_abc123",
+  "date": "2026-03-15",
+  "displayTransactionType": "Buy",
+  "symbol": "AAPL",
+  "description": "Buy 50 shares AAPL",
+  "quantity": 50,
+  "price": 175.00,
+  "amount": -8750.00,
+  "status": "settled"
+}
+```
+
+**Cost basis:**
+
+```json
+{
+  "id": "cb_abc123",
+  "accountId": "acct_abc123",
+  "asOfDate": "2026-03-20",
+  "symbol": "AAPL",
+  "acquisitionDate": "2024-01-15",
+  "quantity": 50,
+  "costBasisAmount": 7500.00,
+  "currentValue": 8925.00,
+  "gainLoss": 1425.00,
+  "holdingPeriod": "long_term"
+}
+```
+
+**Security (with firm override):**
+
+```json
+{
+  "id": "sec_xyz",
+  "ticker": "AAPL",
+  "cusip": "037833100",
+  "securityName": "Apple Inc.",
+  "securityType": "equity",
+  "status": "active",
+  "verificationStatus": "verified",
+  "firmOverride": {
+    "displayName": "Apple",
+    "assetClassId": "ac_us_large_cap",
+    "returnExpectation": 0.08,
+    "benchmark": "SPY"
+  }
+}
+```
+
+`firmOverride` is null when the firm has not customized the security. `verificationStatus` values: `verified`, `unverified`, `review_needed`, `unverified_no_match`, `manually_verified`.
+
+**Model:**
+
+```json
+{
+  "id": "mod_abc123",
+  "firmId": "firm_123",
+  "name": "60/40 Growth",
+  "description": "60% equity, 40% fixed income",
+  "assetManager": "In-house",
+  "status": "active"
+}
+```
+
+**Model holding:**
+
+```json
+{
+  "id": "holding_abc123",
+  "modelId": "mod_abc123",
+  "securityId": "sec_xyz",
+  "ticker": "AAPL",
+  "weight": 0.15
+}
+```
+
+**Sleeve:**
+
+```json
+{
+  "id": "slv_abc123",
+  "firmId": "firm_123",
+  "name": "Retirement Sleeve",
+  "description": "Composite of retirement-focused models",
+  "status": "active"
+}
+```
+
+**Sleeve allocation:**
+
+```json
+{
+  "id": "slv_alloc_abc123",
+  "sleeveId": "slv_abc123",
+  "modelId": "mod_abc123",
+  "weight": 0.6
+}
+```
+
+### Account number masking policy
+
+Account numbers are masked by default for builder apps. The masking level is controlled at two layers:
+
+**1. Server-side (API default)**
+
+Builder app tokens receive pre-masked `accountNumber` values: `****NNNNN` (last 5 characters only). The full number never enters the app's JavaScript context under the default policy.
+
+**2. Manifest declaration**
+
+```json
+{
+  "permissions": {
+    "account_number": "masked"
+  }
+}
+```
+
+Accepted values:
+
+- `"masked"` (default) — API returns pre-masked values; app must not display full numbers
+- `"full"` — API returns full values; requires elevated publish review; app must still mask for display using the SDK `<MaskedValue>` component
+
+**3. Client-side SDK primitives (for locally-computed values)**
+
+```typescript
+import { maskField } from "@plannerxchange/sdk";
+
+// Returns "****59410" for "10059410"
+const display = maskField("account_number", account.accountNumber);
+```
+
+A `<MaskedValue field="account_number" value={...} />` component is available for inline use.
+
+**4. Shell masking policy in bootstrap**
+
+The `GET /shell/bootstrap` response includes a `maskingPolicy` object:
+
+```json
+{
+  "maskingPolicy": {
+    "accountNumber": "last5"
+  }
+}
+```
+
+**Builder AI agent requirement:** Any field classified `display_sensitive` (including `accountNumber`, `clientSsn`, `taxId`) must be rendered through SDK masking primitives or pre-masked API values. Rendering a raw `accountNumber` directly in JSX is a publish review violation.
 
 ### Rules for builder apps consuming canonical data
 
