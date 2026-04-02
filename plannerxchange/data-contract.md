@@ -133,6 +133,56 @@ platform (global, shared across all firms)
   → security (security master; firms can overlay with overrides)
 ```
 
+### Household tax data direction
+
+PlannerXchange is expanding canonical household data with year-scoped household tax filing records.
+
+Modeling rules:
+
+- treat household tax data as filing records, not as many extra fields on the household root
+- one household may have many tax filings across years
+- one household may have more than one filing for the same tax year when filing units differ
+
+Planned filing shape:
+
+- filing identity: `id`, `householdId`, `taxYear`, `filingUnitKey`, `filingScope`, `filingStatus`
+- taxpayer references: `primaryClientId`, optional `secondaryClientId`
+- source metadata: `sourceType`, `sourceSystem`, `sourceSyncStatus`, `sourceLastSyncedAt`
+- summary metrics: `totalIncome`, `agi`, `taxableIncome`, `totalTax`, `averageRate`, `marginalBracket`, `marginalCapGainsBracket`
+- additional metric groups: income detail, gains and carryovers, deductions, medicare or IRMAA-related values, and advisor or tax notes
+
+Planned builder-facing route direction:
+
+- `GET /canonical/households/{householdId}/tax-filings`
+- `GET /canonical/households/{householdId}/tax-filings/{taxFilingId}`
+
+Planned scope direction:
+
+- `canonical.tax.summary.read`
+- `canonical.tax.detail.read`
+
+### External identity direction
+
+PlannerXchange canonical entities may carry external identity in more than one way.
+
+Current practical rule:
+
+- `household`, `client`, and `account` payloads may expose an optional root `externalId`
+- treat that field as a single convenience reference only
+
+Portable integration rule:
+
+- external identity should be treated as provider-scoped and potentially plural
+- the same household may map to more than one partner system
+- the same client may map to more than one partner system
+- the same account may map to more than one partner or custodian system
+
+Builder guidance:
+
+- do not assume root `externalId` identifies the provider
+- do not assume root `externalId` is the only durable join key for partner-aware workflows
+- design integration-aware apps so provider-specific external mappings can be modeled separately from the canonical root record
+
 ### Permission scopes
 
 Declare these in the manifest `permissions` array. Only request what the app actually needs.
@@ -210,13 +260,15 @@ All list routes accept `limit` (default 25, max 100) and `cursor` for pagination
 
 Fields marked **required** are guaranteed non-null on every record. Optional fields may be null. Handle null gracefully for all optional fields.
 
-**Household:** `id`, `name`, `status` are required. `taxFilingStatus`, `taxState`, `notes`, `assignedAdvisorUserIds`, `customFields` are optional.
+**Household:** `id`, `name`, `status` are required. `externalId`, `taxFilingStatus`, `taxState`, `notes`, `assignedAdvisorUserIds`, `customFields` are optional.
+
+When household tax data is exposed through canonical APIs, treat it as separate household tax-filing records rather than assuming all tax values live directly on the household object.
 
 **Client (summary):** `id`, `householdId`, `displayName`, `status` are returned. Raw PII fields require `canonical.client.sensitive.read`.
 
-**Client (sensitive):** `firstName`, `lastName` are required. `dateOfBirth`, `emailPrimary`, `phonePrimary`, and address fields are optional. `ssnTin` is not returned in builder-facing canonical API responses.
+**Client (sensitive):** `firstName`, `lastName` are required. `dateOfBirth`, `emailPrimary`, `phonePrimary`, and address fields are optional. `externalId` may be present as a single convenience reference. `ssnTin` is not returned in builder-facing canonical API responses.
 
-**Account:** `id`, `householdId`, `accountNumber`, `accountName`, `accountStatus`, `ownerClientIds` are required. `custodianName`, `accountType`, `taxType`, `accountBalance`, `balanceAsOfDate` are optional.
+**Account:** `id`, `householdId`, `accountNumber`, `accountName`, `accountStatus`, `ownerClientIds` are required. `custodianName`, `accountType`, `taxType`, `accountBalance`, `balanceAsOfDate`, and `externalId` are optional.
 
 `accountNumber` should be treated as masked display data by default. Student apps should not assume full account numbers are available or render any account number field as raw unmasked text.
 

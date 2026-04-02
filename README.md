@@ -57,6 +57,11 @@ This starter mirrors the high-signal subset of these PlannerXchange builder-spec
 
 If you have access to the PlannerXchange platform repo, review the corresponding `docs/builder-spec/` files for the full contract.
 
+The template context pack also includes current guidance for:
+
+- year-scoped household tax data as a PlannerXchange canonical domain direction
+- provider-scoped external identity so households, clients, and accounts can support multiple external mappings over time
+
 ## Current status
 
 This starter is now self-contained enough to copy into a separate builder repository, including the

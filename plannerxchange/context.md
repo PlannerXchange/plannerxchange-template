@@ -98,6 +98,7 @@ Reference facts versus work product:
 PlannerXchange maintains canonical firm data that apps can read without building their own data layer:
 
 - **households** — top-level client groupings
+- **household tax filings** — expanding canonical household tax data, modeled as year-scoped filing records rather than extra fields on the household root
 - **clients** — individual people (with PII protections; summary vs sensitive scopes)
 - **accounts** — financial accounts with balances, custodian info, and ownership
 - **positions** — point-in-time holdings within accounts (date-specific)
@@ -110,6 +111,13 @@ PlannerXchange maintains canonical firm data that apps can read without building
 Firms import this data through CSV upload or manual entry in the PlannerXchange shell. Builder apps declare permission scopes in the manifest and read the data through governed `/canonical/` API routes.
 
 For entity fields, API routes, scopes, and field-level required/optional guidance, see `data-contract.md` and `docs/builder-spec/canonical-data-api-v1.md`.
+
+Integration identity direction:
+
+- current canonical household, client, and account records may expose an optional root `externalId`
+- treat `externalId` as a single convenience reference, not as a complete multi-provider identity model
+- PlannerXchange direction is to support provider-scoped integration links so the same household, client, or account can map to multiple external systems at the same time
+- builder apps should not assume `externalId` identifies the provider or can hold more than one external mapping
 
 Canonical request transport:
 
