@@ -18,9 +18,12 @@ x-plannerxchange-app-installation-id: {appInstallationId}
 
 Source the value from `ShellRuntimeContext.appInstallationId` passed into `mount()`.
 
-Temporary fallback: query-string `appInstallationId` is also accepted while SDK helpers are minimal.
+Query-string `appInstallationId` may still work as temporary compatibility in some routes, but new app code should not depend on it.
 
-Future SDK helpers will attach this automatically.
+The student rule is simple:
+
+- read `appInstallationId` from the shell runtime context
+- send it in the required header
 
 ## Authentication
 
@@ -129,30 +132,44 @@ Not every documented capability is available on every membership tier.
 - Explorer-tier builders should assume no PlannerXchange-portable canonical client-data participation
 - Paid tiers unlock deeper PlannerXchange-hosted persistence and portable-data behavior subject to review and scope approval
 
+## Current live route-path rule
+
+Builder docs still describe the intended canonical namespace under `/canonical/*`.
+
+Current live platform route registration for canonical reads is root-scoped instead, for example:
+
+- `/households`
+- `/clients`
+- `/households/{householdId}/clients`
+- `/accounts`
+- `/accounts/{accountId}/positions`
+
+If your app is calling the live backend today, use the current live platform paths below.
+
 ## Locked v1 scope matrix
 
-| Scope | Routes | Purpose |
-|-------|--------|---------|
+| Scope | Current live routes | Purpose |
+|-------|---------------------|---------|
 | `tenant.read` | `/session`, `/shell/bootstrap` | Authenticated tenant context |
 | `user.read` | `/session`, `/shell/bootstrap` | Authenticated actor context |
 | `client.summary.read` | `/client-users`, `/client-users/{id}` | Summary-safe client records (no raw PII) |
 | `client.sensitive.read` | Reserved | Protected client subpaths (future) |
-| `canonical.household.read` | `/canonical/households`, `/canonical/households/{id}` | Firm-scoped households |
-| `canonical.client.summary.read` | `/canonical/clients` | Summary-safe canonical clients |
-| `canonical.client.sensitive.read` | `/canonical/households/{id}/clients/{id}` | Full client detail with PII fields |
-| `canonical.account.read` | `/canonical/accounts`, `/canonical/accounts/{id}` | Accounts and balances |
-| `canonical.position.read` | `/canonical/accounts/{id}/positions` | Account positions |
-| `canonical.transaction.read` | `/canonical/accounts/{id}/transactions` | Account transactions |
-| `canonical.cost_basis.read` | `/canonical/accounts/{id}/cost-basis` | Cost basis tax lots |
-| `canonical.security.read` | `/canonical/securities`, `/canonical/securities/{id}` | Platform security master with firm overrides |
-| `canonical.model.read` | `/canonical/models`, `/canonical/models/{id}/holdings` | Models and holdings |
-| `canonical.sleeve.read` | `/canonical/sleeves`, `/canonical/sleeves/{id}/allocations` | Sleeves and allocations |
+| `canonical.household.read` | `/households`, `/households/{id}` | Firm-scoped households |
+| `canonical.client.summary.read` | `/clients`, `/households/{householdId}/clients` | Summary-safe canonical clients |
+| `canonical.client.sensitive.read` | `/households/{householdId}/clients/{id}` | Full client detail with PII fields |
+| `canonical.account.read` | `/accounts`, `/accounts/{id}`, `/households/{householdId}/accounts`, `/households/{householdId}/accounts/{id}` | Accounts and balances |
+| `canonical.position.read` | `/accounts/{id}/positions` | Account positions |
+| `canonical.transaction.read` | `/accounts/{id}/transactions` | Account transactions |
+| `canonical.cost_basis.read` | `/accounts/{id}/cost-basis` | Cost basis tax lots |
+| `canonical.security.read` | `/securities`, `/securities/{id}` | Platform security master with firm overrides |
+| `canonical.model.read` | `/models`, `/models/{id}/holdings` | Models and holdings |
+| `canonical.sleeve.read` | `/sleeves`, `/sleeves/{id}/allocations` | Sleeves and allocations |
 | `app_access.read` | `/app-access/me` | Current user's app access grant |
 | `feature_entitlements.read` | `/feature-entitlements/me` | Current user's feature entitlements |
 | `branding.read` | `/branding/current` | Resolved branding for current firm context |
 | `legal.read` | `/legal/current` | Resolved legal/disclosure for current context |
 | `app_data.read` | `/app-data`, `/app-data/{id}` | Builder-owned work-product records |
-| `app_data.write` | `/app-data` (POST/PATCH/DELETE) | Create/update builder-owned work-product |
+| `app_data.write` | `/app-data` (POST), `/app-data/{id}` (PATCH) | Create/update builder-owned work-product |
 | `email.send` | `/app-email/send` | Send transactional email through PX relay |
 
 Important:

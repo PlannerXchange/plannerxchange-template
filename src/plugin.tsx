@@ -6,7 +6,6 @@ import type {
   PlannerXchangePluginModule,
   ShellRuntimeContext
 } from "./plannerxchange";
-import "./styles.css";
 
 const manifest = manifestJson as PlannerXchangeManifest;
 

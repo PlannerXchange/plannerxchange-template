@@ -20,9 +20,14 @@ The public `plannerxchange-template` repository should contain exactly this star
 - `src/main.tsx`
 - `src/plannerxchange.ts`
 - `src/plugin.tsx`
-- `src/styles.css`
 
 Keep the public template repo intentionally small.
+
+The file set is intentionally minimal:
+
+- markdown-first backend contract guidance
+- a thin local runtime-contract shim
+- no default frontend design system
 
 This starter is npm-first. Commit `package-lock.json` so workshop installs, AI-assisted debugging,
 and CI validation resolve the same dependency tree by default.

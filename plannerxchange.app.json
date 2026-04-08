@@ -2,8 +2,8 @@
   "slug": "sample-advisor-tool",
   "name": "Sample Advisor Tool",
   "version": "0.1.0",
-  "summary": "A simple starter app that mounts inside the PlannerXchange runtime.",
-  "description": "Use this starter to build a lightweight advisor tool that relies on PlannerXchange for auth, routing, branding, and governed publication.",
+  "summary": "A minimal shell-compatible starter for PlannerXchange app builds.",
+  "description": "Use this starter to build a lightweight advisor tool that relies on PlannerXchange for auth, routing, and governed publication. Add branding, legal, portability, and data scopes only when the app needs them.",
   "priceLabel": "Included",
   "framework": "react",
   "entryPoint": "src/plugin.tsx",
@@ -13,7 +13,7 @@
   ],
   "configSchemaVersion": 1,
   "visibility": "private",
-  "dataPortabilityMode": "plannerxchange_portable",
+  "dataPortabilityMode": "app_managed_nonportable",
   "categories": [
     "cash-flow"
   ]

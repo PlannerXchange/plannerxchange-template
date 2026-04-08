@@ -79,7 +79,7 @@ The key distinction is not whether the app is technically dynamic (it may still 
 
 ### 2. Data-aware shell apps (`react`, `vue`, `nextjs`)
 
-For apps that need PlannerXchange canonical data, governed provisioning, app access checks, or richer runtime integration. Runtime and data-contract requirements are stricter. Apps should use the SDK/runtime contract rather than a fully standalone frontend model.
+For apps that need PlannerXchange canonical data, governed provisioning, app access checks, or richer runtime integration. Runtime and data-contract requirements are stricter. Apps should follow the PlannerXchange runtime and backend contract rather than behave like a fully standalone frontend.
 
 ## Portability eligibility gate
 
@@ -176,7 +176,7 @@ Apps that rely on disallowed external egress of PX client data are not eligible 
 
 ## Permission scopes
 
-Current SDK-defined scopes (request only what the app actually needs):
+Current builder-facing scopes (request only what the app actually needs):
 
 | Scope | Description |
 |-------|-------------|

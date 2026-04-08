@@ -104,6 +104,16 @@ Each source ref should include:
 
 ## Routes
 
+Current route status:
+
+| Route | Status | Notes |
+| --- | --- | --- |
+| `GET /app-data` | live | builder-owned work-product listing |
+| `POST /app-data` | live | builder-owned work-product create |
+| `GET /app-data/{recordId}` | live | single-record read |
+| `PATCH /app-data/{recordId}` | live | single-record update |
+| `DELETE /app-data/{recordId}` | not yet live | do not assume availability until PlannerXchange exposes it |
+
 ### `GET /app-data`
 
 List builder-owned work-product records for the current app and firm.
@@ -182,11 +192,9 @@ Update mutable fields on an existing record.
 
 ### `DELETE /app-data/{recordId}`
 
-Soft delete or archive a record.
+Not live today for builder apps.
 
-**Required scope:** `app_data.write`
-
-Direction: do not assume hard-delete by default.
+Do not build new app code that depends on delete support unless PlannerXchange explicitly activates this route.
 
 ## Record ownership and boundaries
 

@@ -1,37 +1,34 @@
 import type { ShellRuntimeContext } from "./plannerxchange";
-import mockFirmFaviconUrl from "./assets/mock-firm-favicon.svg";
-import mockFirmLogoUrl from "./assets/mock-firm-logo.svg";
 
 export const mockRuntimeContext: ShellRuntimeContext = {
-  tenantId: "plannerxchange-marketplace",
-  enterpriseId: "plannerxchange-marketplace-enterprise",
-  firmId: "friendly-advisor-firm",
-  userId: "advisor-user-001",
+  tenantId: "synthetic-marketplace-tenant",
+  enterpriseId: "synthetic-enterprise",
+  firmId: "synthetic-demo-firm",
+  userId: "synthetic-advisor-user-001",
   userType: "firm_user",
   role: "advisor_user",
   appId: "starter-app",
-  appInstallationId: "starter-installation",
+  appInstallationId: "synthetic-installation-context",
   publicationEnvironment: "dev",
   appBasename: "/apps/starter-app",
   initialPath: "/",
   visibility: "private",
-  dataPortabilityMode: "plannerxchange_portable",
-  permissions: ["tenant.read", "user.read", "branding.read", "legal.read"],
+  dataPortabilityMode: "app_managed_nonportable",
+  permissions: ["tenant.read", "user.read"],
   branding: {
-    tenantId: "plannerxchange-marketplace",
-    enterpriseId: "plannerxchange-marketplace-enterprise",
-    firmId: "friendly-advisor-firm",
-    primaryColor: "#e8613c",
-    secondaryColor: "#1a1a2e",
-    fontColor: "#ffffff",
-    logoUrl: mockFirmLogoUrl,
-    faviconUrl: mockFirmFaviconUrl,
-    supportEmail: "support@plannerxchange.ai"
+    tenantId: "synthetic-marketplace-tenant",
+    enterpriseId: "synthetic-enterprise",
+    firmId: "synthetic-demo-firm",
+    primaryColor: "#456173",
+    secondaryColor: "#d9e1e8",
+    fontColor: "#16212b",
+    supportEmail: "demo-support@example.test"
   },
   legal: {
-    tenantId: "plannerxchange-marketplace",
-    enterpriseId: "plannerxchange-marketplace-enterprise",
-    firmId: "friendly-advisor-firm",
-    disclosureText: "PlannerXchange starter runtime preview. Use platform-owned auth in production."
+    tenantId: "synthetic-marketplace-tenant",
+    enterpriseId: "synthetic-enterprise",
+    firmId: "synthetic-demo-firm",
+    disclosureText:
+      "Synthetic PlannerXchange starter preview. This local runtime does not represent a real installed app."
   }
 };

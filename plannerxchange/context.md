@@ -43,11 +43,24 @@ Styling is flexible:
 
 Choose the smallest stack that fits the app.
 
+PlannerXchange does not prescribe one house visual style for builder apps.
+
+Use your own design system, layout language, typography, and component patterns.
+
+The contract is about shell compatibility, auth/session ownership, disclosure correctness, and data governance, not about copying PlannerXchange's own UI style.
+
+Whitelabel note:
+
+- runtime whitelabel behavior is optional for publication
+- use PlannerXchange branding and legal context when the app needs app-owned branded or disclosure surfaces
+- do not request those scopes by default if the app does not render those surfaces
+
 For data architecture, default to PX canonical contracts whenever the app needs PlannerXchange data:
 
 - `plannerxchange_portable`
   - use PlannerXchange-governed APIs and PX canonical data contracts
   - use this when the app needs firm, advisor, client, household, account, or other PX-governed data domains
+  - this describes the app's alignment to PX canonical contracts, not automatic cross-app portability of every record the app saves
 
 - `app_managed_nonportable`
   - use this when the app's business data lives in app-owned or partner-managed systems
@@ -84,6 +97,7 @@ Data provenance model:
 
 - app-owned data
   - may live in app-owned systems or approved PX app-data storage and remain outside the PX portability contract
+  - PlannerXchange-hosted app-data is governed and exportable, but not canonical or cross-app portable by default
 
 - integration-exposed data
   - may remain in approved partner systems and be surfaced through PX-governed integration paths
@@ -109,7 +123,13 @@ PlannerXchange maintains canonical firm data that apps can read without building
 - **models** — target allocation templates with security weights
 - **sleeves** — composite of models
 
-Firms import this data through CSV upload or manual entry in the PlannerXchange shell. Builder apps declare permission scopes in the manifest and read the data through governed `/canonical/` API routes.
+Firms import this data through CSV upload or manual entry in the PlannerXchange shell. Builder apps declare permission scopes in the manifest and read the data through governed canonical API routes.
+
+Important current-path note:
+
+- builder docs still use the intended `/canonical/*` namespace when describing the long-term contract
+- current live platform route registration for canonical reads is root-scoped, for example `/households`, `/clients`, `/households/{householdId}/clients`, and `/accounts`
+- if your app is calling the live backend today, use the current live route paths documented in `api-reference.md`
 
 For entity fields, API routes, scopes, and field-level required/optional guidance, see `data-contract.md` and `docs/builder-spec/canonical-data-api-v1.md`.
 
@@ -130,6 +150,7 @@ Canonical request transport:
 
 - for builder-facing API calls beyond `/session` and `/shell/bootstrap`, send `x-plannerxchange-app-installation-id` from `ShellRuntimeContext.appInstallationId`
 - `appInstallationId` query-string fallback exists only as temporary compatibility; new app code should prefer the header
+- a bearer token plus API base URL is not enough by itself for installed-app API behavior; live calls also need a real PlannerXchange installation context
 - shell-only canonical admin routes such as import setup, custom-field admin, category mappings, and auto-classify are not part of the student app contract
 
 Marketplace billing boundary:
@@ -150,7 +171,47 @@ Important:
 - the app should consume PX runtime and data APIs; it should not try to create firms, create users, accept invitations, or own identity provisioning flows
 - the app should not assume responsibility for invite-link UX, email-verification UX, or initial password choice UX
 - if the app renders branded chrome, request `branding.read` and use resolved logo, favicon, primary color, secondary color, and font color values from the runtime context or approved API payloads
+- if the app does not render app-owned branded chrome, do not request `branding.read` just because this starter exposes branding context
+- if the app renders disclosure text or disclosure links, request `legal.read` and use the resolved legal context
+- if the app does not render app-owned disclosure surfaces, do not request `legal.read` just because this starter exposes legal context
 - logo rendering should stay responsive because different firms may upload different aspect ratios and file formats within PX guidance
+
+## Local development modes
+
+The starter should make the current runtime mode obvious.
+
+### Mock shell + mock data
+
+Use this for:
+
+- UI scaffolding
+- routing setup
+- contract familiarization
+
+Rules:
+
+- use obviously synthetic names and records
+- do not describe mock records as live PlannerXchange data
+- keep any mock/live indicator visible enough that testers do not confuse the two
+
+### Mock shell + real PX APIs
+
+Use this only when PlannerXchange has supplied a real installation context separately.
+
+Rules:
+
+- a token and base URL alone do not create a valid installed-app runtime
+- a hardcoded dev `appInstallationId` is a mock fixture, not a live installation
+- do not claim live PlannerXchange connectivity unless the app is using a real install context
+
+### In-shell or installed-app runtime
+
+This is the authoritative environment for:
+
+- real branding and legal resolution
+- real permission and entitlement behavior
+- installation-scoped API calls
+- publication-accurate runtime behavior
 
 ## Plugin lifecycle
 

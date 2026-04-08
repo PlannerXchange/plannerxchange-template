@@ -76,7 +76,7 @@ Provenance-aware UI guidance:
 Outbound email guidance:
 
 - if the app needs to send transactional email (questionnaire links, workflow confirmations, report delivery), declare `email.send` in the manifest `permissions` array
-- call `POST /app-email/send` through the PlannerXchange API — the app never holds sending credentials
+- call `POST /app-email/send` through the PlannerXchange API â€” the app never holds sending credentials
 - PlannerXchange resolves the sending identity: firm-verified address if configured, otherwise `noreply@plannerxchange.ai`
 - do not use the outbound email API for identity invitations, verification links, password setup, password reset, or onboarding access links; those are PlannerXchange-owned auth flows
 - pass the recipient's email from PX canonical client data when available; require `canonical.client.sensitive.read` if the app auto-fills the email from PX canonical client detail
@@ -112,25 +112,25 @@ Before adding data writes, decide:
 
 ## Canonical data available out-of-the-box
 
-PlannerXchange manages canonical firm data that apps can read through governed APIs. Firms import this data through CSV uploads or manual entry in the PlannerXchange shell. Builder apps do not need to import, transform, or store this data — they read it from the platform.
+PlannerXchange manages canonical firm data that apps can read through governed APIs. Firms import this data through CSV uploads or manual entry in the PlannerXchange shell. Builder apps do not need to import, transform, or store this data â€” they read it from the platform.
 
 ### Entity hierarchy
 
 ```text
 firm
-  → household
-    → client (one or more per household)
-    → account (belongs to one household; may have multiple client owners)
-      → position (point-in-time holdings; date-specific)
-      → transaction (activity records; date-specific)
-      → cost_basis (tax-lot records; date-specific)
-  → model (target allocation template)
-    → model_holding (security + weight)
-  → sleeve (composite of models)
-    → sleeve_allocation (model + weight)
+  â†’ household
+    â†’ client (one or more per household)
+    â†’ account (belongs to one household; may have multiple client owners)
+      â†’ position (point-in-time holdings; date-specific)
+      â†’ transaction (activity records; date-specific)
+      â†’ cost_basis (tax-lot records; date-specific)
+  â†’ model (target allocation template)
+    â†’ model_holding (security + weight)
+  â†’ sleeve (composite of models)
+    â†’ sleeve_allocation (model + weight)
 
 platform (global, shared across all firms)
-  → security (security master; firms can overlay with overrides)
+  â†’ security (security master; firms can overlay with overrides)
 ```
 
 ### Household tax data direction
@@ -231,7 +231,7 @@ Declare these in the manifest `permissions` array. Only request what the app act
 | Scope | Grants access to |
 |-------|-----------------|
 | `canonical.household.read` | Household list and detail |
-| `canonical.client.summary.read` | Client list with display name, status, flags — no raw PII |
+| `canonical.client.summary.read` | Client list with display name, status, flags â€” no raw PII |
 | `canonical.client.sensitive.read` | Full client detail including name, DOB, email, phone, and address |
 | `canonical.account.read` | Account list, detail, and balance |
 | `canonical.position.read` | Positions within an account |
@@ -252,7 +252,7 @@ All builder-facing canonical routes require:
 
 Temporary compatibility note:
 
-- `appInstallationId` query-string fallback may still work in some routes while SDK helpers stay minimal
+- `appInstallationId` query-string fallback may still work in some routes as temporary compatibility
 - student builders should treat the header as the required path for new code
 
 Shell-only boundary:
@@ -264,27 +264,31 @@ Shell-only boundary:
 
 All routes require the active session token. Responses are scoped to the current firm. Non-admin advisors see only assigned data.
 
-| Route | Scope | Description |
-|-------|-------|-------------|
-| `GET /canonical/households` | `canonical.household.read` | List households |
-| `GET /canonical/households/{householdId}` | `canonical.household.read` | Household detail |
-| `GET /canonical/households/{householdId}/tax-filings` | `canonical.tax.detail.read` | Household tax filings by year and filing unit |
-| `GET /canonical/households/{householdId}/tax-filings/{taxFilingId}` | `canonical.tax.detail.read` | Single household tax filing detail |
-| `GET /canonical/clients` | `canonical.client.summary.read` | List clients (summary) |
-| `GET /canonical/households/{householdId}/clients` | `canonical.client.summary.read` | Clients in a household |
-| `GET /canonical/households/{householdId}/clients/{clientId}` | `canonical.client.sensitive.read` | Full client detail |
-| `GET /canonical/accounts` | `canonical.account.read` | List accounts |
-| `GET /canonical/households/{householdId}/accounts` | `canonical.account.read` | Accounts in a household |
-| `GET /canonical/accounts/{accountId}` | `canonical.account.read` | Account detail |
-| `GET /canonical/accounts/{accountId}/positions` | `canonical.position.read` | Positions (filter by `asOfDate`) |
-| `GET /canonical/accounts/{accountId}/transactions` | `canonical.transaction.read` | Transactions (filter by `startDate`, `endDate`) |
-| `GET /canonical/accounts/{accountId}/cost-basis` | `canonical.cost_basis.read` | Cost basis lots (filter by `asOfDate`) |
-| `GET /canonical/securities` | `canonical.security.read` | Securities (merged with firm overrides) |
-| `GET /canonical/securities/{securityId}` | `canonical.security.read` | Security detail (merged) |
-| `GET /canonical/models` | `canonical.model.read` | Models list |
-| `GET /canonical/models/{modelId}/holdings` | `canonical.model.read` | Model holdings |
-| `GET /canonical/sleeves` | `canonical.sleeve.read` | Sleeves list |
-| `GET /canonical/sleeves/{sleeveId}/allocations` | `canonical.sleeve.read` | Sleeve allocations |
+Builder docs still use the intended `/canonical/*` namespace below.
+
+Current live platform route registration is root-scoped for canonical reads. If your app is calling the live backend today, use the current live route paths in the second column.
+
+| Builder-doc route | Current live route | Scope | Status | Description |
+|-------------------|--------------------|-------|--------|-------------|
+| `GET /canonical/households` | `GET /households` | `canonical.household.read` | live | List households |
+| `GET /canonical/households/{householdId}` | `GET /households/{householdId}` | `canonical.household.read` | live | Household detail |
+| `GET /canonical/households/{householdId}/tax-filings` | `GET /households/{householdId}/tax-filings` | `canonical.tax.detail.read` | shell-only today | Household tax filings by year and filing unit |
+| `GET /canonical/households/{householdId}/tax-filings/{taxFilingId}` | `GET /households/{householdId}/tax-filings/{taxFilingId}` | `canonical.tax.detail.read` | shell-only today | Single household tax filing detail |
+| `GET /canonical/clients` | `GET /clients` | `canonical.client.summary.read` | live | List clients (summary) |
+| `GET /canonical/households/{householdId}/clients` | `GET /households/{householdId}/clients` | `canonical.client.summary.read` | live | Clients in a household |
+| `GET /canonical/households/{householdId}/clients/{clientId}` | `GET /households/{householdId}/clients/{clientId}` | `canonical.client.sensitive.read` | live | Full client detail |
+| `GET /canonical/accounts` | `GET /accounts` | `canonical.account.read` | live | List accounts |
+| `GET /canonical/households/{householdId}/accounts` | `GET /households/{householdId}/accounts` | `canonical.account.read` | live | Accounts in a household |
+| `GET /canonical/accounts/{accountId}` | `GET /accounts/{accountId}` | `canonical.account.read` | live | Account detail |
+| `GET /canonical/accounts/{accountId}/positions` | `GET /accounts/{accountId}/positions` | `canonical.position.read` | live | Positions (filter by `asOfDate`) |
+| `GET /canonical/accounts/{accountId}/transactions` | `GET /accounts/{accountId}/transactions` | `canonical.transaction.read` | live | Transactions (filter by `startDate`, `endDate`) |
+| `GET /canonical/accounts/{accountId}/cost-basis` | `GET /accounts/{accountId}/cost-basis` | `canonical.cost_basis.read` | live | Cost basis lots (filter by `asOfDate`) |
+| `GET /canonical/securities` | `GET /securities` | `canonical.security.read` | live | Securities (merged with firm overrides) |
+| `GET /canonical/securities/{securityId}` | `GET /securities/{securityId}` | `canonical.security.read` | live | Security detail (merged) |
+| `GET /canonical/models` | `GET /models` | `canonical.model.read` | live | Models list |
+| `GET /canonical/models/{modelId}/holdings` | `GET /models/{modelId}/holdings` | `canonical.model.read` | live | Model holdings |
+| `GET /canonical/sleeves` | `GET /sleeves` | `canonical.sleeve.read` | live | Sleeves list |
+| `GET /canonical/sleeves/{sleeveId}/allocations` | `GET /sleeves/{sleeveId}/allocations` | `canonical.sleeve.read` | live | Sleeve allocations |
 
 ### Pagination
 
@@ -386,7 +390,7 @@ These are the actual response payloads builder apps receive from each canonical 
 }
 ```
 
-**Client (summary view — `canonical.client.summary.read`):**
+**Client (summary view â€” `canonical.client.summary.read`):**
 
 ```json
 {
@@ -404,7 +408,7 @@ These are the actual response payloads builder apps receive from each canonical 
 
 Summary reads do not return raw PII fields.
 
-**Client (sensitive view — `canonical.client.sensitive.read`):**
+**Client (sensitive view â€” `canonical.client.sensitive.read`):**
 
 ```json
 {
@@ -567,62 +571,35 @@ Summary reads do not return raw PII fields.
 
 ### Account number masking policy
 
-Account numbers are masked by default for builder apps. The masking level is controlled at two layers:
+Account numbers are masked by default for builder apps.
 
-**1. Server-side (API default)**
+What students should assume:
 
-Builder app tokens receive pre-masked `accountNumber` values: `****NNNNN` (last 5 characters only). The full number never enters the app's JavaScript context under the default policy.
+- the current builder-facing API returns masked `accountNumber` values
+- student apps should not build a full-account-number display path unless PlannerXchange explicitly documents one
+- if the app computes or combines account identifiers locally, it should still mask them before display
 
-**2. Manifest declaration**
+Simple display rule:
 
-```json
-{
-  "permissions": {
-    "account_number": "masked"
-  }
-}
+```ts
+const masked =
+  accountNumber.length <= 5 ? accountNumber : `****${accountNumber.slice(-5)}`;
 ```
 
-Accepted values:
-
-- `"masked"` (default) — API returns pre-masked values; app must not display full numbers
-- `"full"` — API returns full values; requires elevated publish review; app must still mask for display using the SDK `<MaskedValue>` component
-
-**3. Client-side SDK primitives (for locally-computed values)**
-
-```typescript
-import { maskField } from "@plannerxchange/sdk";
-
-// Returns "****59410" for "10059410"
-const display = maskField("account_number", account.accountNumber);
-```
-
-A `<MaskedValue field="account_number" value={...} />` component is available for inline use.
-
-**4. Shell masking policy in bootstrap**
-
-The `GET /shell/bootstrap` response includes a `maskingPolicy` object:
-
-```json
-{
-  "maskingPolicy": {
-    "accountNumber": "last5"
-  }
-}
-```
-
-**Builder AI agent requirement:** Any field classified `display_sensitive` (including `accountNumber`, `clientSsn`, `taxId`) must be rendered through SDK masking primitives or pre-masked API values. Rendering a raw `accountNumber` directly in JSX is a publish review violation.
+**Builder AI agent requirement:** Any field classified `display_sensitive` such as `accountNumber`, `clientSsn`, or `taxId` must be rendered from pre-masked API values or masked before display. Rendering a raw `accountNumber` directly in JSX is a publish review violation.
 
 ### Rules for builder apps consuming canonical data
 
 - canonical data is read-only for builder apps in v1
-- do not attempt to create, update, or delete canonical records — those operations belong to the PlannerXchange shell
+- do not attempt to create, update, or delete canonical records â€” those operations belong to the PlannerXchange shell
+- if your UX needs household or client create/edit/archive behavior, do not invent undocumented builder routes; use the current shell-owned workflow or wait for an explicit builder write contract
 - if the app needs to save derived work product (recommendations, projections, scenarios), use the PX app-data API (see `docs/builder-spec/app-data-api-v1.md`)
 - app requests should always include `x-plannerxchange-app-installation-id` from the shell runtime context
-- do not cache canonical data in IndexedDB or long-lived local storage — re-fetch from the API to ensure freshness
+- a bearer token plus API base URL is not enough by itself for installed-app canonical behavior; live calls also need a real PlannerXchange installation context
+- do not cache canonical data in IndexedDB or long-lived local storage â€” re-fetch from the API to ensure freshness
 - do not export or send PX canonical client data to external AI providers or third parties in Day 1
-- handle null on all optional fields — not every firm imports every field, and different custodian exports include different columns
-- firms populate canonical data through PlannerXchange's CSV import wizard, which supports common custodian formats (Altruist, Schwab, Fidelity, etc.) with fuzzy column matching — but data completeness depends on what the firm uploaded
+- handle null on all optional fields â€” not every firm imports every field, and different custodian exports include different columns
+- firms populate canonical data through PlannerXchange's CSV import wizard, which supports common custodian formats (Altruist, Schwab, Fidelity, etc.) with fuzzy column matching â€” but data completeness depends on what the firm uploaded
 - respect `verificationStatus` on securities: `unverified` or `review_needed` securities may have incomplete or incorrect metadata
 - do not build student-app workflows around shell-only canonical admin routes such as import setup, custom fields, category mappings, or auto-classify
-- if the app renders household or account totals, the firm's data may be partial — do not imply completeness unless the firm confirms it
+- if the app renders household or account totals, the firm's data may be partial â€” do not imply completeness unless the firm confirms it
