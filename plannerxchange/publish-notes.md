@@ -162,6 +162,21 @@ An app is treated as high-risk if any of the following are true:
 
 See `pii-and-security.md` for the scope-to-classification mapping.
 
+## Common rejection reasons
+
+The following issues are common causes of publication rejection. Check for them before submitting:
+
+1. **Real personal data in source code** — any real email addresses, names, phone numbers, or SSNs in source files, mock data, or config. All mock data must use obviously synthetic names and `@example.test` addresses.
+2. **localStorage as production persistence** — using `localStorage` or `sessionStorage` as the primary data store instead of the PX app-data API. Browser-local storage is acceptable for mock/demo mode only.
+3. **Hardcoded API base URLs** — embedding `https://api.plannerxchange.ai` or environment-specific URLs directly in source instead of reading from `ShellRuntimeContext` or environment config.
+4. **Missing or incorrect manifest fields** — `slug`, `name`, `summary`, `entryPoint`, or `permissions` missing or inconsistent with the actual app behavior.
+5. **Undeclared permission scopes** — app code calls APIs that require scopes not listed in `plannerxchange.app.json` permissions.
+6. **Invented API routes** — calling PX API routes that do not exist in the `api-reference.md` scope matrix.
+7. **Auth/identity bypass** — app attempts its own login flow, password handling, or user registration instead of using PX-provided auth context.
+8. **Builder sets appId or appBasename** — these are PX-assigned at registration and shell-injected at runtime. The builder only controls `slug`.
+9. **Bulk or marketing email** — using `email.send` for cold outreach, newsletters, or non-workflow email.
+10. **Missing disclosure or branding consumption** — whitelabel apps that hardcode a single brand instead of reading PX branding/legal context.
+
 ## PX Approved badge direction
 
 PlannerXchange reserves `PX Approved` for apps that:

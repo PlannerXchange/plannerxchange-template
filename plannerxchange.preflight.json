@@ -1,0 +1,107 @@
+{
+  "version": 1,
+  "checks": [
+    {
+      "id": "no-real-email",
+      "severity": "error",
+      "title": "No real email addresses in source",
+      "description": "Source files must not contain real email addresses. Use @example.test for mock data.",
+      "type": "grep",
+      "pattern": "[a-zA-Z0-9._%+-]+@(?!example\\.test)[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}",
+      "include": ["src/**/*.{ts,tsx,js,jsx,json}"],
+      "exclude": ["node_modules/**"]
+    },
+    {
+      "id": "no-real-phone",
+      "severity": "warning",
+      "title": "No real phone numbers in source",
+      "description": "Source files should not contain patterns that look like real phone numbers.",
+      "type": "grep",
+      "pattern": "\\b\\d{3}[-.\\s]?\\d{3}[-.\\s]?\\d{4}\\b",
+      "include": ["src/**/*.{ts,tsx,js,jsx,json}"],
+      "exclude": ["node_modules/**"]
+    },
+    {
+      "id": "no-real-ssn",
+      "severity": "error",
+      "title": "No SSN patterns in source",
+      "description": "Source files must not contain social security number patterns.",
+      "type": "grep",
+      "pattern": "\\b\\d{3}-\\d{2}-\\d{4}\\b",
+      "include": ["src/**/*.{ts,tsx,js,jsx,json}"],
+      "exclude": ["node_modules/**"]
+    },
+    {
+      "id": "manifest-slug",
+      "severity": "error",
+      "title": "Manifest has a slug",
+      "description": "plannerxchange.app.json must define a non-empty slug.",
+      "type": "manifest-field",
+      "field": "slug",
+      "check": "non-empty"
+    },
+    {
+      "id": "manifest-name",
+      "severity": "error",
+      "title": "Manifest has a name",
+      "description": "plannerxchange.app.json must define a non-empty name.",
+      "type": "manifest-field",
+      "field": "name",
+      "check": "non-empty"
+    },
+    {
+      "id": "manifest-entry-point",
+      "severity": "error",
+      "title": "Manifest has an entryPoint",
+      "description": "plannerxchange.app.json must define an entryPoint.",
+      "type": "manifest-field",
+      "field": "entryPoint",
+      "check": "non-empty"
+    },
+    {
+      "id": "manifest-permissions",
+      "severity": "warning",
+      "title": "Manifest has permissions",
+      "description": "plannerxchange.app.json should list required permission scopes.",
+      "type": "manifest-field",
+      "field": "permissions",
+      "check": "non-empty-array"
+    },
+    {
+      "id": "build-output-exists",
+      "severity": "error",
+      "title": "Build output exists",
+      "description": "dist/ directory must exist. Run `npm run build` before preflight.",
+      "type": "path-exists",
+      "path": "dist"
+    },
+    {
+      "id": "publish-manifest-exists",
+      "severity": "error",
+      "title": "Publish manifest generated",
+      "description": "dist/plannerxchange.publish.json must exist after build.",
+      "type": "path-exists",
+      "path": "dist/plannerxchange.publish.json"
+    },
+    {
+      "id": "no-localstorage-prod",
+      "severity": "warning",
+      "title": "localStorage usage flagged",
+      "description": "localStorage calls detected. Ensure these are mock-only and not used as production persistence.",
+      "type": "grep",
+      "pattern": "localStorage\\.(setItem|getItem|removeItem)",
+      "include": ["src/**/*.{ts,tsx,js,jsx}"],
+      "exclude": ["node_modules/**"]
+    },
+    {
+      "id": "no-hardcoded-api-url",
+      "severity": "warning",
+      "title": "No hardcoded PX API URLs",
+      "description": "API base URLs should come from environment config, not be hardcoded.",
+      "type": "grep",
+      "pattern": "https?://api\\.plannerxchange\\.(ai|com)",
+      "include": ["src/**/*.{ts,tsx,js,jsx}"],
+      "exclude": ["node_modules/**", "src/lib/px-gateway.ts"]
+    }
+  ]
+}

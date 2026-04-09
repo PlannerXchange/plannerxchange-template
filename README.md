@@ -94,7 +94,7 @@ and turns the starter into reference material instead of the working project.
 
 ## Recommended Initial AI Prompt
 
-Use this prompt, then answer the questions it asks before the coding agent starts writing app code:
+Use this prompt, then answer the questions the AI asks before it starts writing app code:
 
 ```text
 I am starting a new app that may be published on PlannerXchange.
@@ -108,21 +108,46 @@ Important setup rules:
 4. Do not assume undocumented PlannerXchange API routes exist.
 5. Do not copy PlannerXchange visual styling unless I explicitly ask for it.
 6. Keep the UI builder-owned and frontend-agnostic unless required by backend, security, or publication rules.
+7. All mock data must use obviously synthetic names and @example.test email addresses. Never embed real personal data in source code.
+8. Use the VITE_PX_MODE environment variable to toggle between mock and live modes. Do not invent custom mode-detection heuristics.
+9. Route all app-owned record reads and writes through the PX app-data API gateway pattern (see src/lib/px-gateway.ts). Do not use localStorage as a production persistence layer — it is mock-only.
+10. Use the current live API route paths documented in plannerxchange/api-reference.md (root-scoped like /households, /clients, /accounts), not the future /canonical/* namespace.
 
 Before writing code, ask me these questions and wait for my answers:
-1. Is this app only local, a publishable shell app, a whitelabel and monetizable shell app, or a PlannerXchange-portable app?
-2. Do I want PlannerXchange canonical data reads? If yes, which entities?
-3. Do I want PlannerXchange-hosted app-data persistence?
-4. Do I want whitelabel behavior at runtime?
-5. Do I want the app to create or edit shared PlannerXchange records like households or clients, if supported?
-6. What frontend stack and design direction do I want?
+
+1. In a few sentences, describe the app you want to build — what will it do for an advisor or their clients? (Free text.)
+
+2. Will this app be:
+   a) Something you only use on your own computer (local-only tool)?
+   b) An app you want to share with other advisors through the PlannerXchange marketplace, possibly with your own branding and pricing?
+   c) All of the above, plus the ability to read and work with real client data from PlannerXchange?
+
+3. Will your app need to access information PlannerXchange already stores — like client names, household details, account balances, or investment positions? If yes, describe what information your app will use.
+
+4. Will your app need to save its own work product (like questionnaire answers, recommendations, or reports) so it persists across sessions? PlannerXchange can store this for you.
+
+5. Beyond reading client data, will your app also need to add or update information about households or clients? (Note: PlannerXchange may not yet support builder-owned writes for all record types.)
 
 After I answer:
+
+Phase 1 — Build a fully working local app first:
+- scaffold the app UI and core logic using mock data from dev-context.ts and the gateway mock mode
+- make sure the app works end-to-end locally before wiring any PX API calls
+- keep mock data obviously synthetic
+
+Phase 2 — Wire PX integration:
 - scaffold only the minimum contract-required PlannerXchange integration
-- request only the minimum scopes needed
+- request only the minimum permission scopes needed for the described app
 - clearly distinguish mock mode from real PlannerXchange runtime
 - do not claim live PlannerXchange mode unless a real app installation context exists
-- use mock data only if it is clearly synthetic
+- set slug, name, summary, description, and categories in plannerxchange.app.json based on the app description I provided — do not ask me to fill those in manually
+- use React + TypeScript + Tailwind CSS (Vite) unless I specify otherwise
+
+Identity rules — do not tell me to do any of the following, because PlannerXchange handles them:
+- appId is assigned by PlannerXchange during publication, not set by the builder
+- appBasename is injected by the PlannerXchange shell at runtime (e.g. /apps/<slug>), not set by the builder
+- slug is the only identifier the builder provides in plannerxchange.app.json
+- do not tell me to manually update appId or appBasename — they are mock values in dev-context.ts and real values come from PX at runtime
 ```
 
 ## Local development
@@ -159,12 +184,14 @@ Local development modes:
 Recommended workshop flow:
 
 1. student starts a new GitHub repository from this template or copies these files into the repo root
-2. student reads the `plannerxchange/` markdown files first
-3. student uses an AI coding agent against the local repo
-4. student builds an app aligned to `plannerxchange.app.json`
-5. student runs `npm run build`
-6. student commits and pushes source plus the generated `dist/` output
-7. student logs into PlannerXchange and links the repository for governed publication
+2. student copies `.env.example` to `.env` (mock mode is the default)
+3. student reads the `plannerxchange/` markdown files first
+4. student uses an AI coding agent against the local repo
+5. student builds Phase 1 (local-only app with mock data, using `src/lib/px-gateway.ts` in mock mode)
+6. student wires Phase 2 (PX API integration through the gateway's live mode)
+7. student runs `npm run build` then `npm run preflight`
+8. student commits and pushes source plus the generated `dist/` output
+9. student logs into PlannerXchange and links the repository for governed publication
 
 The intended UI should require little more than the GitHub URL. PlannerXchange should read the
 required metadata from `plannerxchange.app.json` and only ask for optional merchandising overrides
@@ -175,9 +202,12 @@ when needed.
 - Keep `plannerxchange.app.json` aligned with `src/plugin.tsx`.
 - Keep `entryPoint` source-oriented, such as `src/plugin.tsx`; do not replace it with a hashed build file.
 - Run `npm run build` before publish and commit the generated `dist/` output.
+- Run `npm run preflight` after building to catch common rejection issues before submitting.
 - Do not hand-edit `dist/plannerxchange.publish.json`; let the build regenerate it.
 - Declare the correct `dataPortabilityMode` before linking the repo.
 - Do not add app-owned login flows.
+- Route app-owned record reads and writes through the PX gateway pattern (`src/lib/px-gateway.ts`). Do not use `localStorage` as a production persistence layer.
+- All mock data must use obviously synthetic names and `@example.test` email addresses. Never embed real personal data in source code.
 - Assume PlannerXchange owns auth, tenant resolution, branding, and disclosures.
 - Do not add app-owned invite links, email-verification flows, password-setup flows, password-reset flows, or onboarding entry flows.
 - Configure your router `basename` to the `appBasename` value from the shell context props (`/apps/<your-app-slug>`). Use `BrowserRouter` (or Vue Router with `createWebHistory`) — not `MemoryRouter` — so deep links and browser history work correctly.
@@ -206,6 +236,7 @@ Auth lifecycle reminder:
 ## Files
 
 - `plannerxchange.app.json`: publish manifest
+- `plannerxchange.preflight.json`: machine-readable preflight checklist
 - `plannerxchange/app-brief.md`: the student-facing project brief
 - `plannerxchange/context.md`: platform constraints and design reminders
 - `plannerxchange/data-contract.md`: current PX canonical data, portability, and auth assumptions
@@ -213,6 +244,9 @@ Auth lifecycle reminder:
 - `src/plugin.tsx`: PlannerXchange plugin entrypoint
 - `src/main.tsx`: local preview host
 - `src/dev-context.ts`: mock runtime context for local development
+- `src/lib/px-gateway.ts`: mock/live API gateway pattern for PX API calls
+- `.env.example`: environment variable template (copy to `.env`)
+- `scripts/preflight.mjs`: pre-publish validation script
 - `dist/plannerxchange.publish.json`: generated publish manifest that maps source `entryPoint` values to built artifact files
 
 ## Scope

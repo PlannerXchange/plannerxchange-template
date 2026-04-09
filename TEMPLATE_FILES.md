@@ -2,6 +2,7 @@
 
 The public `plannerxchange-template` repository should contain exactly this starter set:
 
+- `.env.example`
 - `.gitignore`
 - `README.md`
 - `TEMPLATE_FILES.md`
@@ -9,14 +10,17 @@ The public `plannerxchange-template` repository should contain exactly this star
 - `package-lock.json`
 - `package.json`
 - `plannerxchange.app.json`
+- `plannerxchange.preflight.json`
 - `tsconfig.json`
 - `vite.config.ts`
 - `plannerxchange/app-brief.md`
 - `plannerxchange/context.md`
 - `plannerxchange/data-contract.md`
 - `plannerxchange/publish-notes.md`
+- `scripts/preflight.mjs`
 - `src/App.tsx`
 - `src/dev-context.ts`
+- `src/lib/px-gateway.ts`
 - `src/main.tsx`
 - `src/plannerxchange.ts`
 - `src/plugin.tsx`

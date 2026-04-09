@@ -99,6 +99,14 @@ Brand asset standards:
 - favicon: square `svg`, `png`, or `ico`, recommended raster minimum `256x256`, max `256 KB`
 - colors: use hex values and expect a platform-provided `fontColor` when the app renders colored surfaces
 
+Cross-browser and persistence warning:
+
+- `localStorage` and `sessionStorage` are acceptable for mock/demo mode but must never be the production persistence layer
+- in production, the PlannerXchange shell may be accessed from different browsers, devices, or by different firm members — browser-local state is invisible to other sessions
+- any data that should survive across sessions or be visible to other firm users must be persisted through the PX app-data API (`app_data.read` / `app_data.write` scopes)
+- shareable links, saved reports, and workflow state all require server-side persistence via PX app-data
+- if the app uses `localStorage` for caching or UI preferences, clearly separate that from record persistence and do not let it become the primary data store
+
 Before adding data writes, decide:
 
 1. Is this PX canonical data or app-owned / partner-managed data?

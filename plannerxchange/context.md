@@ -125,13 +125,13 @@ PlannerXchange maintains canonical firm data that apps can read without building
 
 Firms import this data through CSV upload or manual entry in the PlannerXchange shell. Builder apps declare permission scopes in the manifest and read the data through governed canonical API routes.
 
-Important current-path note:
+Current API route paths:
 
-- builder docs still use the intended `/canonical/*` namespace when describing the long-term contract
-- current live platform route registration for canonical reads is root-scoped, for example `/households`, `/clients`, `/households/{householdId}/clients`, and `/accounts`
-- if your app is calling the live backend today, use the current live route paths documented in `api-reference.md`
+- the single authoritative route table lives in `api-reference.md` under **Locked v1 scope matrix**
+- current live routes are root-scoped (e.g. `/households`, `/clients`, `/accounts`), not `/canonical/*`
+- do not guess route paths — if a route is not listed in `api-reference.md`, it does not exist for builders
 
-For entity fields, API routes, scopes, and field-level required/optional guidance, see `data-contract.md` and `docs/builder-spec/canonical-data-api-v1.md`.
+For entity fields, scopes, and field-level required/optional guidance, see `data-contract.md` and `docs/builder-spec/canonical-data-api-v1.md`.
 
 Tax-read rule:
 
