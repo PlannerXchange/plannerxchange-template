@@ -57,6 +57,9 @@ export default defineConfig({
       input: {
         preview: resolve(rootDir, "index.html"),
         plugin: resolve(rootDir, pluginSourcePath)
+      },
+      output: {
+        preserveEntrySignatures: "exports-only"
       }
     }
   }
