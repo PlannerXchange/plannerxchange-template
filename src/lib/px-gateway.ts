@@ -108,8 +108,9 @@ function mockGateway(): PxGateway {
 // ---------------------------------------------------------------------------
 
 function liveGateway(ctx: ShellRuntimeContext): PxGateway {
-  const base =
-    import.meta.env.VITE_PX_API_BASE ?? "https://api.plannerxchange.ai";
+  // Use the shell-injected API base URL instead of hardcoding.
+  // This ensures the app calls the correct API for dev/staging/prod.
+  const base = ctx.apiBaseUrl || import.meta.env.VITE_PX_API_BASE || "https://api.plannerxchange.ai";
 
   async function pxFetch<T>(path: string, init?: RequestInit): Promise<T> {
     const res = await fetch(`${base}${path}`, {

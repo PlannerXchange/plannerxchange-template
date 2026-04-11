@@ -6,6 +6,21 @@ This document defines the HTTP conventions, error handling, request transport, a
 
 Apps integrate through approved PlannerXchange APIs. Published apps do not receive direct database access, even though PlannerXchange owns canonical data storage. The API contract is the integration boundary.
 
+## API base URL
+
+The API base URL is environment-specific. Do not hardcode `https://api.plannerxchange.ai` or any AWS execute-api URL.
+
+**Source the base URL from `ShellRuntimeContext.apiBaseUrl`:**
+
+```typescript
+const ctx: ShellRuntimeContext = /* passed into mount() */;
+const url = `${ctx.apiBaseUrl}/canonical-data/households`;
+```
+
+This ensures the app works correctly across dev, staging, and production environments. The shell injects the correct base URL for the current environment.
+
+For local development without the shell, `dev-context.ts` provides a mock context with a default API URL that can be overridden via `VITE_PX_API_BASE` env var.
+
 ## Request transport
 
 All builder-facing routes beyond `/session` and `/shell/bootstrap` require the current app installation context.

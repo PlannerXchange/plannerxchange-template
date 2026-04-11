@@ -97,11 +97,11 @@
       "id": "no-hardcoded-api-url",
       "severity": "warning",
       "title": "No hardcoded PX API URLs",
-      "description": "API base URLs should come from environment config, not be hardcoded.",
+      "description": "Use ctx.apiBaseUrl from the shell runtime context instead of hardcoding API URLs. This ensures apps work correctly across dev/staging/prod environments.",
       "type": "grep",
-      "pattern": "https?://api\\.plannerxchange\\.(ai|com)",
+      "pattern": "https?://(api\\.plannerxchange\\.(ai|com)|[a-z0-9]+\\.execute-api\\.[a-z0-9-]+\\.amazonaws\\.com)",
       "include": ["src/**/*.{ts,tsx,js,jsx}"],
-      "exclude": ["node_modules/**", "src/lib/px-gateway.ts"]
+      "exclude": ["node_modules/**", "src/lib/px-gateway.ts", "src/dev-context.ts"]
     }
   ]
 }

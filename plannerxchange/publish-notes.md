@@ -168,7 +168,7 @@ The following issues are common causes of publication rejection. Check for them 
 
 1. **Real personal data in source code** — any real email addresses, names, phone numbers, or SSNs in source files, mock data, or config. All mock data must use obviously synthetic names and `@example.test` addresses.
 2. **localStorage as production persistence** — using `localStorage` or `sessionStorage` as the primary data store instead of the PX app-data API. Browser-local storage is acceptable for mock/demo mode only.
-3. **Hardcoded API base URLs** — embedding `https://api.plannerxchange.ai` or environment-specific URLs directly in source instead of reading from `ShellRuntimeContext` or environment config.
+3. **Hardcoded API base URLs** — embedding `https://api.plannerxchange.ai` or AWS execute-api URLs directly in source. Use `ctx.apiBaseUrl` from `ShellRuntimeContext` so the app works across dev/staging/prod environments.
 4. **Missing or incorrect manifest fields** — `slug`, `name`, `summary`, `entryPoint`, or `permissions` missing or inconsistent with the actual app behavior.
 5. **Undeclared permission scopes** — app code calls APIs that require scopes not listed in `plannerxchange.app.json` permissions.
 6. **Invented API routes** — calling PX API routes that do not exist in the `api-reference.md` scope matrix.

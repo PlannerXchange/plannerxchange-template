@@ -88,6 +88,12 @@ export interface ShellRuntimeContext {
    * apps should not cache it long-term.
    */
   idToken: string;
+  /**
+   * The base URL for PlannerXchange API calls (e.g. "https://api.plannerxchange.ai").
+   * Apps should use this instead of hardcoding API URLs so they work across
+   * dev/staging/prod environments.
+   */
+  apiBaseUrl: string;
   tenantId: string;
   enterpriseId: string;
   firmId: string;

@@ -4,6 +4,9 @@ export const mockRuntimeContext: ShellRuntimeContext = {
   // In local dev mode, this token is a placeholder. When running inside the
   // PlannerXchange shell, the real Cognito idToken is injected here.
   idToken: "synthetic-dev-token",
+  // In local dev mode, this defaults to the dev API. When running inside the
+  // PlannerXchange shell, the shell's environment-specific API URL is injected.
+  apiBaseUrl: import.meta.env.VITE_PX_API_BASE ?? "https://5o4j1sxhui.execute-api.us-east-2.amazonaws.com",
   tenantId: "synthetic-marketplace-tenant",
   enterpriseId: "synthetic-enterprise",
   firmId: "synthetic-demo-firm",
