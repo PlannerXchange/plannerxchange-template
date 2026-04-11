@@ -112,6 +112,7 @@ Important setup rules:
 8. Use the VITE_PX_MODE environment variable to toggle between mock and live modes. Do not invent custom mode-detection heuristics.
 9. Route all app-owned record reads and writes through the PX app-data API gateway pattern (see src/lib/px-gateway.ts). Do not use localStorage as a production persistence layer — it is mock-only.
 10. Use the current live API route paths documented in plannerxchange/api-reference.md (root-scoped like /households, /clients, /accounts), not the future /canonical/* namespace.
+11. Use the default Vite port (5173) for local development — PlannerXchange allows CORS and auth callbacks only from localhost:5173.
 
 Before writing code, ask me these questions and wait for my answers:
 
@@ -154,10 +155,17 @@ Identity rules — do not tell me to do any of the following, because PlannerXch
 
 1. Start from this template at the root of the builder repo.
 2. Run `npm install`.
-3. Run `npm run dev`.
-4. Open the Vite preview and confirm the plugin mounts with the mock shell context from `src/dev-context.ts`.
-5. Build your own UI and routes; the default template does not ship a styled frontend starter.
-6. Run `npm run build` before publication to generate `dist/` and `dist/plannerxchange.publish.json`.
+3. Run `npm run dev` — this starts the dev server on `localhost:5173` (Vite default).
+4. **Port 5173 is required** — PlannerXchange allows CORS and auth callbacks from `localhost:5173`. Do not change the port.
+5. Open the Vite preview and confirm the plugin mounts with the mock shell context from `src/dev-context.ts`.
+6. Build your own UI and routes; the default template does not ship a styled frontend starter.
+7. Run `npm run build` before publication to generate `dist/` and `dist/plannerxchange.publish.json`.
+
+### Mock vs live mode
+
+By default, local development uses **mock mode** with synthetic data from `dev-context.ts`. This lets you build and test UI without a PlannerXchange account.
+
+To connect to real dev data, your app must run inside the PlannerXchange shell (which injects real auth tokens and installation context). Local development is primarily for frontend iteration with mock data.
 
 The template is intentionally markdown-first:
 

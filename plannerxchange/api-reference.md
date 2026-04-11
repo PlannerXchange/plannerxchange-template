@@ -21,6 +21,42 @@ This ensures the app works correctly across dev, staging, and production environ
 
 For local development without the shell, `dev-context.ts` provides a mock context with a default API URL that can be overridden via `VITE_PX_API_BASE` env var.
 
+## Local development
+
+### Port configuration
+
+PlannerXchange's dev environment allows CORS and Cognito callbacks from `localhost:5173`.
+
+Vite uses port 5173 by default, so no configuration is needed. If you change the port, you may encounter CORS or authentication errors.
+
+**Recommendation:** Use the default Vite port (`npm run dev` starts on `localhost:5173`).
+
+### Mock mode vs live mode
+
+Local development has two modes controlled by `VITE_PX_MODE`:
+
+**Mock mode (default):**
+- Uses synthetic context from `dev-context.ts`
+- API calls go through `px-gateway.ts` which returns mock data
+- No real authentication required
+- Ideal for building and testing UI without a PlannerXchange account
+
+**Live mode:**
+- Set `VITE_PX_MODE=live` in `.env.local`
+- API calls go to the real dev API
+- Requires a real PlannerXchange authentication token
+- Requires a real app installation context
+
+Important: Even in live mode on localhost, you need real auth tokens from PlannerXchange. The `dev-context.ts` file provides mock values for `idToken` and `appInstallationId` that will not authenticate against the live API.
+
+**To work with real dev data from localhost:**
+
+1. Ensure your app is linked and published to the dev environment
+2. Install the app in your firm workspace
+3. Launch the app from the PlannerXchange shell (the shell injects real tokens)
+
+Local development is primarily designed for frontend iteration with mock data. Real data integration testing should happen through the PlannerXchange shell.
+
 ## Request transport
 
 All builder-facing routes beyond `/session` and `/shell/bootstrap` require the current app installation context.

@@ -51,6 +51,8 @@ function plannerXchangePublishManifestPlugin(): Plugin {
 
 export default defineConfig({
   plugins: [react(), plannerXchangePublishManifestPlugin()],
+  // Note: Vite defaults to port 5173. Do not change this — PlannerXchange's dev
+  // environment allows CORS and Cognito auth callbacks from localhost:5173.
   build: {
     manifest: true,
     rollupOptions: {

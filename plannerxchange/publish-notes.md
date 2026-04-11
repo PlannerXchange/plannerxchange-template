@@ -23,6 +23,7 @@ Important:
 
 Student checklist before linking the repo:
 
+- use the default Vite port (5173) for local development — PlannerXchange allows CORS and auth callbacks from `localhost:5173`
 - confirm `plannerxchange.app.json` matches the actual app
 - keep `entryPoint` pointed at the source plugin module, not a built filename
 - set the correct `dataPortabilityMode`
