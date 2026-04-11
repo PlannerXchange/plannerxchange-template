@@ -82,6 +82,12 @@ export interface PlannerXchangeManifest {
 }
 
 export interface ShellRuntimeContext {
+  /**
+   * The current user's Cognito ID token (JWT). Apps use this for authenticated
+   * PlannerXchange API calls. This token is automatically refreshed by the shell;
+   * apps should not cache it long-term.
+   */
+  idToken: string;
   tenantId: string;
   enterpriseId: string;
   firmId: string;

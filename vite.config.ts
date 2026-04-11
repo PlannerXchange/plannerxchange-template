@@ -58,9 +58,12 @@ export default defineConfig({
         preview: resolve(rootDir, "index.html"),
         plugin: resolve(rootDir, pluginSourcePath)
       },
+      // preserveEntrySignatures is required so Rollup keeps the `mount` export
+      // on the plugin chunk. Vite's TS types may not expose this option, but
+      // Rollup itself supports it.
       output: {
         preserveEntrySignatures: "exports-only"
-      }
+      } as import("rollup").OutputOptions
     }
   }
 });

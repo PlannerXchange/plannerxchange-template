@@ -15,15 +15,6 @@
 
 import type { ShellRuntimeContext } from "../plannerxchange";
 
-/**
- * Extended context that includes the optional idToken.
- * The shell injects idToken at runtime; the type definition may not include
- * it yet. This avoids coupling the gateway to internal type changes.
- */
-interface RuntimeContextWithToken extends ShellRuntimeContext {
-  idToken?: string;
-}
-
 // ---------------------------------------------------------------------------
 // Types — extend these as the app grows
 // ---------------------------------------------------------------------------
@@ -72,14 +63,13 @@ export interface PxGateway {
 }
 
 export function createPxGateway(ctx: ShellRuntimeContext): PxGateway {
-  const rtx = ctx as RuntimeContextWithToken;
   const isLive =
-    import.meta.env.VITE_PX_MODE === "live" && !!rtx.idToken;
+    import.meta.env.VITE_PX_MODE === "live" && !!ctx.idToken;
 
   if (!isLive) {
     return mockGateway();
   }
-  return liveGateway(rtx);
+  return liveGateway(ctx);
 }
 
 // ---------------------------------------------------------------------------
@@ -117,7 +107,7 @@ function mockGateway(): PxGateway {
 // Live implementation — calls the real PX API
 // ---------------------------------------------------------------------------
 
-function liveGateway(ctx: RuntimeContextWithToken): PxGateway {
+function liveGateway(ctx: ShellRuntimeContext): PxGateway {
   const base =
     import.meta.env.VITE_PX_API_BASE ?? "https://api.plannerxchange.ai";
 

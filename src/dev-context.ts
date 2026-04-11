@@ -1,6 +1,9 @@
 import type { ShellRuntimeContext } from "./plannerxchange";
 
 export const mockRuntimeContext: ShellRuntimeContext = {
+  // In local dev mode, this token is a placeholder. When running inside the
+  // PlannerXchange shell, the real Cognito idToken is injected here.
+  idToken: "synthetic-dev-token",
   tenantId: "synthetic-marketplace-tenant",
   enterpriseId: "synthetic-enterprise",
   firmId: "synthetic-demo-firm",
