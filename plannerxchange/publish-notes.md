@@ -187,6 +187,8 @@ The following issues are common causes of publication rejection. Check for them 
 8. **Builder sets appId or appBasename** — these are PX-assigned at registration and shell-injected at runtime. The builder only controls `slug`.
 9. **Bulk or marketing email** — using `email.send` for cold outreach, newsletters, or non-workflow email.
 10. **Missing disclosure or branding consumption** — whitelabel apps that hardcode a single brand instead of reading PX branding/legal context.
+11. **Missing mount export in built artifact** — the compiled plugin JS chunk must export a named `mount` function (or `pluginModule` object). If the build minifier renames `mount` to something like `m`, the shell cannot load the app. Use the starter template's terser config with `reserved: ["mount", "pluginModule", "manifest"]` and do not switch to esbuild minification.
+12. **Missing dist/plannerxchange.publish.json** — the build must emit a publish manifest so PlannerXchange can resolve the source `entryPoint` to the hosted JS module. Run `npm run build` and commit the `dist/` directory.
 
 ## PX Approved badge direction
 

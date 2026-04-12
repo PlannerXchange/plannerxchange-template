@@ -55,17 +55,24 @@ export default defineConfig({
   // environment allows CORS and Cognito auth callbacks from localhost:5173.
   build: {
     manifest: true,
+    // Use terser instead of esbuild to preserve export names.
+    // esbuild's minification renames exports (e.g. "mount" -> "m") which breaks
+    // the shell's dynamic plugin loading.
+    minify: "terser",
+    terserOptions: {
+      mangle: {
+        // Preserve required export names so the shell can find them.
+        reserved: ["mount", "pluginModule", "manifest"]
+      }
+    },
     rollupOptions: {
       input: {
         preview: resolve(rootDir, "index.html"),
         plugin: resolve(rootDir, pluginSourcePath)
       },
       // preserveEntrySignatures is required so Rollup keeps the `mount` export
-      // on the plugin chunk. Vite's TS types may not expose this option, but
-      // Rollup itself supports it.
-      output: {
-        preserveEntrySignatures: "exports-only"
-      } as import("rollup").OutputOptions
+      // on the plugin chunk instead of tree-shaking or re-routing it.
+      preserveEntrySignatures: "exports-only"
     }
   }
 });

@@ -26,6 +26,16 @@ Important `entryPoint` rule:
 - the production build should emit `dist/plannerxchange.publish.json`
 - PlannerXchange resolves the source `entryPoint` through that generated publish manifest to the hosted JS module and any emitted CSS assets
 
+Critical build export rule:
+
+- the built plugin JS module **must** export `mount` and/or `pluginModule` by their original names
+- the PlannerXchange shell loads the plugin dynamically and looks for `module.pluginModule?.mount ?? module.mount`
+- if the minifier renames these exports (e.g. `mount` → `m`), the shell cannot find the mount function and the app will fail to load
+- the starter template's `vite.config.ts` is preconfigured to preserve these names using terser with `reserved: ["mount", "pluginModule", "manifest"]`
+- **do not** switch the minifier to esbuild or remove the terser reserved list without verifying the built output still contains `export { ... mount ... }`
+- **do not** rename the `mount` export in `src/plugin.tsx` — the shell depends on this exact name
+- the publish review script (`publish-review.mjs`) will block publication if the built artifact does not contain a named `mount` or `pluginModule` export
+
 Common frontend values:
 
 - `react`
