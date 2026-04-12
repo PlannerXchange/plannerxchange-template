@@ -211,6 +211,16 @@ The `isShellHosted()` helper detects real shell context by checking:
 
 The `px-gateway.ts` helper in `src/lib/` already uses this pattern.
 
+### API base URL ownership
+
+`ctx.apiBaseUrl` is injected by the PlannerXchange shell and points to the correct API endpoint for the current environment (dev, staging, prod). **Do not maintain an app-side origin allowlist** (e.g. `APPROVED_PX_API_ORIGINS`) to validate `apiBaseUrl`. The shell owns that value; the app cannot influence it. App-side origin validation:
+
+- breaks dev/prod parity (dev uses an API Gateway URL, prod uses `api.plannerxchange.ai`)
+- creates a maintenance burden that scales with new environments
+- adds no real security — if the shell were compromised enough to inject a malicious `apiBaseUrl`, the attacker already has `ctx.idToken` in the same JavaScript context
+
+Egress governance is the platform's responsibility and is enforced by the publish review, not by individual app code. Use `ctx.apiBaseUrl` directly when constructing API calls.
+
 ## Local development modes
 
 The starter should make the current runtime mode obvious.
