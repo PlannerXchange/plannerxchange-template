@@ -21,6 +21,16 @@ Important:
 - the manifest `entryPoint` remains a source path such as `src/plugin.tsx`
 - the build must emit `dist/plannerxchange.publish.json` so PlannerXchange can resolve that source path to the hosted JS module and emitted CSS assets
 
+Visibility management:
+
+- the `visibility` field in `plannerxchange.app.json` sets the initial visibility when linking a repo
+- after linking, manage visibility from the Creator Studio in the PlannerXchange workspace
+- set visibility to `marketplace_listed` in Creator Studio to make the app discoverable by other users
+- visibility changes in Creator Studio take effect immediately without re-publishing
+- `private` apps are only visible to the builder's own firm
+- `shared_with_specific_users` apps can be shared with specific users or firms
+- `marketplace_listed` apps appear in the public marketplace catalog for all authenticated users
+
 Student checklist before linking the repo:
 
 - use the default Vite port (5173) for local development — PlannerXchange allows CORS and auth callbacks from `localhost:5173`
