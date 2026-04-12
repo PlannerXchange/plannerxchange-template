@@ -186,6 +186,31 @@ Important:
 - if the app does not render app-owned disclosure surfaces, do not request `legal.read` just because this starter exposes legal context
 - logo rendering should stay responsive because different firms may upload different aspect ratios and file formats within PX guidance
 
+## Detecting mock vs live mode
+
+Use the `isShellHosted()` helper from `plannerxchange.ts` to decide whether to call real PlannerXchange APIs or fall back to offline mock data:
+
+```typescript
+import { isShellHosted } from "./plannerxchange";
+
+if (isShellHosted(ctx)) {
+  // Real PlannerXchange shell — use ctx.idToken and ctx.apiBaseUrl for API calls
+} else {
+  // Local dev with synthetic mock context — use offline stubs
+}
+```
+
+**Do NOT use `publicationEnvironment` to decide mock vs live.** `publicationEnvironment: "dev"` means the real PlannerXchange dev tier, not "offline / mock mode." An app that checks `publicationEnvironment !== "dev"` will be permanently stuck in mock mode for every installed user in the dev environment.
+
+**Do NOT use build-time env vars** (e.g. `VITE_PX_MODE`) for this check. Build-time values are baked into the published artifact and cannot change at runtime. When the shell mounts the published plugin, the env var will still have its build-time value, not the runtime truth.
+
+The `isShellHosted()` helper detects real shell context by checking:
+
+- `appInstallationId !== "synthetic-installation-context"` — the mock context uses this explicit marker
+- `idToken` is present and is not the placeholder `"synthetic-dev-token"`
+
+The `px-gateway.ts` helper in `src/lib/` already uses this pattern.
+
 ## Local development modes
 
 The starter should make the current runtime mode obvious.

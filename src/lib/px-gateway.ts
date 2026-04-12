@@ -13,7 +13,7 @@
  *   const households = await gw.getHouseholds();
  */
 
-import type { ShellRuntimeContext } from "../plannerxchange";
+import { isShellHosted, type ShellRuntimeContext } from "../plannerxchange";
 
 // ---------------------------------------------------------------------------
 // Types — extend these as the app grows
@@ -63,10 +63,15 @@ export interface PxGateway {
 }
 
 export function createPxGateway(ctx: ShellRuntimeContext): PxGateway {
-  const isLive =
-    import.meta.env.VITE_PX_MODE === "live" && !!ctx.idToken;
-
-  if (!isLive) {
+  // Detect live mode at runtime from the context itself.
+  // When running locally with `vite dev`, main.tsx injects the synthetic
+  // mock context. When running inside the PlannerXchange shell (dev or prod),
+  // the context has a real installation ID and JWT.
+  //
+  // Do NOT use `publicationEnvironment` or build-time env vars for this check.
+  // `publicationEnvironment: "dev"` means the real PlannerXchange dev tier,
+  // not "offline / mock mode".
+  if (!isShellHosted(ctx)) {
     return mockGateway();
   }
   return liveGateway(ctx);

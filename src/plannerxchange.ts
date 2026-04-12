@@ -126,3 +126,19 @@ export interface PlannerXchangePluginModule {
   manifest: PlannerXchangeManifest;
   mount: (context: ShellRuntimeContext) => Promise<void> | void;
 }
+
+/**
+ * Returns true when the context was provided by the real PlannerXchange shell
+ * (dev or prod), as opposed to the local mock context from dev-context.ts.
+ *
+ * Use this to switch between mock/offline data and live PlannerXchange API calls.
+ * Do NOT use `publicationEnvironment` for this purpose — `"dev"` is a real
+ * shell environment, not a synonym for "offline / mock mode".
+ */
+export function isShellHosted(ctx: ShellRuntimeContext): boolean {
+  return (
+    ctx.appInstallationId !== "synthetic-installation-context" &&
+    !!ctx.idToken &&
+    ctx.idToken !== "synthetic-dev-token"
+  );
+}
