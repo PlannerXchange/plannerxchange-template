@@ -236,4 +236,12 @@ Important:
 
 - `app_data.write` does not permit mutating immutable canonical reference facts
 - `client.sensitive.read` is a high-risk scope under tight governance
+- `canonical.account.read`, `canonical.position.read`, `canonical.transaction.read`, and `canonical.cost_basis.read` are high-risk when they expose provider-sourced investment or custodian data
+- `canonical.crm_note.read` and `canonical.crm_task.read` are high-risk scopes because CRM notes and task descriptions may contain restricted client data
 - Explorer-tier builders should assume `app_data.read`, `app_data.write`, and deeper client-data scopes are unavailable until the relevant paid-tier entitlements exist
+
+Shell-owned provider review rule:
+
+- Apps must read synced Wealthbox data only through PlannerXchange `/crm-notes` and `/crm-tasks`.
+- Apps must read Altruist-sourced investment data only through approved PlannerXchange canonical account, position, transaction, cost-basis, or integration-exposed routes after PlannerXchange mapping.
+- Apps must not call Wealthbox or Altruist directly, ask for partner API keys/OAuth tokens, call `/integrations/wealthbox/*` or `/integrations/altruist/*`, cache CRM/investment content in browser storage, or send CRM/client/account/investment content to external AI providers or third-party APIs in Day 1 publication.
