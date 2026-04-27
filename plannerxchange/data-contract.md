@@ -268,7 +268,9 @@ Temporary compatibility note:
 Shell-only boundary:
 
 - CSV import, custom-field admin, category mappings, security-allocation editing, and auto-classify are shell-owned workflows
+- partner connection, OAuth, credential entry, sync/import jobs, and match-review workflows under `/integrations/*` are shell-owned workflows
 - student apps should only target the documented canonical read routes below unless PlannerXchange later publishes a new builder-facing contract
+- synced CRM routes return only matched PlannerXchange-normalized records; unmatched Wealthbox staging records, match candidates, and partner-import job progress are not builder-facing app data
 
 ### API routes
 
