@@ -215,6 +215,8 @@ If your app is calling the live backend today, use the current live platform pat
 | `canonical.security.read` | `/securities`, `/securities/{id}` | Platform security master with firm overrides |
 | `canonical.model.read` | `/models`, `/models/{id}/holdings` | Models and holdings |
 | `canonical.sleeve.read` | `/sleeves`, `/sleeves/{id}/allocations` | Sleeves and allocations |
+| `canonical.crm_note.read` | `/crm-notes`, `/crm-notes/{id}` | Synced CRM notes from shell-owned partner integrations such as Wealthbox |
+| `canonical.crm_task.read` | `/crm-tasks`, `/crm-tasks/{id}` | Synced CRM tasks from shell-owned partner integrations such as Wealthbox |
 | `app_access.read` | `/app-access/me` | Current user's app access grant |
 | `feature_entitlements.read` | `/feature-entitlements/me` | Current user's feature entitlements |
 | `branding.read` | `/branding/current` | Resolved branding for current firm context |
@@ -229,6 +231,7 @@ Important:
 - `client.sensitive.read` is high-risk and requires stronger review and governance
 - Requesting client-data scopes does not permit external AI-provider or third-party egress of PX client data
 - Partner OAuth integrations such as Altruist are shell-owned PlannerXchange workflows. Apps do not receive partner OAuth tokens and should consume Altruist-sourced data only after PlannerXchange maps it into approved canonical or integration-exposed APIs.
+- CRM integrations such as Wealthbox are shell-owned PlannerXchange workflows. Apps do not receive Wealthbox API keys and should consume Wealthbox-sourced notes/tasks only through `/crm-notes` and `/crm-tasks` with the declared read scopes.
 
 ## `GET /session`
 

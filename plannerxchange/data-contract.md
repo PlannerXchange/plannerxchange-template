@@ -248,6 +248,8 @@ Declare these in the manifest `permissions` array. Only request what the app act
 | `canonical.security.read` | Platform security master with firm overrides merged |
 | `canonical.model.read` | Models and their holdings |
 | `canonical.sleeve.read` | Sleeves and sleeve allocations |
+| `canonical.crm_note.read` | Synced CRM notes, including Wealthbox-sourced notes normalized by PlannerXchange |
+| `canonical.crm_task.read` | Synced CRM tasks, including Wealthbox-sourced tasks normalized by PlannerXchange |
 | `canonical.tax.summary.read` | Household tax status and tax-summary fields on households |
 | `canonical.tax.detail.read` | Household tax-filing records by year and filing unit |
 
@@ -297,6 +299,10 @@ Current live platform route registration is root-scoped for canonical reads. If 
 | `GET /canonical/models/{modelId}/holdings` | `GET /models/{modelId}/holdings` | `canonical.model.read` | live | Model holdings |
 | `GET /canonical/sleeves` | `GET /sleeves` | `canonical.sleeve.read` | live | Sleeves list |
 | `GET /canonical/sleeves/{sleeveId}/allocations` | `GET /sleeves/{sleeveId}/allocations` | `canonical.sleeve.read` | live | Sleeve allocations |
+| `GET /canonical/crm-notes` | `GET /crm-notes` | `canonical.crm_note.read` | live | Synced CRM notes |
+| `GET /canonical/crm-notes/{noteId}` | `GET /crm-notes/{noteId}` | `canonical.crm_note.read` | live | Synced CRM note detail |
+| `GET /canonical/crm-tasks` | `GET /crm-tasks` | `canonical.crm_task.read` | live | Synced CRM tasks |
+| `GET /canonical/crm-tasks/{taskId}` | `GET /crm-tasks/{taskId}` | `canonical.crm_task.read` | live | Synced CRM task detail |
 
 ### Pagination
 

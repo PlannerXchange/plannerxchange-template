@@ -222,6 +222,8 @@ Current builder-facing scopes (request only what the app actually needs):
 | `canonical.security.read` | Security master with firm overrides |
 | `canonical.model.read` | Models and holdings |
 | `canonical.sleeve.read` | Sleeves and allocations |
+| `canonical.crm_note.read` | Synced CRM notes from PlannerXchange-owned integrations |
+| `canonical.crm_task.read` | Synced CRM tasks from PlannerXchange-owned integrations |
 | `app_access.read` | App access grants |
 | `feature_entitlements.read` | Feature entitlements |
 | `branding.read` | Firm branding context |

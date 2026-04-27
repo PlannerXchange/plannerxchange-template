@@ -95,6 +95,8 @@ Apps that receive `restricted_pii` through PlannerXchange APIs must follow these
 | `canonical.security.read` | internal |
 | `canonical.model.read` | internal |
 | `canonical.sleeve.read` | internal |
+| `canonical.crm_note.read` | confidential or **restricted_pii**, depending on note content |
+| `canonical.crm_task.read` | confidential or **restricted_pii**, depending on task content |
 | `branding.read` | confidential |
 | `legal.read` | confidential |
 | `app_data.read` | confidential |
