@@ -228,6 +228,7 @@ Important:
 - `app_data.write` is not a canonical write scope — it covers builder-owned work product only
 - `client.sensitive.read` is high-risk and requires stronger review and governance
 - Requesting client-data scopes does not permit external AI-provider or third-party egress of PX client data
+- Partner OAuth integrations such as Altruist are shell-owned PlannerXchange workflows. Apps do not receive partner OAuth tokens and should consume Altruist-sourced data only after PlannerXchange maps it into approved canonical or integration-exposed APIs.
 
 ## `GET /session`
 
