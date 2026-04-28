@@ -245,4 +245,6 @@ Shell-owned provider review rule:
 - Apps must read synced Wealthbox data only through PlannerXchange `/crm-notes` and `/crm-tasks`.
 - Apps receive only CRM records that PlannerXchange has matched and accepted into the normalized CRM surface; unmatched staging records, match candidates, sync jobs, and partner-import progress are shell-only.
 - Apps must read Altruist-sourced investment data only through approved PlannerXchange canonical account, position, transaction, cost-basis, or integration-exposed routes after PlannerXchange mapping.
+- Apps must treat Altruist import jobs, refresh diagnostics, staging payloads, OAuth state, provider object IDs, and tax-lot identifiers as shell-internal governance data, not app data.
+- Account UI may show both specific account type and tax treatment. Use `accountType` for product/registration display and generic `taxTreatment` labels (`Taxable`, `Tax-advantaged pre-tax`, `Tax-advantaged post-tax`, `Tax-advantaged pre-and-post`, `Unknown`) for tax classification.
 - Apps must not call Wealthbox or Altruist directly, ask for partner API keys/OAuth tokens, call `/integrations/*`, build app-owned partner sync/matching flows, cache CRM/investment content in browser storage, or send CRM/client/account/investment content to external AI providers or third-party APIs in Day 1 publication.

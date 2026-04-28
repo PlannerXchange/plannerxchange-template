@@ -8,6 +8,7 @@ Use these rules while building:
 - do not treat firm creation, user creation, invitation acceptance, membership assignment, invite-link handling, email verification, or initial password setup as app-owned builder responsibilities
 - assume PX canonical data contracts and governed APIs are stricter than standalone frontend code
 - decide early whether the app is `plannerxchange_portable` or `app_managed_nonportable`
+- if the app supports public demo mode, keep demo data synthetic and branch on `context.isDemoMode === true`
 
 Current practical reality:
 
@@ -15,6 +16,7 @@ Current practical reality:
 - richer PX-data workflows will depend on PlannerXchange APIs
 - if the app only needs a simple calculator or worksheet, keep it lightweight
 - builder apps primarily consume PX runtime context and approved data reads; they do not provision firms or users
+- public demos receive no real auth token, no real firm/client data, and no canonical API access
 
 If the app is `plannerxchange_portable`:
 
@@ -335,7 +337,11 @@ Use the household tax summary fields for lightweight household-level UX, but tre
 
 **Client (sensitive):** `firstName`, `lastName` are required. `dateOfBirth`, `emailPrimary`, `phonePrimary`, and address fields are optional. `externalId` may be present as a single convenience reference. `ssnTin` is not returned in builder-facing canonical API responses.
 
-**Account:** `id`, `householdId`, `accountNumber`, `accountName`, `accountStatus`, `ownerClientIds` are required. `custodianName`, `accountType`, `taxType`, `accountBalance`, `balanceAsOfDate`, and `externalId` are optional.
+**Account:** `id`, `householdId`, `accountNumber`, `accountName`, `accountStatus`, `ownerClientIds` are required. `custodianName`, `accountType`, `taxType`, `taxTreatment`, `accountBalance`, `balanceAsOfDate`, and `externalId` are optional.
+
+Use `accountType` for the specific account registration or product type shown by PlannerXchange, such as `INDIVIDUAL`, `JOINT`, or `IRA`. Use `taxTreatment` for the account's tax treatment: `taxable`, `tax_advantaged_pre_tax`, `tax_advantaged_post_tax`, `tax_advantaged_pre_and_post`, or `unknown`. `taxType` is a broader tax category that may also be present: `taxable`, `tax_deferred`, or `tax_exempt`.
+
+Builder apps may show both the specific account type and the tax treatment. For example, an account row or chip may show `INDIVIDUAL` as the account type and `Taxable` as the tax treatment. Do not infer tax treatment from the displayed account type when `taxTreatment` is present.
 
 `accountNumber` should be treated as masked display data by default. Student apps should not assume full account numbers are available or render any account number field as raw unmasked text.
 
@@ -344,6 +350,8 @@ Use the household tax summary fields for lightweight household-level UX, but tre
 **Transaction:** `id`, `accountId`, `date` are required. `symbol`, `cusip`, `description`, `amount`, `quantity`, `price`, `displayTransactionType`, `detailedTransactionType`, `tradeDate`, `settleDate`, `netAmount`, `fees`, `commission`, `status` are optional.
 
 **Cost basis:** `id`, `accountId`, `asOfDate` are required. `symbol`, `cusip`, `description`, `acquisitionDate`, `quantity`, `costBasisAmount`, `currentValue`, `gainLoss`, `holdingPeriod`, `lotId` are optional.
+
+Cost-basis data may come from shell-owned custodian imports such as Altruist. Apps should read it only through canonical cost-basis APIs and should not persist tax-lot identifiers, provider account identifiers, or unreconciled custodian payloads in app-local state.
 
 **Security:** `id`, `securityName`, `status`, `verificationStatus` are required. `ticker`, `cusip`, `symbol`, `securityType`, `fees` are optional. When a firm override exists, `displayName`, `returnExpectation`, `assetClassId`, `benchmark` are included in a `firmOverride` object.
 
@@ -456,6 +464,7 @@ Summary reads do not return raw PII fields.
   "custodianName": "Schwab",
   "accountType": "IRA",
   "taxType": "tax_deferred",
+  "taxTreatment": "tax_advantaged_pre_tax",
   "accountStatus": "active",
   "accountBalance": 250000.00,
   "balanceAsOfDate": "2026-03-20",

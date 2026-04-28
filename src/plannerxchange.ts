@@ -81,13 +81,41 @@ export interface PlannerXchangeManifest {
   categories: string[];
 }
 
+export interface PlannerXchangeApiRequestInit {
+  method?: string;
+  headers?: Record<string, string>;
+  body?: string;
+}
+
+export interface PlannerXchangeFetchResponseLike {
+  ok: boolean;
+  status: number;
+  json: () => Promise<unknown>;
+  text?: () => Promise<string>;
+}
+
+export type PlannerXchangeFetchLike = (
+  url: string,
+  init?: PlannerXchangeApiRequestInit
+) => Promise<PlannerXchangeFetchResponseLike>;
+
 export interface ShellRuntimeContext {
+  runtimeMode?: "authenticated" | "public_demo";
+  isDemoMode?: boolean;
+  demoDataMode?: "synthetic";
   /**
-   * The current user's Cognito ID token (JWT). Apps use this for authenticated
-   * PlannerXchange API calls. This token is automatically refreshed by the shell;
-   * apps should not cache it long-term.
+   * Deprecated for hosted apps. The PlannerXchange shell does not expose raw
+   * user bearer tokens to installed app code. Use `authenticatedFetch` for
+   * PlannerXchange API calls. Local mock contexts may still include a synthetic
+   * placeholder string.
    */
   idToken: string;
+  /**
+   * Shell-managed fetch for authenticated PlannerXchange API calls. The shell
+   * attaches user auth and `x-plannerxchange-app-installation-id`, and rejects
+   * shell-only endpoints such as custodian integrations.
+   */
+  authenticatedFetch?: PlannerXchangeFetchLike;
   /**
    * The base URL for PlannerXchange API calls (e.g. "https://api.plannerxchange.ai").
    * Apps should use this instead of hardcoding API URLs so they work across
@@ -138,7 +166,6 @@ export interface PlannerXchangePluginModule {
 export function isShellHosted(ctx: ShellRuntimeContext): boolean {
   return (
     ctx.appInstallationId !== "synthetic-installation-context" &&
-    !!ctx.idToken &&
-    ctx.idToken !== "synthetic-dev-token"
+    typeof ctx.authenticatedFetch === "function"
   );
 }

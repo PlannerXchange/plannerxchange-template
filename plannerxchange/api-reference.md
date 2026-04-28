@@ -47,7 +47,7 @@ Local development has two modes controlled by `VITE_PX_MODE`:
 - Requires a real PlannerXchange authentication token
 - Requires a real app installation context
 
-Important: Even in live mode on localhost, you need real auth tokens from PlannerXchange. The `dev-context.ts` file provides mock values for `idToken` and `appInstallationId` that will not authenticate against the live API.
+Important: Even in live mode on localhost, real data calls must run inside the PlannerXchange shell so the app receives a real `appInstallationId` and shell-managed `authenticatedFetch`. The `dev-context.ts` file provides mock values that will not authenticate against the live API.
 
 **To work with real dev data from localhost:**
 
@@ -57,34 +57,30 @@ Important: Even in live mode on localhost, you need real auth tokens from Planne
 
 Local development is primarily designed for frontend iteration with mock data. Real data integration testing should happen through the PlannerXchange shell.
 
-## Request transport
+## Request Transport And Authentication
 
-All builder-facing routes beyond `/session` and `/shell/bootstrap` require the current app installation context.
+Use `ShellRuntimeContext.authenticatedFetch` for protected PlannerXchange API calls:
 
-**Required header:**
-
+```typescript
+const response = await ctx.authenticatedFetch?.("/households", {
+  method: "GET"
+});
 ```
-x-plannerxchange-app-installation-id: {appInstallationId}
-```
 
-Source the value from `ShellRuntimeContext.appInstallationId` passed into `mount()`.
-
-Query-string `appInstallationId` may still work as temporary compatibility in some routes, but new app code should not depend on it.
+The shell-managed fetch attaches the current user auth and `x-plannerxchange-app-installation-id` for the installed app. Hosted apps should not read, store, or manually send raw bearer tokens.
 
 The student rule is simple:
 
-- read `appInstallationId` from the shell runtime context
-- send it in the required header
+- use `authenticatedFetch` for protected PlannerXchange API calls
+- keep `appInstallationId` as app context, but do not manually attach auth headers
+- do not call shell-only routes such as `/integrations/*`, `/admin/*`, `/workspace/*`, `/builder/*`, or `/shell/route-capability`
 
-## Authentication
+Public demo exception:
 
-All protected routes require:
-
-```
-Authorization: Bearer {idToken}
-```
-
-The `idToken` comes from the same PlannerXchange auth session the app uses for all API calls. Do not create a parallel auth system.
+- `/apps/{slug}/demo` can mount a marketplace-listed, published, demo-enabled app without authentication
+- demo context has `runtimeMode: "public_demo"`, `isDemoMode: true`, `demoDataMode: "synthetic"`, no protected `authenticatedFetch`, and `idToken: ""`
+- demo mode must not call protected PlannerXchange APIs or expect canonical/client/app-data access
+- use bundled sample data or clearly synthetic records in demo mode
 
 ## HTTP conventions
 
@@ -231,6 +227,7 @@ Important:
 - `client.sensitive.read` is high-risk and requires stronger review and governance
 - Requesting client-data scopes does not permit external AI-provider or third-party egress of PX client data
 - Partner OAuth integrations such as Altruist are shell-owned PlannerXchange workflows. Apps do not receive partner OAuth tokens and should consume Altruist-sourced data only after PlannerXchange maps it into approved canonical or integration-exposed APIs.
+- Altruist-derived household, account, position, transaction, and cost-basis records are builder-facing only after PlannerXchange reconciliation. Apps must not call `/integrations/altruist/*`, inspect Altruist import jobs, or use unreconciled staging/diagnostic payloads as app data.
 - CRM integrations such as Wealthbox are shell-owned PlannerXchange workflows. Apps do not receive Wealthbox API keys and should consume Wealthbox-sourced notes/tasks only through `/crm-notes` and `/crm-tasks` with the declared read scopes.
 - CRM reads expose only records that PlannerXchange has matched and accepted into the normalized CRM surface. Unmatched staging records, match candidates, sync jobs, and partner-import progress are shell-only and are not available to installed apps.
 - Student apps should treat an empty CRM response as normal: the firm may not have connected the CRM yet, or a firm admin may not have completed the matching flow.

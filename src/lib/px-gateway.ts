@@ -4,8 +4,8 @@
  * In mock mode (VITE_PX_MODE !== "live"), calls return synthetic data from
  * local stubs so the app works fully offline.
  *
- * In live mode, calls route through the real PX API using the idToken and
- * appInstallationId from ShellRuntimeContext.
+ * In live mode, calls route through the real PX API using the shell-managed
+ * authenticatedFetch from ShellRuntimeContext.
  *
  * Usage:
  *   import { createPxGateway } from "./lib/px-gateway";
@@ -13,7 +13,11 @@
  *   const households = await gw.getHouseholds();
  */
 
-import { isShellHosted, type ShellRuntimeContext } from "../plannerxchange";
+import {
+  isShellHosted,
+  type PlannerXchangeApiRequestInit,
+  type ShellRuntimeContext
+} from "../plannerxchange";
 
 // ---------------------------------------------------------------------------
 // Types — extend these as the app grows
@@ -66,7 +70,7 @@ export function createPxGateway(ctx: ShellRuntimeContext): PxGateway {
   // Detect live mode at runtime from the context itself.
   // When running locally with `vite dev`, main.tsx injects the synthetic
   // mock context. When running inside the PlannerXchange shell (dev or prod),
-  // the context has a real installation ID and JWT.
+  // the context has a real installation ID and shell-managed API fetch.
   //
   // Do NOT use `publicationEnvironment` or build-time env vars for this check.
   // `publicationEnvironment: "dev"` means the real PlannerXchange dev tier,
@@ -115,21 +119,23 @@ function mockGateway(): PxGateway {
 function liveGateway(ctx: ShellRuntimeContext): PxGateway {
   // Use the shell-injected API base URL instead of hardcoding.
   // This ensures the app calls the correct API for dev/staging/prod.
-  const base = ctx.apiBaseUrl || import.meta.env.VITE_PX_API_BASE || "https://api.plannerxchange.ai";
+  const authenticatedFetch = ctx.authenticatedFetch;
 
-  async function pxFetch<T>(path: string, init?: RequestInit): Promise<T> {
-    const res = await fetch(`${base}${path}`, {
+  if (!authenticatedFetch) {
+    throw new Error("PlannerXchange authenticatedFetch is not available in this runtime context.");
+  }
+  const pxFetchImpl = authenticatedFetch;
+
+  async function pxFetch<T>(path: string, init?: PlannerXchangeApiRequestInit): Promise<T> {
+    const res = await pxFetchImpl(path, {
       ...init,
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${ctx.idToken}`,
-        "x-plannerxchange-app-installation-id":
-          ctx.appInstallationId ?? "",
-        ...(init?.headers as Record<string, string>),
+        ...(init?.headers ?? {}),
       },
     });
     if (!res.ok) {
-      throw new Error(`PX API ${path}: ${res.status} ${res.statusText}`);
+      throw new Error(`PX API ${path}: ${res.status}`);
     }
     return res.json() as Promise<T>;
   }

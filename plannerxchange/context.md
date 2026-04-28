@@ -86,7 +86,7 @@ Boundary rule:
 Outbound email:
 
 - if the app sends email (questionnaire links, completion confirmations, report delivery), declare `email.send` in the manifest permissions
-- call `POST /app-email/send` with the idToken from the active session and the `appInstallationId` from `ShellRuntimeContext`
+- call `POST /app-email/send` through `ShellRuntimeContext.authenticatedFetch`
 - the app does not manage sending credentials or provider configuration — PlannerXchange owns that
 - see `docs/builder-spec/outbound-email-v1.md` for the full API contract and required manifest declaration
 - builders should never assume cross-firm data access
@@ -133,7 +133,7 @@ PlannerXchange maintains canonical firm data that apps can read without building
 - **models** — target allocation templates with security weights
 - **sleeves** — composite of models
 
-Firms import this data through CSV upload or manual entry in the PlannerXchange shell. Builder apps declare permission scopes in the manifest and read the data through governed canonical API routes.
+Firms populate this data through CSV upload, manual entry, or shell-owned partner imports such as Altruist after PlannerXchange mapping and reconciliation. Builder apps declare permission scopes in the manifest and read the data through governed canonical API routes.
 
 Current API route paths:
 
@@ -158,9 +158,9 @@ Integration identity direction:
 
 Canonical request transport:
 
-- for builder-facing API calls beyond `/session` and `/shell/bootstrap`, send `x-plannerxchange-app-installation-id` from `ShellRuntimeContext.appInstallationId`
-- `appInstallationId` query-string fallback exists only as temporary compatibility; new app code should prefer the header
-- a bearer token plus API base URL is not enough by itself for installed-app API behavior; live calls also need a real PlannerXchange installation context
+- for protected PlannerXchange API calls, use `ShellRuntimeContext.authenticatedFetch`
+- the shell-managed fetch attaches user auth and `x-plannerxchange-app-installation-id` for the installed app
+- hosted apps should not read, store, or manually send raw bearer tokens
 - shell-only canonical admin routes such as import setup, custom-field admin, category mappings, and auto-classify are not part of the student app contract
 
 Marketplace billing boundary:
@@ -194,9 +194,9 @@ Use the `isShellHosted()` helper from `plannerxchange.ts` to decide whether to c
 import { isShellHosted } from "./plannerxchange";
 
 if (isShellHosted(ctx)) {
-  // Real PlannerXchange shell — use ctx.idToken and ctx.apiBaseUrl for API calls
+  // Real PlannerXchange shell - use ctx.authenticatedFetch for API calls
 } else {
-  // Local dev with synthetic mock context — use offline stubs
+  // Local dev with synthetic mock context - use offline stubs
 }
 ```
 
@@ -206,8 +206,8 @@ if (isShellHosted(ctx)) {
 
 The `isShellHosted()` helper detects real shell context by checking:
 
-- `appInstallationId !== "synthetic-installation-context"` — the mock context uses this explicit marker
-- `idToken` is present and is not the placeholder `"synthetic-dev-token"`
+- `appInstallationId !== "synthetic-installation-context"` - the mock context uses this explicit marker
+- `authenticatedFetch` is present
 
 The `px-gateway.ts` helper in `src/lib/` already uses this pattern.
 
@@ -217,7 +217,7 @@ The `px-gateway.ts` helper in `src/lib/` already uses this pattern.
 
 - breaks dev/prod parity (dev uses an API Gateway URL, prod uses `api.plannerxchange.ai`)
 - creates a maintenance burden that scales with new environments
-- adds no real security — if the shell were compromised enough to inject a malicious `apiBaseUrl`, the attacker already has `ctx.idToken` in the same JavaScript context
+- adds no real security - the shell owns authenticated API transport and app-side origin allowlists are not a security boundary
 
 Egress governance is the platform's responsibility and is enforced by the publish review, not by individual app code. Use `ctx.apiBaseUrl` directly when constructing API calls.
 

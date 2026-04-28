@@ -55,8 +55,7 @@ The `reply-to` may be set to the advisor's email so client replies route back to
 
 Send a single transactional email on behalf of the app.
 
-**Authentication:** Bearer `{idToken}`
-**Required header:** `x-plannerxchange-app-installation-id: {appInstallationId}`
+**Authentication:** use `ShellRuntimeContext.authenticatedFetch`. The shell attaches user auth and `x-plannerxchange-app-installation-id`.
 
 **Request body:**
 
@@ -115,20 +114,21 @@ Send a single transactional email on behalf of the app.
 
 ```typescript
 async function sendQuestionnaireEmail(
-  idToken: string,
+  runtimeContext: ShellRuntimeContext,
   recipientEmail: string,
   recipientName: string,
   questionnaireLink: string
 ) {
-  const response = await fetch(
-    "https://api.plannerxchange.ai/app-email/send",
+  if (!runtimeContext.authenticatedFetch) {
+    throw new Error("PlannerXchange authenticatedFetch is not available.");
+  }
+
+  const response = await runtimeContext.authenticatedFetch(
+    "/app-email/send",
     {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${idToken}`,
-        "Content-Type": "application/json",
-        "x-plannerxchange-app-installation-id":
-          runtimeContext.appInstallationId,
+        "Content-Type": "application/json"
       },
       body: JSON.stringify({
         to: recipientEmail,
@@ -151,7 +151,7 @@ async function sendQuestionnaireEmail(
 }
 ```
 
-The `idToken` comes from the same auth session the app uses for all PX API calls. Do not re-authenticate or store tokens separately.
+Do not re-authenticate, store bearer tokens, or manually attach auth headers. The shell-managed fetch owns authenticated PlannerXchange transport.
 
 ## Rate limits
 
