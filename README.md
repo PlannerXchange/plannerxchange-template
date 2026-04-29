@@ -8,6 +8,7 @@ It is designed to show the minimum v1 publication shape:
 - a shell-compatible `src/plugin.tsx` entrypoint
 - a local preview host that mounts the plugin with mock PlannerXchange runtime context
 - a production build that emits a publish manifest mapping the source `entryPoint` to the built artifact PlannerXchange will host
+- a GitHub CodeQL workflow that produces the required code-scanning evidence for linked repo branches
 - a `plannerxchange/` markdown context pack for AI-assisted student builds
 
 Required publication metadata should live in `plannerxchange.app.json` whenever possible.
@@ -113,6 +114,8 @@ Important setup rules:
 9. Route all app-owned record reads and writes through the PX app-data API gateway pattern (see src/lib/px-gateway.ts). Do not use localStorage as a production persistence layer — it is mock-only.
 10. Use the current live API route paths documented in plannerxchange/api-reference.md (root-scoped like /households, /clients, /accounts), not the future /canonical/* namespace.
 11. Use the default Vite port (5173) for local development — PlannerXchange allows CORS and auth callbacks only from localhost:5173.
+12. Keep the `.github/workflows/codeql.yml` workflow enabled. PlannerXchange requires GitHub CodeQL results for the exact linked branch commit before publication.
+13. Treat CodeQL findings in PlannerXchange review feedback as security blockers or remediation tasks. Fix the underlying code or workflow issue; do not remove CodeQL, suppress alerts casually, or dismiss alerts without an auditable reason.
 
 Before writing code, ask me these questions and wait for my answers:
 
@@ -199,7 +202,8 @@ Recommended workshop flow:
 6. student wires Phase 2 (PX API integration through the gateway's live mode)
 7. student runs `npm run build` then `npm run preflight`
 8. student commits and pushes source plus the generated `dist/` output
-9. student logs into PlannerXchange and links the repository for governed publication
+9. student waits for the GitHub CodeQL workflow to complete on the pushed branch
+10. student logs into PlannerXchange and links the repository for governed publication
 
 The intended UI should require little more than the GitHub URL. PlannerXchange should read the
 required metadata from `plannerxchange.app.json` and only ask for optional merchandising overrides
@@ -211,6 +215,7 @@ when needed.
 - Keep `entryPoint` source-oriented, such as `src/plugin.tsx`; do not replace it with a hashed build file.
 - Run `npm run build` before publish and commit the generated `dist/` output.
 - Run `npm run preflight` after building to catch common rejection issues before submitting.
+- Keep `.github/workflows/codeql.yml` committed and wait for CodeQL to pass on the branch commit before requesting PlannerXchange review.
 - Do not hand-edit `dist/plannerxchange.publish.json`; let the build regenerate it.
 - Declare the correct `dataPortabilityMode` before linking the repo.
 - Do not add app-owned login flows.
@@ -245,6 +250,7 @@ Auth lifecycle reminder:
 
 - `plannerxchange.app.json`: publish manifest
 - `plannerxchange.preflight.json`: machine-readable preflight checklist
+- `.github/workflows/codeql.yml`: required GitHub CodeQL code-scanning workflow
 - `plannerxchange/app-brief.md`: the student-facing project brief
 - `plannerxchange/context.md`: platform constraints and design reminders
 - `plannerxchange/data-contract.md`: current PX canonical data, portability, and auth assumptions

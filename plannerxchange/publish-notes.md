@@ -20,6 +20,7 @@ Important:
 - builder membership tier and shell enablement decisions are handled inside PlannerXchange, not in this repo
 - the manifest `entryPoint` remains a source path such as `src/plugin.tsx`
 - the build must emit `dist/plannerxchange.publish.json` so PlannerXchange can resolve that source path to the hosted JS module and emitted CSS assets
+- linked repo branches must have completed GitHub CodeQL code-scanning results for the exact commit submitted for review
 
 Visibility management:
 
@@ -44,10 +45,13 @@ Student checklist before linking the repo:
 - write a clear summary and description for the listing
 - run `npm run build`
 - commit and push the generated `dist/` directory, including `dist/plannerxchange.publish.json`
+- keep `.github/workflows/codeql.yml` in the repo and wait for the GitHub CodeQL workflow to complete on the pushed branch commit
 
 Review guidance:
 
 - universal security and governance checks apply to every app
+- PlannerXchange reads GitHub CodeQL code-scanning evidence for the exact linked commit and fails closed when CodeQL is missing, failed, or unreadable
+- CodeQL findings copied from PlannerXchange review feedback should be fixed in source or workflow code before requesting another review
 - apps built to PX canonical data contracts get stricter checks for PX data access patterns
 - nonportable apps may use their own backend, and they may still read approved PX canonical data, but they must not request PX-canonical scopes casually
 - app-owned identity UX such as custom invite redemption, email verification, or password-setup flows will be treated as governance findings because PlannerXchange owns auth and onboarding
@@ -121,7 +125,7 @@ Checks:
 
 - manifest validation
 - build artifact checks
-- dependency and security scanning
+- dependency and security scanning, including required CodeQL evidence
 - app-managed backend/security checks
 - auth ownership check (no custom login/sign-up)
 - white-label readiness findings when the app targets shell publication
@@ -153,7 +157,7 @@ Applies to:
 
 Checks (everything in standard review, plus):
 
-- explicit automated plus AI review before approval
+- explicit automated, CodeQL, and AI review before approval
 - scope minimization review
 - decrypt-boundary and audit-path review
 - data-egress review
@@ -189,6 +193,7 @@ The following issues are common causes of publication rejection. Check for them 
 10. **Missing disclosure or branding consumption** — whitelabel apps that hardcode a single brand instead of reading PX branding/legal context.
 11. **Missing mount export in built artifact** — the compiled plugin JS chunk must export a named `mount` function (or `pluginModule` object). If the build minifier renames `mount` to something like `m`, the shell cannot load the app. Use the starter template's terser config with `reserved: ["mount", "pluginModule", "manifest"]` and do not switch to esbuild minification.
 12. **Missing dist/plannerxchange.publish.json** — the build must emit a publish manifest so PlannerXchange can resolve the source `entryPoint` to the hosted JS module. Run `npm run build` and commit the `dist/` directory.
+13. **Missing or failing CodeQL evidence** — PlannerXchange requires GitHub CodeQL results for the exact linked branch commit. Keep `.github/workflows/codeql.yml` enabled, push the workflow with the app, wait for CodeQL to complete, and fix high-risk alerts instead of disabling the scan.
 
 ## PX Approved badge direction
 

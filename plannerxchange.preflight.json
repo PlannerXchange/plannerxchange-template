@@ -84,6 +84,14 @@
       "path": "dist/plannerxchange.publish.json"
     },
     {
+      "id": "codeql-workflow-exists",
+      "severity": "error",
+      "title": "CodeQL workflow exists",
+      "description": "PlannerXchange requires GitHub CodeQL code-scanning evidence for the linked branch commit.",
+      "type": "path-exists",
+      "path": ".github/workflows/codeql.yml"
+    },
+    {
       "id": "no-localstorage-prod",
       "severity": "warning",
       "title": "localStorage usage flagged",

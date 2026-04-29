@@ -36,6 +36,14 @@ Critical build export rule:
 - **do not** rename the `mount` export in `src/plugin.tsx` — the shell depends on this exact name
 - the publish review script (`publish-review.mjs`) will block publication if the built artifact does not contain a named `mount` or `pluginModule` export
 
+CodeQL review rule:
+
+- keep `.github/workflows/codeql.yml` in the builder repo
+- PlannerXchange requires GitHub CodeQL code-scanning evidence for the exact linked branch commit
+- if PlannerXchange review feedback includes CodeQL findings, fix the source, dependency, or workflow issue and push a new commit
+- do not remove the CodeQL workflow, disable code scanning, or dismiss alerts just to pass publication review
+- CodeQL runs in GitHub after push; local `npm run preflight` does not replace it
+
 Common frontend values:
 
 - `react`
