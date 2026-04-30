@@ -32,7 +32,7 @@ Branding can exist at three levels. The most specific level wins:
     "primaryColor": "#102033",
     "secondaryColor": "#DDA94B",
     "fontColor": "#ffffff",
-    "supportEmail": "support@firm.com"
+    "supportEmail": "support@example.test"
   },
   "fallbacksApplied": ["faviconUrl"]
 }

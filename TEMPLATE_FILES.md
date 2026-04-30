@@ -15,8 +15,14 @@ The public `plannerxchange-template` repository should contain exactly this star
 - `tsconfig.json`
 - `vite.config.ts`
 - `plannerxchange/app-brief.md`
+- `plannerxchange/api-reference.md`
+- `plannerxchange/app-access.md`
+- `plannerxchange/app-data-api.md`
+- `plannerxchange/branding-and-legal-api.md`
 - `plannerxchange/context.md`
 - `plannerxchange/data-contract.md`
+- `plannerxchange/email-api.md`
+- `plannerxchange/pii-and-security.md`
 - `plannerxchange/publish-notes.md`
 - `scripts/preflight.mjs`
 - `src/App.tsx`
@@ -39,7 +45,8 @@ and CI validation resolve the same dependency tree by default.
 
 Generated build output is intentionally not checked into the starter by default.
 Before PlannerXchange publication, builders should run the production build and commit the resulting
-`dist/` directory, including `dist/plannerxchange.publish.json`.
+`dist/` directory, including `dist/plannerxchange.publish.json` and
+`dist/plannerxchange.build-provenance.json`.
 
 Do not copy:
 

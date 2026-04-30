@@ -40,8 +40,7 @@ let warnings = 0;
 
 function resolveGlob(patterns) {
   if (!glob) {
-    // crude fallback: walk src/
-    return walkDir(join(ROOT, "src"));
+    return walkDir(ROOT).filter((fp) => matchesAnyPattern(toRelativePath(fp), patterns));
   }
   const files = new Set();
   for (const p of patterns) {
@@ -58,16 +57,63 @@ function walkDir(dir) {
   const results = [];
   if (!existsSync(dir)) return results;
   for (const entry of readdirSync(dir)) {
+    if ([".git", "node_modules", "dist"].includes(entry)) continue;
     const full = join(dir, entry);
     const st = statSync(full);
     if (st.isDirectory()) {
-      if (entry === "node_modules") continue;
       results.push(...walkDir(full));
     } else {
       results.push(full);
     }
   }
   return results;
+}
+
+function toRelativePath(filePath) {
+  return filePath.replace(ROOT + "/", "").replace(ROOT + "\\", "").replace(/\\/g, "/");
+}
+
+function globToRegExp(pattern) {
+  const normalized = pattern.replace(/\\/g, "/");
+  let out = "^";
+  for (let i = 0; i < normalized.length; i++) {
+    const ch = normalized[i];
+    const next = normalized[i + 1];
+    if (ch === "*" && next === "*") {
+      if (normalized[i + 2] === "/") {
+        out += "(?:.*/)?";
+        i += 2;
+      } else {
+        out += ".*";
+        i += 1;
+      }
+    } else if (ch === "*") {
+      out += "[^/]*";
+    } else if (ch === "?") {
+      out += "[^/]";
+    } else if (ch === "{") {
+      const end = normalized.indexOf("}", i);
+      if (end === -1) {
+        out += "\\{";
+      } else {
+        const options = normalized
+          .slice(i + 1, end)
+          .split(",")
+          .map((part) => part.trim().replace(/[|\\{}()[\]^$+?.]/g, "\\$&"))
+          .join("|");
+        out += `(?:${options})`;
+        i = end;
+      }
+    } else {
+      out += ch.replace(/[|\\{}()[\]^$+?.]/g, "\\$&");
+    }
+  }
+  out += "$";
+  return new RegExp(out);
+}
+
+function matchesAnyPattern(relPath, patterns) {
+  return patterns.some((pattern) => globToRegExp(pattern).test(relPath));
 }
 
 function matchesExtension(filePath, includePatterns) {
@@ -105,19 +151,17 @@ function report(check, pass, detail) {
 
 function runGrepCheck(check) {
   const include = check.include ?? ["src/**/*.{ts,tsx,js,jsx}"];
-  const excludeFiles = (check.exclude ?? [])
-    .filter((e) => !e.includes("**"))
-    .map((e) => resolve(ROOT, e));
+  const exclude = check.exclude ?? [];
 
   let files;
   try {
     files = resolveGlob(include);
   } catch {
-    files = walkDir(join(ROOT, "src"));
+    files = walkDir(ROOT).filter((fp) => matchesAnyPattern(toRelativePath(fp), include));
   }
   files = files
     .filter((f) => matchesExtension(f, include))
-    .filter((f) => !excludeFiles.some((ex) => f === ex || f.replace(/\\/g, "/") === ex.replace(/\\/g, "/")));
+    .filter((f) => !matchesAnyPattern(toRelativePath(f), exclude));
 
   const re = new RegExp(check.pattern, "gi");
   const hits = [];
@@ -127,7 +171,7 @@ function runGrepCheck(check) {
     const lines = content.split("\n");
     for (let i = 0; i < lines.length; i++) {
       if (re.test(lines[i])) {
-        const rel = fp.replace(ROOT + "/", "").replace(ROOT + "\\", "");
+        const rel = toRelativePath(fp);
         hits.push(`${rel}:${i + 1}`);
       }
       re.lastIndex = 0;

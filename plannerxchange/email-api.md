@@ -61,12 +61,12 @@ Send a single transactional email on behalf of the app.
 
 ```json
 {
-  "to": "client@example.com",
-  "toName": "Jane Smith",
+  "to": "client@example.test",
+  "toName": "Avery Example",
   "subject": "Your onboarding questionnaire is ready",
-  "htmlBody": "<p>Hi Jane, please complete your questionnaire at the link below.</p>",
-  "textBody": "Hi Jane, please complete your questionnaire at: https://...",
-  "replyTo": "advisor@firm.com",
+  "htmlBody": "<p>Hi Avery, please complete your questionnaire at the link below.</p>",
+  "textBody": "Hi Avery, please complete your questionnaire at: https://...",
+  "replyTo": "advisor@example.test",
   "fromLabel": "Aditi Kapadia via REWealth Financial",
   "clientUserId": "client_456",
   "appRecordId": "appdata_789",

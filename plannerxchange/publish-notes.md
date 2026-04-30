@@ -18,8 +18,10 @@ Important:
 - nonportable apps can still publish, but they should not claim eligibility for the PX portability contract
 - `plannerxchange_portable` means the code is built to PX canonical data contracts
 - builder membership tier and shell enablement decisions are handled inside PlannerXchange, not in this repo
+- passing a `dev` publish does not automatically grant `prod` promotion, marketplace listing, `Portable Data`, or `PX Approved`
 - the manifest `entryPoint` remains a source path such as `src/plugin.tsx`
 - the build must emit `dist/plannerxchange.publish.json` so PlannerXchange can resolve that source path to the hosted JS module and emitted CSS assets
+- the build must emit `dist/plannerxchange.build-provenance.json` so PlannerXchange can verify the source-input digest, lockfile digests, build command, and artifact digest before upload
 - linked repo branches must have completed GitHub CodeQL code-scanning results for the exact commit submitted for review
 
 Visibility management:
@@ -44,7 +46,7 @@ Student checklist before linking the repo:
 - avoid custom invite, verification, password-setup, password-reset, or onboarding-entry UX
 - write a clear summary and description for the listing
 - run `npm run build`
-- commit and push the generated `dist/` directory, including `dist/plannerxchange.publish.json`
+- commit and push the generated `dist/` directory, including `dist/plannerxchange.publish.json` and `dist/plannerxchange.build-provenance.json`
 - keep `.github/workflows/codeql.yml` in the repo and wait for the GitHub CodeQL workflow to complete on the pushed branch commit
 
 Review guidance:
@@ -58,6 +60,8 @@ Review guidance:
 - apps that save builder-owned work product inside PX should use the governed PX app-data contract rather than trying to mutate immutable PX reference facts
 - apps that touch client data, PII, or external egress paths should expect stricter review
 - Day 1 external AI-provider or third-party egress of PX client data is not allowed
+- new direct dependencies are checked for package reputation, typosquat risk, and non-registry sources before approval
+- direct KMS clients, decrypt commands, or app-side restricted-PII decrypt helpers are blockers
 - apps that pass the full PlannerXchange governance and client-data safety review may earn a `PX Approved` trust badge
 - PlannerXchange may show badges such as `Portable Data` or `App-Managed Data` in the catalog
 - apps that appear not to be white-label-ready may receive non-blocking risk findings
@@ -80,6 +84,7 @@ Practical artifact rule:
 
 - if `dist/` is missing, publish will fail
 - if `dist/plannerxchange.publish.json` does not map the manifest `entryPoint`, publish will fail
+- if `dist/plannerxchange.build-provenance.json` is missing or stale, publish will fail before PlannerXchange uploads artifacts
 - if the build emits CSS, PlannerXchange should host and load those emitted CSS assets alongside the JS module
 
 ## Publication classes
@@ -181,7 +186,7 @@ See `pii-and-security.md` for the scope-to-classification mapping.
 
 The following issues are common causes of publication rejection. Check for them before submitting:
 
-1. **Real personal data in source code** — any real email addresses, names, phone numbers, or SSNs in source files, mock data, or config. All mock data must use obviously synthetic names and `@example.test` addresses.
+1. **Real personal data in source code** — any real email addresses, names, phone numbers, or SSNs in source files, mock data, or config. All mock data must use obviously synthetic names and `@example.test` addresses. Real firm or client PII belongs only in governed PlannerXchange imports and APIs, not committed examples.
 2. **localStorage as production persistence** — using `localStorage` or `sessionStorage` as the primary data store instead of the PX app-data API. Browser-local storage is acceptable for mock/demo mode only.
 3. **Hardcoded API base URLs** — embedding `https://api.plannerxchange.ai` or AWS execute-api URLs directly in source. Use `ctx.apiBaseUrl` from `ShellRuntimeContext` so the app works across dev/staging/prod environments.
 4. **Missing or incorrect manifest fields** — `slug`, `name`, `summary`, `entryPoint`, or `permissions` missing or inconsistent with the actual app behavior.
@@ -193,7 +198,11 @@ The following issues are common causes of publication rejection. Check for them 
 10. **Missing disclosure or branding consumption** — whitelabel apps that hardcode a single brand instead of reading PX branding/legal context.
 11. **Missing mount export in built artifact** — the compiled plugin JS chunk must export a named `mount` function (or `pluginModule` object). If the build minifier renames `mount` to something like `m`, the shell cannot load the app. Use the starter template's terser config with `reserved: ["mount", "pluginModule", "manifest"]` and do not switch to esbuild minification.
 12. **Missing dist/plannerxchange.publish.json** — the build must emit a publish manifest so PlannerXchange can resolve the source `entryPoint` to the hosted JS module. Run `npm run build` and commit the `dist/` directory.
-13. **Missing or failing CodeQL evidence** — PlannerXchange requires GitHub CodeQL results for the exact linked branch commit. Keep `.github/workflows/codeql.yml` enabled, push the workflow with the app, wait for CodeQL to complete, and fix high-risk alerts instead of disabling the scan.
+13. **Missing or stale dist/plannerxchange.build-provenance.json** — the build must emit provenance so PlannerXchange can verify source inputs, lockfiles, build command, and committed artifact digests before upload. Run `npm run build` after source or dist changes and commit the regenerated `dist/` directory.
+14. **Suspicious new dependency** — new direct dependencies are checked for package-name spoofing, limited npm registry reputation, and non-registry sources. Prefer established npm packages with clear repository, maintainer, license, and release history.
+15. **Missing or failing CodeQL evidence** — PlannerXchange requires GitHub CodeQL results for the exact linked branch commit. Keep `.github/workflows/codeql.yml` enabled, push the workflow with the app, wait for CodeQL to complete, and fix high-risk alerts instead of disabling the scan.
+16. **Manual PlannerXchange auth or installation context** — app code manually attaches bearer tokens, stores tokens, or passes `appInstallationId` in query strings instead of using `ShellRuntimeContext.authenticatedFetch`.
+17. **Direct KMS or decrypt access** — app code or dependencies include direct KMS clients, decrypt commands, or restricted-PII decrypt helpers. PlannerXchange decrypts protected data only inside governed backend APIs.
 
 ## PX Approved badge direction
 

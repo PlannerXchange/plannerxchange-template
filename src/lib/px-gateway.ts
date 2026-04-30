@@ -1,8 +1,8 @@
 /**
  * PX Gateway — mock/live switch for PlannerXchange API calls.
  *
- * In mock mode (VITE_PX_MODE !== "live"), calls return synthetic data from
- * local stubs so the app works fully offline.
+ * In local mock mode, calls return synthetic data from local stubs so the app
+ * works fully offline.
  *
  * In live mode, calls route through the real PX API using the shell-managed
  * authenticatedFetch from ShellRuntimeContext.
@@ -39,12 +39,12 @@ export interface AppDataRecord<T = unknown> {
 }
 
 // ---------------------------------------------------------------------------
-// Mock data — used when VITE_PX_MODE is not "live"
+// Mock data — used when the app is not running inside the PlannerXchange shell
 // ---------------------------------------------------------------------------
 
 const MOCK_HOUSEHOLDS: HouseholdSummary[] = [
-  { householdId: "hh-mock-001", name: "Smith Household" },
-  { householdId: "hh-mock-002", name: "Johnson Household" },
+  { householdId: "hh-mock-001", name: "Example Household A" },
+  { householdId: "hh-mock-002", name: "Example Household B" },
 ];
 
 const mockAppDataStore = new Map<string, AppDataRecord>();

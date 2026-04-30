@@ -66,6 +66,8 @@ PlannerXchange applies multiple protection layers to `restricted_pii` before it 
 
 3. **Account number masking** — account numbers are masked by default. See `data-contract.md` § Account number masking policy for the 4-layer masking model.
 
+Builder apps must not add direct KMS clients, decrypt commands, or app-side restricted-PII decrypt helpers. Direct decrypt access is a publish-review blocker.
+
 ## Builder rules for handling PII
 
 Apps that receive `restricted_pii` through PlannerXchange APIs must follow these rules:
@@ -87,10 +89,10 @@ Apps that receive `restricted_pii` through PlannerXchange APIs must follow these
 | `client.sensitive.read` | **restricted_pii** |
 | `canonical.client.summary.read` | internal (no raw PII) |
 | `canonical.client.sensitive.read` | **restricted_pii** |
-| `canonical.account.read` | confidential (account numbers masked by default) |
-| `canonical.position.read` | confidential |
-| `canonical.transaction.read` | confidential |
-| `canonical.cost_basis.read` | confidential (tax-lot IDs may be restricted_pii) |
+| `canonical.account.read` | confidential; high-risk review trigger when provider-sourced account data is exposed |
+| `canonical.position.read` | confidential; high-risk review trigger when provider-sourced investment data is exposed |
+| `canonical.transaction.read` | confidential; high-risk review trigger when provider-sourced transaction data is exposed |
+| `canonical.cost_basis.read` | confidential; high-risk review trigger because tax-lot IDs may be restricted_pii |
 | `canonical.household.read` | confidential |
 | `canonical.security.read` | internal |
 | `canonical.model.read` | internal |
@@ -111,7 +113,7 @@ Requesting higher-classification scopes raises the publication review bar:
 
 - **Low review**: apps that only request `public` or `internal` scopes (e.g. simple calculators, UI-only tools)
 - **Standard governed review**: apps that request `confidential` scopes (e.g. canonical firm data, provisioning, entitlements)
-- **High-risk review**: apps that request `restricted_pii` scopes (e.g. `client.sensitive.read`, `canonical.client.sensitive.read`) or create external data egress paths
+- **High-risk review**: apps that request `restricted_pii` scopes (e.g. `client.sensitive.read`, `canonical.client.sensitive.read`), request provider-sourced account/position/transaction/cost-basis or CRM note/task scopes, or create external data egress paths
 
 See `publish-notes.md` § Publication risk classes for details on what each review level checks.
 

@@ -33,7 +33,7 @@ Vite uses port 5173 by default, so no configuration is needed. If you change the
 
 ### Mock mode vs live mode
 
-Local development has two modes controlled by `VITE_PX_MODE`:
+Local development has two practical modes. Published behavior should be selected from the shell runtime context, not build-time env vars:
 
 **Mock mode (default):**
 - Uses synthetic context from `dev-context.ts`
@@ -42,12 +42,10 @@ Local development has two modes controlled by `VITE_PX_MODE`:
 - Ideal for building and testing UI without a PlannerXchange account
 
 **Live mode:**
-- Set `VITE_PX_MODE=live` in `.env.local`
-- API calls go to the real dev API
-- Requires a real PlannerXchange authentication token
+- Run inside the PlannerXchange shell so the shell injects `authenticatedFetch`
 - Requires a real app installation context
 
-Important: Even in live mode on localhost, real data calls must run inside the PlannerXchange shell so the app receives a real `appInstallationId` and shell-managed `authenticatedFetch`. The `dev-context.ts` file provides mock values that will not authenticate against the live API.
+Important: Real data calls must run inside the PlannerXchange shell so the app receives a real `appInstallationId` and shell-managed `authenticatedFetch`. The `dev-context.ts` file provides mock values that will not authenticate against the live API.
 
 **To work with real dev data from localhost:**
 
@@ -73,6 +71,8 @@ The student rule is simple:
 
 - use `authenticatedFetch` for protected PlannerXchange API calls
 - keep `appInstallationId` as app context, but do not manually attach auth headers
+- do not put `appInstallationId` in query strings, route params, or manually assembled URLs
+- do not read, store, or forward `idToken` or bearer tokens for PlannerXchange API calls
 - do not call shell-only routes such as `/integrations/*`, `/admin/*`, `/workspace/*`, `/builder/*`, or `/shell/route-capability`
 
 Public demo exception:
@@ -92,7 +92,7 @@ Return the typed JSON object directly:
 {
   "id": "hh_abc123",
   "firmId": "firm_123",
-  "name": "Smith Household",
+  "name": "Example Household",
   "status": "active"
 }
 ```
@@ -239,7 +239,7 @@ Returns authenticated identity context.
 ```json
 {
   "subject": "sub_123",
-  "email": "advisor@firm.com",
+  "email": "advisor@example.test",
   "tenantId": "tenant_123",
   "audience": "plannerxchange-shell"
 }
@@ -254,9 +254,9 @@ Returns full shell runtime context for the current authenticated user.
   "user": {
     "id": "firm_user_123",
     "type": "firm_user",
-    "email": "advisor@firm.com",
-    "firstName": "Jordan",
-    "lastName": "Patel"
+    "email": "advisor@example.test",
+    "firstName": "Avery",
+    "lastName": "Example"
   },
   "tenant": {
     "id": "tenant_123",
@@ -268,17 +268,17 @@ Returns full shell runtime context for the current authenticated user.
   "enterprise": {
     "id": "enterprise_123",
     "tenantId": "tenant_123",
-    "legalName": "Friendly Advisors LLC",
-    "displayName": "Friendly Advisors",
+    "legalName": "Example Advisory LLC",
+    "displayName": "Example Advisory",
     "status": "active"
   },
   "firm": {
     "id": "firm_123",
     "tenantId": "tenant_123",
     "enterpriseId": "enterprise_123",
-    "legalName": "Friendly Advisors LLC",
-    "displayName": "Friendly Advisors",
-    "email": "ops@firm.com",
+    "legalName": "Example Advisory LLC",
+    "displayName": "Example Advisory",
+    "email": "ops@example.test",
     "status": "active"
   },
   "membership": {

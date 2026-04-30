@@ -84,6 +84,14 @@
       "path": "dist/plannerxchange.publish.json"
     },
     {
+      "id": "build-provenance-exists",
+      "severity": "error",
+      "title": "Build provenance generated",
+      "description": "dist/plannerxchange.build-provenance.json must exist after build.",
+      "type": "path-exists",
+      "path": "dist/plannerxchange.build-provenance.json"
+    },
+    {
       "id": "codeql-workflow-exists",
       "severity": "error",
       "title": "CodeQL workflow exists",
@@ -94,11 +102,51 @@
     {
       "id": "no-localstorage-prod",
       "severity": "warning",
-      "title": "localStorage usage flagged",
-      "description": "localStorage calls detected. Ensure these are mock-only and not used as production persistence.",
+      "title": "Browser storage usage flagged",
+      "description": "Browser storage calls detected. Ensure localStorage, sessionStorage, and IndexedDB are mock-only or UI-preference-only and not used for production data persistence or PII.",
       "type": "grep",
-      "pattern": "localStorage\\.(setItem|getItem|removeItem)",
+      "pattern": "(localStorage|sessionStorage|indexedDB)\\.(setItem|getItem|removeItem|open|deleteDatabase)",
       "include": ["src/**/*.{ts,tsx,js,jsx}"],
+      "exclude": ["node_modules/**"]
+    },
+    {
+      "id": "no-app-installation-id-query-param",
+      "severity": "error",
+      "title": "No appInstallationId query parameter",
+      "description": "Installed-app context must travel through shell-managed authenticatedFetch and x-plannerxchange-app-installation-id, not query strings.",
+      "type": "grep",
+      "pattern": "[?&]appInstallationId=|URLSearchParams\\([^\\n]*appInstallationId|\\.searchParams\\.(append|set)\\(\\s*[\"']appInstallationId[\"']",
+      "include": ["src/**/*.{ts,tsx,js,jsx}"],
+      "exclude": ["node_modules/**"]
+    },
+    {
+      "id": "no-manual-px-auth-header",
+      "severity": "warning",
+      "title": "Manual auth header usage flagged",
+      "description": "Hosted apps should not read, store, or manually send PlannerXchange bearer tokens. Use ShellRuntimeContext.authenticatedFetch for PX API calls.",
+      "type": "grep",
+      "pattern": "\\bAuthorization\\b|\\bBearer\\b",
+      "include": ["src/**/*.{ts,tsx,js,jsx}"],
+      "exclude": ["node_modules/**", "src/plannerxchange.ts", "src/dev-context.ts"]
+    },
+    {
+      "id": "no-direct-kms-decrypt",
+      "severity": "error",
+      "title": "No direct KMS or decrypt access",
+      "description": "Builder apps must not include direct KMS clients, decrypt commands, or restricted-PII decrypt helpers. PlannerXchange performs decryption only inside governed backend APIs.",
+      "type": "grep",
+      "pattern": "@aws-sdk/client-kms|aws-sdk/clients/kms|\\bKMSClient\\b|\\bDecryptCommand\\b|\\bkms\\.decrypt\\b|\\bdecryptRestrictedPii\\b",
+      "include": ["src/**/*.{ts,tsx,js,jsx,json}", "package*.json"],
+      "exclude": ["node_modules/**"]
+    },
+    {
+      "id": "external-ai-sdk-usage",
+      "severity": "warning",
+      "title": "External AI SDK usage flagged",
+      "description": "External AI-provider usage is a publish-review trigger. Day 1 external AI-provider or third-party egress of PX client data is not allowed.",
+      "type": "grep",
+      "pattern": "@ai-sdk/|\\bopenai\\b|\\banthropic\\b|@google/generative-ai|\\bGemini\\b",
+      "include": ["src/**/*.{ts,tsx,js,jsx,json}", "package*.json"],
       "exclude": ["node_modules/**"]
     },
     {

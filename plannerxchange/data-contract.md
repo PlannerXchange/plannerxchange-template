@@ -26,7 +26,7 @@ If the app is `plannerxchange_portable`:
 - builders may add stricter intra-firm scoping such as per-`advisor_user` access
 - expect stricter review for permissions, client-data access, and external egress
 - do not assume app-owned direct database access for PX canonical data
-- do not assume raw KMS access or direct decrypt capability
+- do not add raw KMS clients, decrypt commands, or app-side restricted-PII decrypt helpers
 - do not persist decrypted PX client data in local storage, IndexedDB, analytics beacons, or client-side logs
 
 If the app is `app_managed_nonportable`:
@@ -257,15 +257,17 @@ Declare these in the manifest `permissions` array. Only request what the app act
 
 ### Installed-app request transport
 
-All builder-facing canonical routes require:
+All builder-facing canonical routes require shell-managed transport:
 
-- the active session bearer token
-- `x-plannerxchange-app-installation-id` sourced from `ShellRuntimeContext.appInstallationId`
+- call protected PlannerXchange APIs through `ShellRuntimeContext.authenticatedFetch`
+- the shell-managed fetch attaches the active session auth
+- the shell-managed fetch attaches `x-plannerxchange-app-installation-id` for the installed app
 
-Temporary compatibility note:
+Publish-review rule:
 
-- `appInstallationId` query-string fallback may still work in some routes as temporary compatibility
-- student builders should treat the header as the required path for new code
+- new builder code must not send `appInstallationId` in query strings, route params, or manually assembled URLs
+- do not manually read, store, or attach bearer tokens for PlannerXchange API calls
+- query-string installation fallback is legacy compatibility only and is treated as a publish-review blocker for student-built apps
 
 Shell-only boundary:
 
@@ -369,7 +371,7 @@ These are the actual response payloads builder apps receive from each canonical 
 {
   "id": "hh_abc123",
   "firmId": "firm_123",
-  "name": "Smith Household",
+  "name": "Example Household",
   "taxFilingStatus": "married_filing_jointly",
   "taxState": "CA",
   "latestTaxYear": 2024,
@@ -421,7 +423,7 @@ These are the actual response payloads builder apps receive from each canonical 
   "id": "cl_abc123",
   "firmId": "firm_123",
   "householdId": "hh_abc123",
-  "displayName": "John Smith",
+  "displayName": "Avery Example",
   "status": "active",
   "summaryFlags": {
     "hasRestrictedPii": true,
@@ -439,10 +441,10 @@ Summary reads do not return raw PII fields.
   "id": "cl_abc123",
   "firmId": "firm_123",
   "householdId": "hh_abc123",
-  "firstName": "John",
-  "lastName": "Smith",
+  "firstName": "Avery",
+  "lastName": "Example",
   "dateOfBirth": "1975-06-15",
-  "emailPrimary": "john.smith@example.com",
+  "emailPrimary": "avery.example@example.test",
   "phonePrimary": "+15551234567",
   "state": "CA",
   "status": "active",
@@ -460,7 +462,7 @@ Summary reads do not return raw PII fields.
   "firmId": "firm_123",
   "householdId": "hh_abc123",
   "accountNumber": "****5678",
-  "accountName": "John Smith IRA",
+  "accountName": "Example IRA",
   "custodianName": "Schwab",
   "accountType": "IRA",
   "taxType": "tax_deferred",
@@ -621,6 +623,7 @@ const masked =
 - if the app needs to save derived work product (recommendations, projections, scenarios), use the PX app-data API (see `docs/builder-spec/app-data-api-v1.md`)
 - app requests should always include `x-plannerxchange-app-installation-id` from the shell runtime context
 - a bearer token plus API base URL is not enough by itself for installed-app canonical behavior; live calls also need a real PlannerXchange installation context
+- do not pass `appInstallationId` in query strings or manually construct PlannerXchange auth headers; use `ShellRuntimeContext.authenticatedFetch`
 - do not cache canonical data in IndexedDB or long-lived local storage â€” re-fetch from the API to ensure freshness
 - do not export or send PX canonical client data to external AI providers or third parties in Day 1
 - handle null on all optional fields â€” not every firm imports every field, and different custodian exports include different columns

@@ -27,6 +27,10 @@ export type AppPermissionScope =
   | "canonical.security.read"
   | "canonical.model.read"
   | "canonical.sleeve.read"
+  | "canonical.crm_note.read"
+  | "canonical.crm_task.read"
+  | "canonical.tax.summary.read"
+  | "canonical.tax.detail.read"
   | "account.read"
   | "position.read"
   | "transaction.read"
@@ -117,7 +121,7 @@ export interface ShellRuntimeContext {
    */
   authenticatedFetch?: PlannerXchangeFetchLike;
   /**
-   * The base URL for PlannerXchange API calls (e.g. "https://api.plannerxchange.ai").
+   * The base URL for PlannerXchange API calls in the current environment.
    * Apps should use this instead of hardcoding API URLs so they work across
    * dev/staging/prod environments.
    */

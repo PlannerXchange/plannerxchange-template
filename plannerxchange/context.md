@@ -24,7 +24,9 @@ Important `entryPoint` rule:
 - keep `entryPoint` source-oriented, for example `src/plugin.tsx`
 - do not change it to a hashed build filename
 - the production build should emit `dist/plannerxchange.publish.json`
+- the production build should emit `dist/plannerxchange.build-provenance.json`
 - PlannerXchange resolves the source `entryPoint` through that generated publish manifest to the hosted JS module and any emitted CSS assets
+- PlannerXchange verifies the build-provenance source-input digest, lockfile digests, build command, and artifact digest before hosting the committed `dist/` output
 
 Critical build export rule:
 
@@ -169,6 +171,8 @@ Canonical request transport:
 - for protected PlannerXchange API calls, use `ShellRuntimeContext.authenticatedFetch`
 - the shell-managed fetch attaches user auth and `x-plannerxchange-app-installation-id` for the installed app
 - hosted apps should not read, store, or manually send raw bearer tokens
+- hosted apps should not pass `appInstallationId` in query strings, route params, or manually assembled URLs
+- do not construct PlannerXchange `Authorization` headers in app code
 - shell-only canonical admin routes such as import setup, custom-field admin, category mappings, and auto-classify are not part of the student app contract
 
 Marketplace billing boundary:
