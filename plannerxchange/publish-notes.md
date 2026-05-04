@@ -55,9 +55,10 @@ Review guidance:
 - PlannerXchange reads GitHub CodeQL code-scanning evidence for the exact linked commit and fails closed when CodeQL is missing, failed, or unreadable
 - CodeQL findings copied from PlannerXchange review feedback should be fixed in source or workflow code before requesting another review
 - apps built to PX canonical data contracts get stricter checks for PX data access patterns
-- nonportable apps may use their own backend, and they may still read approved PX canonical data, but they must not request PX-canonical scopes casually
+- nonportable apps do not get a self-serve right to store PX/client/subscriber data in builder-owned backends; app-managed storage for real PX data requires demo-only isolation or enterprise exception review
 - app-owned identity UX such as custom invite redemption, email verification, or password-setup flows will be treated as governance findings because PlannerXchange owns auth and onboarding
 - apps that save builder-owned work product inside PX should use the governed PX app-data contract rather than trying to mutate immutable PX reference facts
+- apps that parse CSV/files must declare `dataIngressDeclarations`; canonical imports must use PlannerXchange-owned Core Data import handling rather than app-owned `/imports/*` calls
 - apps that touch client data, PII, or external egress paths should expect stricter review
 - Day 1 external AI-provider or third-party egress of PX client data is not allowed
 - new direct dependencies are checked for package reputation, typosquat risk, and non-registry sources before approval
@@ -109,6 +110,7 @@ Minimum requirements for the elevated portability review:
 
 - canonical portable data access is API-only
 - no direct database access to PlannerXchange-hosted canonical data
+- no builder-owned database or app-managed subscriber-data backend for PX/client data in the self-serve shell-published path
 - no direct KMS or decrypt access
 - no builder-owned MCP connector into PlannerXchange-hosted canonical data
 - no persistence of decrypted hosted client PII in browser localStorage, IndexedDB, analytics, or client-side logs
@@ -158,6 +160,7 @@ Applies to:
 - apps that read or write canonical client data
 - apps that request `client.sensitive.read` or `canonical.client.sensitive.read`
 - apps that allow export or sync of client data outside PlannerXchange
+- apps that parse or upload client, account, transaction, CRM, cost-basis, or restricted-PII CSV/files
 - apps that expose client data to external AI providers, plugins, or agents
 
 Checks (everything in standard review, plus):
@@ -169,6 +172,7 @@ Checks (everything in standard review, plus):
 - secret and provider-setting review
 - rejection of direct canonical-database access patterns
 - rejection of app-owned schemas pretending to be PX-portable canonical data
+- rejection of direct `/imports/*` route calls, external CSV upload hosts, missing data-ingress declarations, and app-side parent matching/auto-create logic for canonical records
 
 ### What triggers high-risk classification
 
@@ -177,6 +181,7 @@ An app is treated as high-risk if any of the following are true:
 - it reads canonical client records
 - it writes canonical client records
 - it allows export or sync of client data outside PlannerXchange
+- it parses or uploads real client CSV/files
 - it exposes client data to external AI providers, plugins, or agents
 - it requires elevated permission scopes targeting `restricted_pii`
 
@@ -204,6 +209,9 @@ The following issues are common causes of publication rejection. Check for them 
 16. **Manual PlannerXchange auth or installation context** — app code manually attaches bearer tokens, stores tokens, or passes `appInstallationId` in query strings instead of using `ShellRuntimeContext.authenticatedFetch`.
 17. **Direct KMS or decrypt access** — app code or dependencies include direct KMS clients, decrypt commands, or restricted-PII decrypt helpers. PlannerXchange decrypts protected data only inside governed backend APIs.
 
+18. **Builder-owned backend for PX/client data** - app code or dependencies include Neon, Supabase, Firebase, Postgres, MongoDB, Redis, Prisma, service-role keys, database URL env vars, or similar app-managed subscriber-data storage.
+19. **Undeclared or unsafe CSV/file ingress** - file inputs, `FileReader`, `FormData`, Papa Parse, csv/xlsx packages, drag/drop uploads, external upload hosts, or direct `/imports/*` calls without the approved PlannerXchange ingress lane.
+
 ## PX Approved badge direction
 
 PlannerXchange reserves `PX Approved` for apps that:
@@ -215,6 +223,8 @@ PlannerXchange reserves `PX Approved` for apps that:
 Separate capability labels may include `Portable Data` or `App-Managed Data` in the catalog.
 
 Apps that rely on disallowed external egress of PX client data are not eligible for `PX Approved`.
+
+Warning labels such as `App-Managed Data`, `Not PX Portable`, or external-processor disclosures are exception labels, not approval substitutes. An app using approved external systems should not expect normal `PX Approved` treatment unless the enterprise exception explicitly grants it.
 
 ## Permission scopes
 

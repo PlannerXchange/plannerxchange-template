@@ -31,11 +31,12 @@ If the app is `plannerxchange_portable`:
 
 If the app is `app_managed_nonportable`:
 
-- you may use your own backend or partner-managed systems for app-owned data
+- you may use app-owned storage only for public demos, external-showcase behavior, app-owned non-PX data, or a separately approved enterprise exception
 - you may also use approved PX app-data APIs for builder-owned work product when PX-hosted persistence is preferred
-- you may still read approved PX canonical data through PX APIs by default when the app needs it for runtime behavior
+- you may still read approved PX runtime, branding, legal, and other allowed APIs through PX interfaces
+- you should not request PX canonical client/account/transaction scopes unless the app truly needs them and can pass elevated review
 - you still must pass PlannerXchange security and publication review
-- do not request PX client-data scopes unless the app truly needs PX canonical client or account data
+- do not use Neon, Supabase, Firebase, Postgres, MongoDB, Redis, Prisma, service-role keys, database URL env vars, or builder-owned API backends for PX/client/subscriber data in the normal self-serve shell-published path
 - label the app honestly as app-managed rather than portable
 - app-owned data is not eligible for the PX portability contract
 
@@ -58,7 +59,18 @@ Rule:
 Reference facts versus work product:
 
 - immutable PX reference facts such as account identifiers, positions, and transactions should not be treated as app-writable
-- builder-owned work product such as recommendations, questionnaire responses, scenarios, and projections should be saved separately through approved PX app-data APIs or explicit app-owned persistence
+- builder-owned work product such as recommendations, questionnaire responses, scenarios, projections, transaction-category rule sets, category assignment sets, cashflow projection runs, and app-owned upload row sets should be saved separately through approved PX app-data APIs
+- current PX backend does not expose first-class canonical chart-of-accounts or transaction-category-rule mutation; app-data categorization records do not mutate canonical transactions and are not cross-app portable by default
+
+CSV and file ingress:
+
+- declare CSV/file/API ingress with `dataIngressDeclarations` in `plannerxchange.app.json`
+- app-owned CSV outputs may become PX app-data records when they are builder-owned work product
+- canonical imports, including transaction CSV imports, must use PlannerXchange-owned Core Data import handling
+- do not call `/imports/*`, `/integrations/*`, mapping, validation, execute, rollback, or undocumented canonical write/import routes directly from app code
+- do not auto-create canonical households, clients, accounts, account-owner links, positions, transactions, cost basis, restricted PII, or import jobs from app-managed CSV logic
+- every canonical transaction import row must resolve to a canonical account, and every account must resolve to a household, through PX-owned matching and review
+- ambiguous or unmatched parent records stay staged for PX review, correction, skip, or accepted stub creation; app code should not write orphan canonical records
 
 Worked patterns:
 
@@ -68,6 +80,8 @@ Worked patterns:
    Cashflow app reads Plaid or other partner data through PX-governed integration paths, then saves `projection_run` records through PX app-data. The partner facts stay partner-sourced; the projections are builder-owned work product.
 3. App-managed nonportable
    Marketing or content app may use no PX client data at all and may keep its own outputs in app-owned storage. It can still publish through PlannerXchange, but it should not imply its app-owned data is portable.
+4. Cashflow CSV categorization
+   Cashflow app accepts transaction-like CSV rows, creates `transaction_category_rule_set`, `transaction_category_assignment_set`, `cashflow_projection_run`, or `cashflow_upload_row_set` app-data records, and links them to canonical transactions or accounts through `sourceRefs`. These app-data records do not create or update canonical transactions.
 
 Provenance-aware UI guidance:
 

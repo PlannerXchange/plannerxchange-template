@@ -140,6 +140,46 @@
       "exclude": ["node_modules/**"]
     },
     {
+      "id": "no-direct-byo-backend",
+      "severity": "error",
+      "title": "No builder-owned data backend for PX/client data",
+      "description": "Shell-published self-serve apps must not use Neon, Supabase, Firebase, Prisma, Postgres, MongoDB, Redis, database URL env vars, or service-role keys for PX/client/subscriber data.",
+      "type": "grep",
+      "pattern": "@neondatabase/serverless|drizzle-orm|kysely|@vercel/postgres|\\bpg\\b|\\bpostgres\\b|@supabase/supabase-js|firebase-admin|firebase/firestore|mongodb|mongoose|ioredis|@upstash/redis|@prisma/client|\\bPrismaClient\\b|DATABASE_URL|NEON_DATABASE_URL|POSTGRES_URL|PGHOST|PGPASSWORD|SUPABASE_SERVICE_ROLE_KEY|MONGODB_URI|REDIS_URL|UPSTASH_REDIS_REST_TOKEN",
+      "include": ["src/**/*.{ts,tsx,js,jsx,json}", "package*.json"],
+      "exclude": ["node_modules/**", "src/dev-context.ts"]
+    },
+    {
+      "id": "csv-file-ingress-declaration",
+      "severity": "warning",
+      "title": "CSV/file ingress must be declared",
+      "description": "File inputs, FileReader, FormData uploads, Papa Parse, csv/xlsx packages, and drag/drop uploads require dataIngressDeclarations and review of the target storage lane.",
+      "type": "grep",
+      "pattern": "type\\s*=\\s*[\"']file[\"']|\\bFileReader\\b|\\bFormData\\b|Papa\\.parse|papaparse|csv-parse|@fast-csv/parse|\\bxlsx\\b|dataTransfer\\.files|accept\\s*=\\s*[\"'][^\"']*(\\.csv|text/csv)",
+      "include": ["src/**/*.{ts,tsx,js,jsx,json}", "package*.json"],
+      "exclude": ["node_modules/**", "src/dev-context.ts"]
+    },
+    {
+      "id": "no-shell-import-or-integration-routes",
+      "severity": "error",
+      "title": "No shell-only import or integration routes",
+      "description": "Builder apps must not call /imports/*, /integrations/*, Core Data mapping/validation/execute routes, or shell-owned provider routes directly.",
+      "type": "grep",
+      "pattern": "/imports(/|\\b)|/canonical/imports(/|\\b)|/integrations/[a-z0-9-]+\\b",
+      "include": ["src/**/*.{ts,tsx,js,jsx,json}"],
+      "exclude": ["node_modules/**", "src/dev-context.ts"]
+    },
+    {
+      "id": "no-external-file-upload-hosts",
+      "severity": "error",
+      "title": "No external CSV/file upload hosts",
+      "description": "Apps that handle PX/client CSV or file uploads must use PlannerXchange-controlled ingress or enterprise exception review, not vendor upload endpoints.",
+      "type": "grep",
+      "pattern": "FormData[\\s\\S]{0,400}https://(?![^\"'`\\s)]*plannerxchange)|https://(?![^\"'`\\s)]*plannerxchange)[^\"'`\\s)]*/upload",
+      "include": ["src/**/*.{ts,tsx,js,jsx}"],
+      "exclude": ["node_modules/**", "src/dev-context.ts"]
+    },
+    {
       "id": "external-ai-sdk-usage",
       "severity": "warning",
       "title": "External AI SDK usage flagged",

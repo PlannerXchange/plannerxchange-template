@@ -34,8 +34,9 @@ Examples:
   - this is the preferred default when the app participates in PlannerXchange-governed canonical data contracts
 
 - `app_managed_nonportable`
-  - use this when the app's business persistence lives in app-owned or partner-managed systems rather than PX canonical data contracts
+  - use this when the app is demo/external-showcase oriented, uses only app-owned non-PX data, or has a separately approved enterprise exception
   - the app may still use approved PX app-data APIs for builder-owned work product when PX-hosted persistence is preferred
+  - this is not permission to store PX/client/subscriber data in Neon, Supabase, Firebase, Postgres, MongoDB, Redis, or another builder-owned backend
   - the app can still publish through PlannerXchange, but its app-owned data is not eligible for the PX portability contract
 
 Important:
@@ -43,6 +44,8 @@ Important:
 - this template does not teach membership-tier or entitlement rules
 - `plannerxchange_portable` is an architecture declaration, not a statement about what the current builder account is allowed to enable in the shell
 - `plannerxchange_portable` does not mean every PlannerXchange-hosted record becomes canonical or cross-app portable by default
+- shell-published self-serve apps are default-deny for builder-owned subscriber-data backends and third-party API egress of PX/client data
+- CSV/file imports must be declared; canonical imports must use PlannerXchange-owned Core Data import handling, not app-owned import routes or parent-matching logic
 - platform review and product entitlements are handled inside PlannerXchange, not in this repo
 
 ## Platform Contract Map
@@ -118,6 +121,8 @@ Important setup rules:
 11. Use the default Vite port (5173) for local development — PlannerXchange allows CORS and auth callbacks only from localhost:5173.
 12. Keep the `.github/workflows/codeql.yml` workflow enabled. PlannerXchange requires GitHub CodeQL results for the exact linked branch commit before publication.
 13. Treat CodeQL findings in PlannerXchange review feedback as security blockers or remediation tasks. Fix the underlying code or workflow issue; do not remove CodeQL, suppress alerts casually, or dismiss alerts without an auditable reason.
+14. Do not add builder-owned databases, service-role keys, database URL env vars, or direct provider API clients for PX/client/subscriber data. Use PX canonical APIs and PX app-data instead.
+15. If the app accepts CSV or file uploads, declare the ingress in plannerxchange.app.json. App-owned CSV work product may go to PX app-data; canonical transaction/account/client/household imports must use a PX-owned Core Data import handoff when that contract exists.
 
 Before writing code, ask me these questions and wait for my answers:
 

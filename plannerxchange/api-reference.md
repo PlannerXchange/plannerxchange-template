@@ -73,7 +73,14 @@ The student rule is simple:
 - keep `appInstallationId` as app context, but do not manually attach auth headers
 - do not put `appInstallationId` in query strings, route params, or manually assembled URLs
 - do not read, store, or forward `idToken` or bearer tokens for PlannerXchange API calls
-- do not call shell-only routes such as `/integrations/*`, `/admin/*`, `/workspace/*`, `/builder/*`, or `/shell/route-capability`
+- do not call shell-only routes such as `/imports/*`, `/integrations/*`, `/admin/*`, `/workspace/*`, `/builder/*`, or `/shell/route-capability`
+
+CSV and import boundary:
+
+- `/imports/*` routes are Core Data shell routes, not builder-facing API routes
+- canonical transaction/account/client/household imports must use a PlannerXchange-owned Core Data import handoff when that contract exists
+- builder apps may store app-owned CSV-derived work product through `/app-data`, but must not create canonical records, parent records, account-owner links, or import jobs directly
+- apps that parse or upload CSV/files should declare `dataIngressDeclarations` in `plannerxchange.app.json`
 
 Public demo exception:
 
