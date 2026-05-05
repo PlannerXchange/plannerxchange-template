@@ -33,9 +33,43 @@ export interface HouseholdSummary {
 export interface AppDataRecord<T = unknown> {
   recordId: string;
   recordType: string;
-  data: T;
+  title?: string;
+  status?: "draft" | "final" | "archived";
+  schemaVersion: number;
+  clientUserId?: string;
+  householdId?: string;
+  accountId?: string;
+  sourceRefs?: AppDataSourceRef[];
+  payload: T;
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface AppDataSourceRef {
+  sourceType: string;
+  sourceId: string;
+  sourceSystem?: string;
+  asOf?: string;
+}
+
+export interface AppDataCreateInput<T = unknown> {
+  recordType: string;
+  title?: string;
+  status?: "draft" | "final" | "archived";
+  schemaVersion?: number;
+  clientUserId?: string;
+  householdId?: string;
+  accountId?: string;
+  sourceRefs?: AppDataSourceRef[];
+  payload: T;
+}
+
+export type AppDataUpdateInput<T = unknown> = Partial<
+  Pick<AppDataCreateInput<T>, "title" | "status" | "clientUserId" | "householdId" | "accountId" | "sourceRefs" | "payload">
+>;
+
+interface AppDataListResponse<T = unknown> {
+  items: AppDataRecord<T>[];
 }
 
 // ---------------------------------------------------------------------------
@@ -61,9 +95,9 @@ export interface PxGateway {
   getHouseholds(): Promise<HouseholdSummary[]>;
 
   // App-data CRUD
-  getAppData(recordType: string): Promise<AppDataRecord[]>;
-  putAppData(record: AppDataRecord): Promise<void>;
-  deleteAppData(recordId: string): Promise<void>;
+  getAppData<T = unknown>(recordType: string): Promise<AppDataRecord<T>[]>;
+  createAppData<T = unknown>(input: AppDataCreateInput<T>): Promise<AppDataRecord<T>>;
+  updateAppData<T = unknown>(recordId: string, input: AppDataUpdateInput<T>): Promise<AppDataRecord<T>>;
 }
 
 export function createPxGateway(ctx: ShellRuntimeContext): PxGateway {
@@ -93,21 +127,54 @@ function mockGateway(): PxGateway {
       return MOCK_HOUSEHOLDS;
     },
 
-    async getAppData(recordType) {
+    async getAppData<T = unknown>(recordType: string): Promise<AppDataRecord<T>[]> {
       return [...mockAppDataStore.values()].filter(
         (r) => r.recordType === recordType
-      );
+      ) as AppDataRecord<T>[];
     },
 
-    async putAppData(record) {
+    async createAppData<T = unknown>(input: AppDataCreateInput<T>): Promise<AppDataRecord<T>> {
+      const recordId =
+        typeof crypto !== "undefined" && "randomUUID" in crypto
+          ? crypto.randomUUID()
+          : `appdata-mock-${Date.now()}`;
+      const record: AppDataRecord<T> = {
+        recordId,
+        recordType: input.recordType,
+        title: input.title,
+        status: input.status ?? "draft",
+        schemaVersion: input.schemaVersion ?? 1,
+        clientUserId: input.clientUserId,
+        householdId: input.householdId,
+        accountId: input.accountId,
+        sourceRefs: input.sourceRefs ?? [],
+        payload: input.payload,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
       mockAppDataStore.set(record.recordId, {
         ...record,
         updatedAt: new Date().toISOString(),
       });
+      return record;
     },
 
-    async deleteAppData(recordId) {
-      mockAppDataStore.delete(recordId);
+    async updateAppData<T = unknown>(
+      recordId: string,
+      input: AppDataUpdateInput<T>
+    ): Promise<AppDataRecord<T>> {
+      const existing = mockAppDataStore.get(recordId) as AppDataRecord<T> | undefined;
+      if (!existing) {
+        throw new Error(`Mock app-data record not found: ${recordId}`);
+      }
+      const updated: AppDataRecord<T> = {
+        ...existing,
+        ...input,
+        payload: input.payload ?? existing.payload,
+        updatedAt: new Date().toISOString(),
+      };
+      mockAppDataStore.set(recordId, updated);
+      return updated;
     },
   };
 }
@@ -147,22 +214,30 @@ function liveGateway(ctx: ShellRuntimeContext): PxGateway {
       return pxFetch<HouseholdSummary[]>("/households");
     },
 
-    async getAppData(recordType) {
-      return pxFetch<AppDataRecord[]>(
+    async getAppData<T = unknown>(recordType: string): Promise<AppDataRecord<T>[]> {
+      const payload = await pxFetch<AppDataListResponse<T>>(
         `/app-data?recordType=${encodeURIComponent(recordType)}`
       );
+      return payload.items ?? [];
     },
 
-    async putAppData(record) {
-      await pxFetch<void>("/app-data", {
-        method: "PUT",
-        body: JSON.stringify(record),
+    async createAppData<T = unknown>(input: AppDataCreateInput<T>): Promise<AppDataRecord<T>> {
+      return pxFetch<AppDataRecord<T>>("/app-data", {
+        method: "POST",
+        body: JSON.stringify({
+          ...input,
+          schemaVersion: input.schemaVersion ?? 1,
+        }),
       });
     },
 
-    async deleteAppData(recordId) {
-      await pxFetch<void>(`/app-data/${encodeURIComponent(recordId)}`, {
-        method: "DELETE",
+    async updateAppData<T = unknown>(
+      recordId: string,
+      input: AppDataUpdateInput<T>
+    ): Promise<AppDataRecord<T>> {
+      return pxFetch<AppDataRecord<T>>(`/app-data/${encodeURIComponent(recordId)}`, {
+        method: "PATCH",
+        body: JSON.stringify(input),
       });
     },
   };

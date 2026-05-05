@@ -117,12 +117,13 @@ Important setup rules:
 7. All mock data must use obviously synthetic names and @example.test email addresses. Never embed real personal data in source code.
 8. Use the shell runtime context to distinguish mock from live behavior. Prefer the starter's `isShellHosted(ctx)` helper and `ctx.authenticatedFetch`; do not gate published behavior on build-time env vars.
 9. Route all app-owned record reads and writes through the PX app-data API gateway pattern (see src/lib/px-gateway.ts). Do not use localStorage as a production persistence layer — it is mock-only.
-10. Use the current live API route paths documented in plannerxchange/api-reference.md (root-scoped like /households, /clients, /accounts), not the future /canonical/* namespace.
-11. Use the default Vite port (5173) for local development — PlannerXchange allows CORS and auth callbacks only from localhost:5173.
-12. Keep the `.github/workflows/codeql.yml` workflow enabled. PlannerXchange requires GitHub CodeQL results for the exact linked branch commit before publication.
-13. Treat CodeQL findings in PlannerXchange review feedback as security blockers or remediation tasks. Fix the underlying code or workflow issue; do not remove CodeQL, suppress alerts casually, or dismiss alerts without an auditable reason.
-14. Do not add builder-owned databases, service-role keys, database URL env vars, or direct provider API clients for PX/client/subscriber data. Use PX canonical APIs and PX app-data instead.
-15. If the app accepts CSV or file uploads, declare the ingress in plannerxchange.app.json. App-owned CSV work product may go to PX app-data; canonical transaction/account/client/household imports must use a PX-owned Core Data import handoff when that contract exists.
+10. For client-, household-, or account-linked app-data records, set top-level `clientUserId`, `householdId`, `accountId`, or `sourceRefs`. A `clientId` inside `payload` is not enough for PlannerXchange governance, filtering, export, lifecycle, or support workflows.
+11. Use the current live API route paths documented in plannerxchange/api-reference.md (root-scoped like /households, /clients, /accounts), not the future /canonical/* namespace.
+12. Use the default Vite port (5173) for local development — PlannerXchange allows CORS and auth callbacks only from localhost:5173.
+13. Keep the `.github/workflows/codeql.yml` workflow enabled. PlannerXchange requires GitHub CodeQL results for the exact linked branch commit before publication.
+14. Treat CodeQL findings in PlannerXchange review feedback as security blockers or remediation tasks. Fix the underlying code or workflow issue; do not remove CodeQL, suppress alerts casually, or dismiss alerts without an auditable reason.
+15. Do not add builder-owned databases, service-role keys, database URL env vars, or direct provider API clients for PX/client/subscriber data. Use PX canonical APIs and PX app-data instead.
+16. If the app accepts CSV or file uploads, declare the ingress in plannerxchange.app.json. App-owned CSV work product may go to PX app-data; canonical transaction/account/client/household imports must use a PX-owned Core Data import handoff when that contract exists.
 
 Before writing code, ask me these questions and wait for my answers:
 

@@ -225,12 +225,70 @@ Optional attachment targets:
 - `clientUserId`
 - `householdId`
 - `accountId`
+- `sourceRefs`
 
 Boundary rules:
 
 - `firmId` is the maximum data boundary
+- client-, household-, or account-specific app-data must include at least one top-level platform association: `clientUserId`, `householdId`, `accountId`, or `sourceRefs`
+- putting `clientId`, `clientDisplayName`, `clientEmail`, `invitationId`, or similar values only inside `payload` is not enough for PlannerXchange governance, filtering, export, lifecycle, or support workflows
 - Apps may impose stricter intra-firm scoping — prefer configurable over hardcoded
 - Apps should not assume cross-firm visibility
+
+## Client-linked questionnaire examples
+
+Use top-level association fields for client-linked RTQ/questionnaire records.
+
+Firm/app-level template, no client association required:
+
+```json
+{
+  "recordType": "rtq_template",
+  "schemaVersion": 1,
+  "payload": {
+    "title": "Risk tolerance questionnaire",
+    "questions": []
+  }
+}
+```
+
+Client invitation, top-level `clientUserId` required:
+
+```json
+{
+  "recordType": "rtq_invitation",
+  "schemaVersion": 1,
+  "clientUserId": "client_456",
+  "payload": {
+    "templateRecordId": "appdata_template_123",
+    "invitationId": "invite_789",
+    "status": "sent"
+  }
+}
+```
+
+Client response, top-level `clientUserId` required and `sourceRefs` recommended when the source should be auditable:
+
+```json
+{
+  "recordType": "rtq_response",
+  "schemaVersion": 1,
+  "clientUserId": "client_456",
+  "sourceRefs": [
+    {
+      "sourceType": "canonical_client",
+      "sourceId": "client_456"
+    }
+  ],
+  "payload": {
+    "invitationId": "invite_789",
+    "score": 72,
+    "answers": []
+  }
+}
+```
+
+Do not rely on `payload.clientId` as the only association. App-data is builder-owned work product, not a canonical client mutation.
 
 ## Mutation rules
 

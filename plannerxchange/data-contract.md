@@ -60,6 +60,8 @@ Reference facts versus work product:
 
 - immutable PX reference facts such as account identifiers, positions, and transactions should not be treated as app-writable
 - builder-owned work product such as recommendations, questionnaire responses, scenarios, projections, transaction-category rule sets, category assignment sets, cashflow projection runs, and app-owned upload row sets should be saved separately through approved PX app-data APIs
+- client-, household-, or account-linked app-data must use top-level `clientUserId`, `householdId`, `accountId`, or `sourceRefs`; putting `clientId` only inside `payload` is not enough for PlannerXchange governance, filtering, export, lifecycle, or support workflows
+- app-data remains builder-owned work product, not a canonical client mutation, even when it is linked to a client
 - current PX backend does not expose first-class canonical chart-of-accounts or transaction-category-rule mutation; app-data categorization records do not mutate canonical transactions and are not cross-app portable by default
 
 CSV and file ingress:
