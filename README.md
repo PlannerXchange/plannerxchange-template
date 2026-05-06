@@ -157,9 +157,9 @@ Phase 2 — Wire PX integration:
 
 Identity rules — do not tell me to do any of the following, because PlannerXchange handles them:
 - appId is assigned by PlannerXchange during publication, not set by the builder
-- appBasename is injected by the PlannerXchange shell at runtime (e.g. /apps/<slug>), not set by the builder
+- appBasename, shellAppBasename, and navigate are injected by the PlannerXchange shell at runtime, not set by the builder
 - slug is the only identifier the builder provides in plannerxchange.app.json
-- do not tell me to manually update appId or appBasename — they are mock values in dev-context.ts and real values come from PX at runtime
+- do not tell me to manually update appId, appBasename, shellAppBasename, or navigate; they are mock values in dev-context.ts and real values come from PX at runtime
 ```
 
 ## Local development
@@ -232,9 +232,11 @@ when needed.
 - All mock data must use obviously synthetic names and `@example.test` email addresses. Never embed real personal data in source code.
 - Assume PlannerXchange owns auth, tenant resolution, branding, and disclosures.
 - Do not add app-owned invite links, email-verification flows, password-setup flows, password-reset flows, or onboarding entry flows.
-- Configure your router `basename` to the `appBasename` value from the shell context props (`/apps/<your-app-slug>`). Use `BrowserRouter` (or Vue Router with `createWebHistory`) — not `MemoryRouter` — so deep links and browser history work correctly.
+- Configure your router `basename` to the `appBasename` value from the shell context props. In isolated iframe runtimes this may be iframe-local rather than `/apps/<your-app-slug>`.
 - Do not add auth routes, sign-in pages, or routes outside your `/apps/<appSlug>` prefix.
 - Initialize your router at the `initialPath` context prop so deep links land on the correct view.
+- Use `context.navigate("/app-relative-path")` when an internal route should update the visible shell URL. Do not call `window.top`, `window.parent.location`, or hardcode `/apps/<appSlug>`.
+- Use `shellAppBasename` only when constructing shell-level deep links or copyable URLs outside the embedded app runtime.
 - If the app renders branded chrome, inherit logo, favicon, primary color, secondary color, and font color from PlannerXchange runtime context instead of hardcoding one static brand.
 - If the app does not render app-owned branded chrome, do not request `branding.read` just because the starter demonstrates branding fields.
 - If the app does not render app-owned disclosure text or links, do not request `legal.read` just because the starter demonstrates legal context.

@@ -198,7 +198,7 @@ The following issues are common causes of publication rejection. Check for them 
 5. **Undeclared permission scopes** — app code calls APIs that require scopes not listed in `plannerxchange.app.json` permissions.
 6. **Invented API routes** — calling PX API routes that do not exist in the `api-reference.md` scope matrix.
 7. **Auth/identity bypass** — app attempts its own login flow, password handling, or user registration instead of using PX-provided auth context.
-8. **Builder sets appId or appBasename** — these are PX-assigned at registration and shell-injected at runtime. The builder only controls `slug`.
+8. **Builder sets appId, appBasename, shellAppBasename, or navigate** — these are PX-assigned or shell-injected at runtime. The builder only controls `slug`.
 9. **Bulk or marketing email** — using `email.send` for cold outreach, newsletters, or non-workflow email.
 10. **Missing disclosure or branding consumption** — whitelabel apps that hardcode a single brand instead of reading PX branding/legal context.
 11. **Missing mount export in built artifact** — the compiled plugin JS chunk must export a named `mount` function (or `pluginModule` object). If the build minifier renames `mount` to something like `m`, the shell cannot load the app. Use the starter template's terser config with `reserved: ["mount", "pluginModule", "manifest"]` and do not switch to esbuild minification.
@@ -208,9 +208,10 @@ The following issues are common causes of publication rejection. Check for them 
 15. **Missing or failing CodeQL evidence** — PlannerXchange requires GitHub CodeQL results for the exact linked branch commit. Keep `.github/workflows/codeql.yml` enabled, push the workflow with the app, wait for CodeQL to complete, and fix high-risk alerts instead of disabling the scan.
 16. **Manual PlannerXchange auth or installation context** — app code manually attaches bearer tokens, stores tokens, or passes `appInstallationId` in query strings instead of using `ShellRuntimeContext.authenticatedFetch`.
 17. **Direct KMS or decrypt access** — app code or dependencies include direct KMS clients, decrypt commands, or restricted-PII decrypt helpers. PlannerXchange decrypts protected data only inside governed backend APIs.
+18. **Unsafe shell navigation control** - app code uses `window.top`, `window.parent.location`, or hardcoded `/apps/<appSlug>` prefixes instead of app-relative routes plus `ShellRuntimeContext.navigate`.
 
-18. **Builder-owned backend for PX/client data** - app code or dependencies include Neon, Supabase, Firebase, Postgres, MongoDB, Redis, Prisma, service-role keys, database URL env vars, or similar app-managed subscriber-data storage.
-19. **Undeclared or unsafe CSV/file ingress** - file inputs, `FileReader`, `FormData`, Papa Parse, csv/xlsx packages, drag/drop uploads, external upload hosts, or direct `/imports/*` calls without the approved PlannerXchange ingress lane.
+19. **Builder-owned backend for PX/client data** - app code or dependencies include Neon, Supabase, Firebase, Postgres, MongoDB, Redis, Prisma, service-role keys, database URL env vars, or similar app-managed subscriber-data storage.
+20. **Undeclared or unsafe CSV/file ingress** - file inputs, `FileReader`, `FormData`, Papa Parse, csv/xlsx packages, drag/drop uploads, external upload hosts, or direct `/imports/*` calls without the approved PlannerXchange ingress lane.
 
 ## PX Approved badge direction
 

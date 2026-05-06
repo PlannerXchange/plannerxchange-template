@@ -278,8 +278,10 @@ The shell manages the plugin lifecycle through `mount()` and `unmount()` exports
 
 The shell calls `mount(context)` when the user navigates to the app. The context object provides:
 
-- `appBasename` — the shell-scoped path prefix for the app's router
+- `appBasename` - the router basename for the current runtime document
+- `shellAppBasename` - the shell-owned path prefix for shell-level deep links
 - `initialPath` — the current in-app path for deep links
+- `navigate(path, options?)` - a shell-owned navigation callback for app-relative paths
 - `appInstallationId` — the installation ID required for `x-plannerxchange-app-installation-id` headers
 - `userId` — the current authenticated user ID
 - `firmId` — the current firm context
@@ -342,12 +344,14 @@ PlannerXchange mounts your app at a shell-scoped path prefix:
 
 The shell resolves auth, tenant context, firm context, and app installation state before mounting the plugin. Everything after `/apps/<appSlug>` is your app's internal routing space. Multi-page apps with full navigation hierarchies are expected and supported.
 
-The shell passes two props into your plugin entry point:
+The shell passes routing fields into your plugin entry point:
 
-- `appBasename` — the full scoped prefix (e.g. `/apps/household-manager`); use this as your router `basename`
+- `appBasename` - the runtime-document router basename; use this as your router `basename`
+- `shellAppBasename` - the shell-owned prefix, for example `/apps/household-manager`; use this only for shell-level deep links or copyable URLs
 - `initialPath` — the current in-app path (e.g. `/households/abc123`); initialize your router at this path so deep links work correctly
+- `navigate(path, options?)` - request a visible shell URL update for an app-relative path such as `/households/abc123`; pass `{ replace: true }` when replacing the current history entry
 
-Do not hardcode the prefix in your source. Always read `appBasename` from the context props.
+Do not hardcode either prefix in your source. Always read `appBasename` and, when needed, `shellAppBasename` from the context props.
 
 For **React Router v6**:
 
@@ -369,7 +373,9 @@ Rules:
 - Do not add login, sign-up, or auth routes — the shell owns these
 - Do not add invite, verify-email, set-password, or reset-password routes; the shell owns these too
 - Do not navigate outside the scoped prefix
-- Use `BrowserRouter` with `basename` (not `MemoryRouter`) so deep links and browser history work correctly
+- Use `BrowserRouter` with `basename={context.appBasename}`, or use memory/hash routing initialized from `context.initialPath`.
 - Use relative paths in `<Link>` and `navigate()` calls — do not hardcode the prefix in href values
+- When an app route should be shareable or bookmarkable, call `context.navigate("/your-app-route")` after your in-app router changes route, or wrap your route-change handler so it updates both your local router and the shell URL.
+- Do not use `window.top`, `window.parent.location`, or cross-frame DOM access to control shell routing.
 
 Deep links work naturally. Users can bookmark `/apps/my-tool/households/abc123/accounts` and the shell will mount the app at the correct route.

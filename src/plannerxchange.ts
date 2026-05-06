@@ -103,6 +103,15 @@ export type PlannerXchangeFetchLike = (
   init?: PlannerXchangeApiRequestInit
 ) => Promise<PlannerXchangeFetchResponseLike>;
 
+export interface PlannerXchangeNavigationOptions {
+  replace?: boolean;
+}
+
+export type PlannerXchangeNavigate = (
+  path: string,
+  options?: PlannerXchangeNavigationOptions
+) => void;
+
 export interface ShellRuntimeContext {
   runtimeMode?: "authenticated" | "public_demo";
   isDemoMode?: boolean;
@@ -120,6 +129,12 @@ export interface ShellRuntimeContext {
    * shell-only endpoints such as custodian integrations.
    */
   authenticatedFetch?: PlannerXchangeFetchLike;
+  /**
+   * Requests a shell URL update for an app-relative route such as
+   * "/households/abc123". The shell validates the path and keeps navigation
+   * scoped under this app's shell-owned `/apps/...` prefix.
+   */
+  navigate?: PlannerXchangeNavigate;
   /**
    * The base URL for PlannerXchange API calls in the current environment.
    * Apps should use this instead of hardcoding API URLs so they work across
@@ -141,11 +156,18 @@ export interface ShellRuntimeContext {
   branding: BrandingProfile;
   legal: LegalProfile;
   /**
-   * The shell-scoped path prefix for this app, e.g. "/apps/my-tool".
+   * The runtime-document path prefix for this app.
    * Use this as the `basename` for your client-side router so in-app
-   * navigation stays within the shell-owned URL space.
+   * navigation stays within the current PlannerXchange runtime.
    */
   appBasename: string;
+  /**
+   * The shell-owned path prefix for this app, e.g. "/apps/my-tool".
+   * In isolated iframe runtimes, `appBasename` can be iframe-local
+   * (for example "srcdoc"). Use this field only when building shell-level
+   * deep links or copyable URLs outside the embedded app runtime.
+   */
+  shellAppBasename?: string;
   /**
    * The current in-app path relative to `appBasename`, e.g. "/households/abc123".
    * Initialize your router at this path so deep links render the correct view.

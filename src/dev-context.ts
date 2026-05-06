@@ -17,7 +17,11 @@ export const mockRuntimeContext: ShellRuntimeContext = {
   appInstallationId: "synthetic-installation-context",
   publicationEnvironment: "dev",
   appBasename: "/apps/starter-app",
+  shellAppBasename: "/apps/starter-app",
   initialPath: "/",
+  navigate: (path, options) => {
+    console.info("[PlannerXchange mock] navigate", { path, replace: options?.replace === true });
+  },
   visibility: "private",
   dataPortabilityMode: "app_managed_nonportable",
   permissions: ["tenant.read", "user.read"],
