@@ -107,7 +107,10 @@ Rules:
 - declare CSV/file ingress in `plannerxchange.app.json` with `dataIngressDeclarations`
 - use `sourceRefs` to link app-owned category assignments or projections to canonical accounts/transactions when applicable
 - do not create or mutate canonical transactions, accounts, clients, households, positions, cost basis, restricted PII, account-owner links, or import jobs through app-data
-- canonical transaction CSV imports must use PlannerXchange-owned Core Data import handoff, not app-owned CSV logic
+- canonical position, transaction, and cost-basis CSV imports must use PlannerXchange-owned Core Data import handoff, not app-owned CSV logic
+- builder apps may read canonical positions, transactions, and cost basis through approved PX APIs and scopes, then store only derived app-owned work product and source references in app-data
+- do not call `/imports/*`, `/integrations/*`, Altruist import-job routes, or shell-only Core Data mutation routes from app-owned CSV workflows
+- do not persist raw PX client, account, custodian, transaction, or tax-lot data in app-local storage
 - app-data categorization records are not cross-app portable until PlannerXchange publishes an explicit canonical contract
 
 ## Recommended status values
@@ -302,6 +305,7 @@ Builder apps **may not**:
 
 - Overwrite immutable canonical reference facts through this contract
 - Create canonical households, clients, accounts, positions, transactions, cost basis, restricted PII, account-owner links, or import jobs through this contract
+- Create canonical imports or call custodian/integration apply flows through this contract
 - Treat partner-owned reference data as app-owned mutable data
 - Claim that app-data records are cross-app portable by default
 

@@ -78,8 +78,9 @@ The student rule is simple:
 CSV and import boundary:
 
 - `/imports/*` routes are Core Data shell routes, not builder-facing API routes
-- canonical transaction/account/client/household imports must use a PlannerXchange-owned Core Data import handoff when that contract exists
+- canonical position, transaction, cost-basis, account, client, and household imports must use a PlannerXchange-owned Core Data import handoff when that contract exists
 - builder apps may store app-owned CSV-derived work product through `/app-data`, but must not create canonical records, parent records, account-owner links, or import jobs directly
+- builder apps must not call `/integrations/*` or shell-owned custodian import routes to fetch or apply source data; read reconciled canonical facts through approved canonical routes and scopes
 - apps that parse or upload CSV/files should declare `dataIngressDeclarations` in `plannerxchange.app.json`
 
 Public demo exception:
@@ -133,7 +134,10 @@ Return the resulting record payload.
 | `householdId` | Clients, accounts, app-data | Filter by household |
 | `clientUserId` | App-data | Filter by client user |
 | `asOfDate` | Positions, cost basis | ISO date snapshot (default = latest) |
-| `startDate`, `endDate` | Transactions | ISO date range (default = last 90 days) |
+| `startDate`, `endDate` | Transactions | ISO date range |
+| `accountId` | Top-level portfolio routes | Filter by canonical account |
+| `symbol`, `cusip` | Positions, transactions, cost basis | Filter by security identifier |
+| `sourceSystem` | Positions, transactions, cost basis | Filter by source such as `csv` or `altruist` |
 | `recordType` | App-data | Filter by app-data record type |
 
 ## Error envelope
@@ -196,6 +200,9 @@ Current live platform route registration for canonical reads is root-scoped inst
 - `/clients`
 - `/households/{householdId}/clients`
 - `/accounts`
+- `/positions`
+- `/transactions`
+- `/cost-basis`
 - `/accounts/{accountId}/positions`
 
 If your app is calling the live backend today, use the current live platform paths below.
@@ -212,9 +219,9 @@ If your app is calling the live backend today, use the current live platform pat
 | `canonical.client.summary.read` | `/clients`, `/households/{householdId}/clients` | Summary-safe canonical clients |
 | `canonical.client.sensitive.read` | `/households/{householdId}/clients/{id}` | Full client detail with PII fields |
 | `canonical.account.read` | `/accounts`, `/accounts/{id}`, `/households/{householdId}/accounts`, `/households/{householdId}/accounts/{id}` | Accounts and balances |
-| `canonical.position.read` | `/accounts/{id}/positions` | Account positions |
-| `canonical.transaction.read` | `/accounts/{id}/transactions` | Account transactions |
-| `canonical.cost_basis.read` | `/accounts/{id}/cost-basis` | Cost basis tax lots |
+| `canonical.position.read` | `/positions`, `/accounts/{id}/positions` | Firm-wide and account positions |
+| `canonical.transaction.read` | `/transactions`, `/accounts/{id}/transactions` | Firm-wide and account transactions |
+| `canonical.cost_basis.read` | `/cost-basis`, `/accounts/{id}/cost-basis` | Firm-wide and account cost basis tax lots |
 | `canonical.security.read` | `/securities`, `/securities/{id}` | Platform security master with firm overrides |
 | `canonical.model.read` | `/models`, `/models/{id}/holdings` | Models and holdings |
 | `canonical.sleeve.read` | `/sleeves`, `/sleeves/{id}/allocations` | Sleeves and allocations |
@@ -235,6 +242,7 @@ Important:
 - Requesting client-data scopes does not permit external AI-provider or third-party egress of PX client data
 - Partner OAuth integrations such as Altruist are shell-owned PlannerXchange workflows. Apps do not receive partner OAuth tokens and should consume Altruist-sourced data only after PlannerXchange maps it into approved canonical or integration-exposed APIs.
 - Altruist-derived household, account, position, transaction, and cost-basis records are builder-facing only after PlannerXchange reconciliation. Apps must not call `/integrations/altruist/*`, inspect Altruist import jobs, or use unreconciled staging/diagnostic payloads as app data.
+- Top-level portfolio reads default to the latest available position/cost-basis `asOfDate` or newest transaction activity, use `limit=10` by default with max `100`, and may use S3-backed opaque cursors. Apps must not request direct S3 access or parse cursor contents.
 - CRM integrations such as Wealthbox are shell-owned PlannerXchange workflows. Apps do not receive Wealthbox API keys and should consume Wealthbox-sourced notes/tasks only through `/crm-notes` and `/crm-tasks` with the declared read scopes.
 - CRM reads expose only records that PlannerXchange has matched and accepted into the normalized CRM surface. Unmatched staging records, match candidates, sync jobs, and partner-import progress are shell-only and are not available to installed apps.
 - Student apps should treat an empty CRM response as normal: the firm may not have connected the CRM yet, or a firm admin may not have completed the matching flow.

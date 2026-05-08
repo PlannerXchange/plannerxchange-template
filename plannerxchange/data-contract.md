@@ -58,7 +58,7 @@ Rule:
 
 Reference facts versus work product:
 
-- immutable PX reference facts such as account identifiers, positions, and transactions should not be treated as app-writable
+- immutable PX reference facts such as account identifiers, positions, transactions, and cost-basis lots should not be treated as app-writable
 - builder-owned work product such as recommendations, questionnaire responses, scenarios, projections, transaction-category rule sets, category assignment sets, cashflow projection runs, and app-owned upload row sets should be saved separately through approved PX app-data APIs
 - client-, household-, or account-linked app-data must use top-level `clientUserId`, `householdId`, `accountId`, or `sourceRefs`; putting `clientId` only inside `payload` is not enough for PlannerXchange governance, filtering, export, lifecycle, or support workflows
 - app-data remains builder-owned work product, not a canonical client mutation, even when it is linked to a client
@@ -68,11 +68,12 @@ CSV and file ingress:
 
 - declare CSV/file/API ingress with `dataIngressDeclarations` in `plannerxchange.app.json`
 - app-owned CSV outputs may become PX app-data records when they are builder-owned work product
-- canonical imports, including transaction CSV imports, must use PlannerXchange-owned Core Data import handling
+- canonical imports, including position, transaction, and cost-basis CSV imports, must use PlannerXchange-owned Core Data import handling
 - do not call `/imports/*`, `/integrations/*`, mapping, validation, execute, rollback, or undocumented canonical write/import routes directly from app code
 - do not auto-create canonical households, clients, accounts, account-owner links, positions, transactions, cost basis, restricted PII, or import jobs from app-managed CSV logic
 - every canonical transaction import row must resolve to a canonical account, and every account must resolve to a household, through PX-owned matching and review
 - ambiguous or unmatched parent records stay staged for PX review, correction, skip, or accepted stub creation; app code should not write orphan canonical records
+- if an app supports its own CSV workflow, keep the result in app-data as derived work product or hand canonical Core Data import back to PlannerXchange; do not persist raw PX client, account, custodian, transaction, or tax-lot data in browser storage or app-local storage
 
 Worked patterns:
 
@@ -260,9 +261,9 @@ Declare these in the manifest `permissions` array. Only request what the app act
 | `canonical.client.summary.read` | Client list with display name, status, flags â€” no raw PII |
 | `canonical.client.sensitive.read` | Full client detail including name, DOB, email, phone, and address |
 | `canonical.account.read` | Account list, detail, and balance |
-| `canonical.position.read` | Positions within an account |
-| `canonical.transaction.read` | Transactions within an account |
-| `canonical.cost_basis.read` | Cost basis lots within an account |
+| `canonical.position.read` | Firm-wide and account-scoped positions |
+| `canonical.transaction.read` | Firm-wide and account-scoped transactions |
+| `canonical.cost_basis.read` | Firm-wide and account-scoped cost basis lots |
 | `canonical.security.read` | Platform security master with firm overrides merged |
 | `canonical.model.read` | Models and their holdings |
 | `canonical.sleeve.read` | Sleeves and sleeve allocations |
@@ -312,6 +313,9 @@ Current live platform route registration is root-scoped for canonical reads. If 
 | `GET /canonical/accounts` | `GET /accounts` | `canonical.account.read` | live | List accounts |
 | `GET /canonical/households/{householdId}/accounts` | `GET /households/{householdId}/accounts` | `canonical.account.read` | live | Accounts in a household |
 | `GET /canonical/accounts/{accountId}` | `GET /accounts/{accountId}` | `canonical.account.read` | live | Account detail |
+| `GET /canonical/positions` | `GET /positions` | `canonical.position.read` | live | Firm-wide positions (default latest `asOfDate`, S3-backed cursor) |
+| `GET /canonical/transactions` | `GET /transactions` | `canonical.transaction.read` | live | Firm-wide transactions (newest activity first, S3-backed cursor) |
+| `GET /canonical/cost-basis` | `GET /cost-basis` | `canonical.cost_basis.read` | live | Firm-wide cost basis lots (default latest `asOfDate`, S3-backed cursor) |
 | `GET /canonical/accounts/{accountId}/positions` | `GET /accounts/{accountId}/positions` | `canonical.position.read` | live | Positions (filter by `asOfDate`) |
 | `GET /canonical/accounts/{accountId}/transactions` | `GET /accounts/{accountId}/transactions` | `canonical.transaction.read` | live | Transactions (filter by `startDate`, `endDate`) |
 | `GET /canonical/accounts/{accountId}/cost-basis` | `GET /accounts/{accountId}/cost-basis` | `canonical.cost_basis.read` | live | Cost basis lots (filter by `asOfDate`) |
@@ -328,7 +332,11 @@ Current live platform route registration is root-scoped for canonical reads. If 
 
 ### Pagination
 
-All list routes accept `limit` (default 25, max 100) and `cursor` for pagination. Response includes `pageInfo.nextCursor`.
+All list routes accept `limit` and `cursor` for pagination. Response includes `pageInfo.nextCursor`.
+
+Top-level portfolio routes (`/positions`, `/transactions`, `/cost-basis`) default to `limit=10` with max `100`. Their cursors may represent S3 shard offsets, so pass the cursor back unchanged and do not parse it.
+
+Most other canonical list routes default to `limit=25` with max `100`.
 
 ### Common query parameters
 
@@ -336,9 +344,13 @@ All list routes accept `limit` (default 25, max 100) and `cursor` for pagination
 |-------|-----------|-------------|
 | `status` | Households, clients, accounts | Filter by status |
 | `householdId` | Clients, accounts | Filter by household |
+| `accountId` | Top-level portfolio routes | Filter by account |
 | `asOfDate` | Positions, cost basis | Filter by as-of date |
 | `startDate` | Transactions | Inclusive start of date range |
 | `endDate` | Transactions | Inclusive end of date range |
+| `symbol` | Positions, transactions, cost basis | Filter by security symbol |
+| `cusip` | Positions, transactions, cost basis | Filter by CUSIP |
+| `sourceSystem` | Positions, transactions, cost basis | Filter by source system such as `csv` or `altruist` |
 | `search` | Households, accounts, securities | Text search on name/ticker |
 
 ### Key fields by entity (required vs optional)
@@ -363,13 +375,13 @@ Builder apps may show both the specific account type and the tax treatment. For 
 
 `accountNumber` should be treated as masked display data by default. Student apps should not assume full account numbers are available or render any account number field as raw unmasked text.
 
-**Position:** `id`, `accountId`, `asOfDate` are required. At least one of `symbol`/`cusip` is present. `quantity`, `price`, `marketValue`, `securityName`, `securityType` are optional.
+**Position:** `id`, `accountId`, `asOfDate` are required. At least one of `symbol`/`cusip` is present. `quantity`, `price`, `marketValue`, `currencyCode`, `securityName`, `securityType`, `sourceSystem`, and `importedAt` are optional.
 
-**Transaction:** `id`, `accountId`, `date` are required. `symbol`, `cusip`, `description`, `amount`, `quantity`, `price`, `displayTransactionType`, `detailedTransactionType`, `tradeDate`, `settleDate`, `netAmount`, `fees`, `commission`, `status` are optional.
+**Transaction:** `id`, `accountId`, `date` are required. `asOfDate`, `symbol`, `cusip`, `description`, `amount`, `quantity`, `price`, `currencyCode`, `displayTransactionType`, `detailedTransactionType`, `tradeDate`, `settleDate`, `netAmount`, `fees`, `commission`, `status`, `sourceSystem`, and `importedAt` are optional.
 
-**Cost basis:** `id`, `accountId`, `asOfDate` are required. `symbol`, `cusip`, `description`, `acquisitionDate`, `quantity`, `costBasisAmount`, `currentValue`, `gainLoss`, `holdingPeriod`, `lotId` are optional.
+**Cost basis:** `id`, `accountId`, `asOfDate` are required. `symbol`, `cusip`, `description`, `acquisitionDate`, `quantity`, `costBasisAmount`, `costBasisUnadjusted`, `costBasisAdjusted`, `currentValue`, `marketValue`, `gainLoss`, `unrealizedGainLoss`, `holdingPeriod`, `sourceSystem`, and `importedAt` are optional.
 
-Cost-basis data may come from shell-owned custodian imports such as Altruist. Apps should read it only through canonical cost-basis APIs and should not persist tax-lot identifiers, provider account identifiers, or unreconciled custodian payloads in app-local state.
+Position, transaction, and cost-basis data may come from large S3-backed PlannerXchange canonical shards. Apps should read it only through canonical APIs and should not persist raw tax-lot identifiers, provider account identifiers, raw custodian record IDs, or unreconciled custodian payloads in app-local state.
 
 **Security:** `id`, `securityName`, `status`, `verificationStatus` are required. `ticker`, `cusip`, `symbol`, `securityType`, `fees` are optional. When a firm override exists, `displayName`, `returnExpectation`, `assetClassId`, `benchmark` are included in a `firmOverride` object.
 
@@ -504,7 +516,10 @@ Summary reads do not return raw PII fields.
   "securityType": "equity",
   "quantity": 100,
   "price": 178.50,
-  "marketValue": 17850.00
+  "marketValue": 17850.00,
+  "currencyCode": "USD",
+  "sourceSystem": "csv",
+  "importedAt": "2026-05-06T14:00:00Z"
 }
 ```
 
@@ -515,12 +530,18 @@ Summary reads do not return raw PII fields.
   "id": "txn_abc123",
   "accountId": "acct_abc123",
   "date": "2026-03-15",
+  "asOfDate": "2026-03-15",
   "displayTransactionType": "Buy",
+  "detailedTransactionType": "BUY",
   "symbol": "AAPL",
   "description": "Buy 50 shares AAPL",
   "quantity": 50,
   "price": 175.00,
   "amount": -8750.00,
+  "currencyCode": "USD",
+  "settleDate": "2026-03-17",
+  "sourceSystem": "csv",
+  "importedAt": "2026-05-06T14:00:00Z",
   "status": "settled"
 }
 ```
@@ -536,8 +557,14 @@ Summary reads do not return raw PII fields.
   "acquisitionDate": "2024-01-15",
   "quantity": 50,
   "costBasisAmount": 7500.00,
+  "costBasisUnadjusted": 7500.00,
+  "costBasisAdjusted": 7400.00,
   "currentValue": 8925.00,
+  "marketValue": 8925.00,
   "gainLoss": 1425.00,
+  "unrealizedGainLoss": 1425.00,
+  "sourceSystem": "csv",
+  "importedAt": "2026-05-06T14:00:00Z",
   "holdingPeriod": "long_term"
 }
 ```
