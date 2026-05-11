@@ -40,11 +40,11 @@ Critical build export rule:
 
 CodeQL review rule:
 
-- keep `.github/workflows/codeql.yml` in the builder repo
-- PlannerXchange requires GitHub CodeQL code-scanning evidence for the exact linked branch commit
+- PlannerXchange runs the required CodeQL lane after the repo is linked and the commit is pinned
+- builders do not need to enable GitHub code scanning, add a CodeQL workflow, or wait on GitHub Actions
 - if PlannerXchange review feedback includes CodeQL findings, fix the source, dependency, or workflow issue and push a new commit
-- do not remove the CodeQL workflow, disable code scanning, or dismiss alerts just to pass publication review
-- CodeQL runs in GitHub after push; local `npm run preflight` does not replace it
+- `PX CodeQL is still running` means no builder action; `PX CodeQL infrastructure failed` means retry/support, not repo settings
+- local `npm run preflight` does not replace PlannerXchange CodeQL
 
 Common frontend values:
 

@@ -22,7 +22,7 @@ Important:
 - the manifest `entryPoint` remains a source path such as `src/plugin.tsx`
 - the build must emit `dist/plannerxchange.publish.json` so PlannerXchange can resolve that source path to the hosted JS module and emitted CSS assets
 - the build must emit `dist/plannerxchange.build-provenance.json` so PlannerXchange can verify the source-input digest, lockfile digests, build command, and artifact digest before upload
-- linked repo branches must have completed GitHub CodeQL code-scanning results for the exact commit submitted for review
+- PlannerXchange runs required CodeQL review for the exact linked commit after repo linking
 
 Visibility management:
 
@@ -47,13 +47,12 @@ Student checklist before linking the repo:
 - write a clear summary and description for the listing
 - run `npm run build`
 - commit and push the generated `dist/` directory, including `dist/plannerxchange.publish.json` and `dist/plannerxchange.build-provenance.json`
-- keep `.github/workflows/codeql.yml` in the repo and wait for the GitHub CodeQL workflow to complete on the pushed branch commit
 
 Review guidance:
 
 - universal security and governance checks apply to every app
-- PlannerXchange reads GitHub CodeQL code-scanning evidence for the exact linked commit and fails closed when CodeQL is missing, failed, or unreadable
-- CodeQL findings copied from PlannerXchange review feedback should be fixed in source or workflow code before requesting another review
+- PlannerXchange runs CodeQL for the exact linked commit and fails closed when PX CodeQL finds blocking issues or PX-owned evidence cannot be produced
+- CodeQL findings copied from PlannerXchange review feedback should be fixed in source code before requesting another review
 - apps built to PX canonical data contracts get stricter checks for PX data access patterns
 - nonportable apps do not get a self-serve right to store PX/client/subscriber data in builder-owned backends; app-managed storage for real PX data requires demo-only isolation or enterprise exception review
 - app-owned identity UX such as custom invite redemption, email verification, or password-setup flows will be treated as governance findings because PlannerXchange owns auth and onboarding
@@ -132,7 +131,7 @@ Checks:
 
 - manifest validation
 - build artifact checks
-- dependency and security scanning, including required CodeQL evidence
+- dependency and security scanning, including required PlannerXchange CodeQL evidence
 - app-managed backend/security checks
 - auth ownership check (no custom login/sign-up)
 - white-label readiness findings when the app targets shell publication
@@ -205,7 +204,7 @@ The following issues are common causes of publication rejection. Check for them 
 12. **Missing dist/plannerxchange.publish.json** — the build must emit a publish manifest so PlannerXchange can resolve the source `entryPoint` to the hosted JS module. Run `npm run build` and commit the `dist/` directory.
 13. **Missing or stale dist/plannerxchange.build-provenance.json** — the build must emit provenance so PlannerXchange can verify source inputs, lockfiles, build command, and committed artifact digests before upload. Run `npm run build` after source or dist changes and commit the regenerated `dist/` directory.
 14. **Suspicious new dependency** — new direct dependencies are checked for package-name spoofing, limited npm registry reputation, and non-registry sources. Prefer established npm packages with clear repository, maintainer, license, and release history.
-15. **Missing or failing CodeQL evidence** — PlannerXchange requires GitHub CodeQL results for the exact linked branch commit. Keep `.github/workflows/codeql.yml` enabled, push the workflow with the app, wait for CodeQL to complete, and fix high-risk alerts instead of disabling the scan.
+15. **PlannerXchange CodeQL blocking issue** — PlannerXchange runs CodeQL for the exact linked branch commit. Fix high-risk source findings and push a new commit. If feedback says PX CodeQL is still running, no builder action is needed; if it says PX CodeQL infrastructure failed, retry or contact support rather than changing GitHub repo settings.
 16. **Manual PlannerXchange auth or installation context** — app code manually attaches bearer tokens, stores tokens, or passes `appInstallationId` in query strings instead of using `ShellRuntimeContext.authenticatedFetch`.
 17. **Direct KMS or decrypt access** — app code or dependencies include direct KMS clients, decrypt commands, or restricted-PII decrypt helpers. PlannerXchange decrypts protected data only inside governed backend APIs.
 18. **Unsafe shell navigation control** - app code uses `window.top`, `window.parent.location`, or hardcoded `/apps/<appSlug>` prefixes instead of app-relative routes plus `ShellRuntimeContext.navigate`.

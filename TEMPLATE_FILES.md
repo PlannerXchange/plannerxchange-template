@@ -4,7 +4,6 @@ The public `plannerxchange-template` repository should contain exactly this star
 
 - `.env.example`
 - `.gitignore`
-- `.github/workflows/codeql.yml`
 - `README.md`
 - `TEMPLATE_FILES.md`
 - `index.html`
