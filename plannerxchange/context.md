@@ -346,7 +346,7 @@ The shell resolves auth, tenant context, firm context, and app installation stat
 
 The shell passes routing fields into your plugin entry point:
 
-- `appBasename` - the runtime-document router basename; use this as your router `basename`
+- `appBasename` - the runtime-document router basename; use this as your router `basename`. In isolated iframe runtimes this may be an iframe-local prefix such as `/plugin-runner.html`.
 - `shellAppBasename` - the shell-owned prefix, for example `/apps/household-manager`; use this only for shell-level deep links or copyable URLs
 - `initialPath` — the current in-app path (e.g. `/households/abc123`); initialize your router at this path so deep links work correctly
 - `navigate(path, options?)` - request a visible shell URL update for an app-relative path such as `/households/abc123`; pass `{ replace: true }` when replacing the current history entry

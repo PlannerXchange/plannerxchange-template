@@ -164,7 +164,7 @@ export interface ShellRuntimeContext {
   /**
    * The shell-owned path prefix for this app, e.g. "/apps/my-tool".
    * In isolated iframe runtimes, `appBasename` can be iframe-local
-   * (for example "srcdoc"). Use this field only when building shell-level
+   * (for example "/plugin-runner.html"). Use this field only when building shell-level
    * deep links or copyable URLs outside the embedded app runtime.
    */
   shellAppBasename?: string;

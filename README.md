@@ -232,7 +232,7 @@ when needed.
 - All mock data must use obviously synthetic names and `@example.test` email addresses. Never embed real personal data in source code.
 - Assume PlannerXchange owns auth, tenant resolution, branding, and disclosures.
 - Do not add app-owned invite links, email-verification flows, password-setup flows, password-reset flows, or onboarding entry flows.
-- Configure your router `basename` to the `appBasename` value from the shell context props. In isolated iframe runtimes this may be iframe-local rather than `/apps/<your-app-slug>`.
+- Configure your router `basename` to the `appBasename` value from the shell context props. In isolated iframe runtimes this may be iframe-local, for example `/plugin-runner.html`, rather than `/apps/<your-app-slug>`.
 - Do not add auth routes, sign-in pages, or routes outside your `/apps/<appSlug>` prefix.
 - Initialize your router at the `initialPath` context prop so deep links land on the correct view.
 - Use `context.navigate("/app-relative-path")` when an internal route should update the visible shell URL. Do not call `window.top`, `window.parent.location`, or hardcode `/apps/<appSlug>`.
