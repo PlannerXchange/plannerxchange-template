@@ -25,6 +25,15 @@ Important:
 - the build must emit `<distRoot>/plannerxchange.build-provenance.json` so PlannerXchange can verify the source-input digest, lockfile digests, build command, and artifact digest before upload
 - PlannerXchange runs required CodeQL review for the exact linked commit after repo linking
 
+Manifest schema guardrail:
+
+- detected capabilities in PlannerXchange review output are not manifest field names
+- do not add `capabilities`, `marketplace`, `portableData`, `demoMode`, `demoModeEnabled`, or `supportsDemoMode` to `plannerxchange.app.json`
+- marketplace intent is expressed with `visibility: "marketplace_listed"`
+- portable-data intent is expressed with `dataPortabilityMode: "plannerxchange_portable"`
+- data/API access is expressed with exact scope strings in the `permissions` array
+- demo mode is enabled in Creator Studio after eligibility review; it is not currently a builder manifest field
+
 Visibility management:
 
 - the `visibility` field in `plannerxchange.app.json` sets the initial visibility when linking a repo

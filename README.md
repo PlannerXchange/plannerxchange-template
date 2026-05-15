@@ -8,6 +8,7 @@ It is designed to show the minimum v1 publication shape:
 - a shell-compatible `src/plugin.tsx` entrypoint
 - a local preview host that mounts the plugin with mock PlannerXchange runtime context
 - a production build that emits a publish manifest mapping the source `entryPoint` to the built artifact PlannerXchange will host
+- `AGENTS.md` and `plannerxchange/ai-index.md` so student AI builder agents can find the right contract before editing
 - a `plannerxchange/` markdown context pack for AI-assisted student builds
 
 Required publication metadata should live in `plannerxchange.app.json` whenever possible.
@@ -23,6 +24,21 @@ Examples:
 - `summary`
 - `description`
 - optional media URLs
+
+Do not create inferred capability fields from review output.
+
+PlannerXchange review may say it detected capabilities such as marketplace distribution, portable data, or demo mode. Those are review/eligibility labels, not manifest keys. Do not add `capabilities`, `marketplace`, `portableData`, `demoMode`, `demoModeEnabled`, or `supportsDemoMode` to `plannerxchange.app.json`.
+
+Use the actual manifest fields instead:
+
+- marketplace intent: `"visibility": "marketplace_listed"`
+- portable-data intent: `"dataPortabilityMode": "plannerxchange_portable"`
+- nonportable/demo/enterprise-exception posture: `"dataPortabilityMode": "app_managed_nonportable"`
+- data/API access: exact scope strings in `"permissions"`
+- external hosts: `"egressDeclarations"`
+- CSV/file/API ingress: `"dataIngressDeclarations"`
+
+Demo mode is enabled from Creator Studio after review eligibility. It is not currently a builder manifest field.
 
 `dataPortabilityMode` is a build-contract choice:
 
@@ -58,6 +74,8 @@ This starter mirrors the high-signal subset of these PlannerXchange builder-spec
 - app access and feature entitlements
 - branding and legal
 - publish requirements
+
+For AI coding agents, start with `AGENTS.md` and `plannerxchange/ai-index.md`. The index maps review phrases such as `Portable data`, `Marketplace distribution`, and `Demo mode` to the actual manifest fields and docs.
 
 If you have access to the PlannerXchange platform repo, review the corresponding `docs/builder-spec/` files for the full contract.
 
@@ -133,6 +151,7 @@ Important setup rules:
 13. Treat PlannerXchange CodeQL findings in review feedback as security blockers or remediation tasks. Fix the underlying code issue and push a new commit. PlannerXchange owns CodeQL execution.
 14. Do not add builder-owned databases, service-role keys, database URL env vars, or direct provider API clients for PX/client/subscriber data. Use PX canonical APIs and PX app-data instead.
 15. If the app accepts CSV or file uploads, declare the ingress in plannerxchange.app.json. App-owned CSV work product may go to PX app-data; canonical transaction/account/client/household imports must use a PX-owned Core Data import handoff when that contract exists.
+16. Before editing plannerxchange.app.json from review feedback, read plannerxchange/ai-index.md and map review capability labels to actual manifest fields. Do not add guessed fields like capabilities, portableData, marketplace, demoMode, demoModeEnabled, or supportsDemoMode.
 
 Before writing code, ask me these questions and wait for my answers:
 
@@ -270,6 +289,8 @@ Auth lifecycle reminder:
 
 - `plannerxchange.app.json`: publish manifest
 - `plannerxchange.preflight.json`: machine-readable preflight checklist
+- `AGENTS.md`: repo-level rules for AI coding agents
+- `plannerxchange/ai-index.md`: lookup index that maps build/review tasks to the right docs and schema fields
 - `plannerxchange/app-brief.md`: the student-facing project brief
 - `plannerxchange/api-reference.md`: HTTP conventions and current builder-facing route matrix
 - `plannerxchange/app-access.md`: app-access and entitlement context

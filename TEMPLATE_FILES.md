@@ -4,6 +4,7 @@ The public `plannerxchange-template` repository should contain exactly this star
 
 - `.env.example`
 - `.gitignore`
+- `AGENTS.md`
 - `README.md`
 - `TEMPLATE_FILES.md`
 - `index.html`
@@ -13,6 +14,7 @@ The public `plannerxchange-template` repository should contain exactly this star
 - `plannerxchange.preflight.json`
 - `tsconfig.json`
 - `vite.config.ts`
+- `plannerxchange/ai-index.md`
 - `plannerxchange/app-brief.md`
 - `plannerxchange/api-reference.md`
 - `plannerxchange/app-access.md`

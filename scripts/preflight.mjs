@@ -308,6 +308,27 @@ function runManifestBoundaryCheck(check) {
   }
 }
 
+function runManifestUnsupportedFieldsCheck(check) {
+  if (!existsSync(MANIFEST_PATH)) {
+    report(check, false, "plannerxchange.app.json not found");
+    return;
+  }
+
+  const manifest = readManifest() ?? {};
+  const fields = Array.isArray(check.fields) ? check.fields : [];
+  const unsupported = fields.filter((field) =>
+    Object.prototype.hasOwnProperty.call(manifest, field)
+  );
+
+  report(
+    check,
+    unsupported.length === 0,
+    unsupported.length > 0
+      ? `Remove unsupported manifest field(s): ${unsupported.join(", ")}. Use visibility, dataPortabilityMode, permissions, egressDeclarations, and dataIngressDeclarations instead.`
+      : undefined
+  );
+}
+
 function runBuildProvenanceBoundaryCheck(check) {
   const boundary = getAppBoundary();
   const provenancePath = join(ROOT, boundary.buildProvenancePath);
@@ -366,6 +387,9 @@ for (const check of checks) {
       break;
     case "manifest-boundary":
       runManifestBoundaryCheck(check);
+      break;
+    case "manifest-unsupported-fields":
+      runManifestUnsupportedFieldsCheck(check);
       break;
     case "build-provenance-boundary":
       runBuildProvenanceBoundaryCheck(check);

@@ -66,6 +66,14 @@
       "type": "manifest-boundary"
     },
     {
+      "id": "manifest-no-inferred-capability-fields",
+      "severity": "error",
+      "title": "Manifest does not use inferred capability fields",
+      "description": "Detected capabilities are review output, not plannerxchange.app.json fields. Do not add capabilities, marketplace, portableData, demoMode, demoModeEnabled, or supportsDemoMode.",
+      "type": "manifest-unsupported-fields",
+      "fields": ["capabilities", "marketplace", "marketplaceDistribution", "portableData", "demoMode", "demoModeEnabled", "supportsDemoMode"]
+    },
+    {
       "id": "manifest-permissions",
       "severity": "warning",
       "title": "Manifest has permissions",
