@@ -77,6 +77,17 @@ export interface PlannerXchangeManifest {
   thumbnailUrl?: string;
   previewVideoUrl?: string;
   framework: FrontendFramework;
+  /**
+   * Repo-relative app source folder. Defaults to "." for simple repos.
+   * entryPoint is interpreted relative to this folder.
+   */
+  appRoot?: string;
+  /**
+   * Repo-relative committed build output folder. Defaults to "dist" when
+   * appRoot is ".", or "<appRoot>/dist" for nested apps.
+   */
+  distRoot?: string;
+  workspacePackage?: string | null;
   entryPoint: string;
   permissions: AppPermissionScope[];
   configSchemaVersion: number;

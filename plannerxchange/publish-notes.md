@@ -14,14 +14,15 @@ Important:
 - installation is separate from publication
 - marketplace listing is separate from selective sharing
 - portability is separate from visibility
-- PlannerXchange launches hosted build artifacts from the committed `dist/` directory, not raw source files
+- PlannerXchange launches hosted build artifacts from the committed `distRoot` directory, not raw source files
 - nonportable apps can still publish, but they should not claim eligibility for the PX portability contract
 - `plannerxchange_portable` means the code is built to PX canonical data contracts
 - builder membership tier and shell enablement decisions are handled inside PlannerXchange, not in this repo
 - passing a `dev` publish does not automatically grant `prod` promotion, marketplace listing, `Portable Data`, or `PX Approved`
-- the manifest `entryPoint` remains a source path such as `src/plugin.tsx`
-- the build must emit `dist/plannerxchange.publish.json` so PlannerXchange can resolve that source path to the hosted JS module and emitted CSS assets
-- the build must emit `dist/plannerxchange.build-provenance.json` so PlannerXchange can verify the source-input digest, lockfile digests, build command, and artifact digest before upload
+- the manifest `entryPoint` remains a source path such as `src/plugin.tsx`, resolved relative to `appRoot`
+- simple repos use `appRoot: "."` and `distRoot: "dist"`; larger repos may declare a nested app folder and build output folder
+- the build must emit `<distRoot>/plannerxchange.publish.json` so PlannerXchange can resolve that source path to the hosted JS module and emitted CSS assets
+- the build must emit `<distRoot>/plannerxchange.build-provenance.json` so PlannerXchange can verify the source-input digest, lockfile digests, build command, and artifact digest before upload
 - PlannerXchange runs required CodeQL review for the exact linked commit after repo linking
 
 Visibility management:
@@ -46,7 +47,7 @@ Student checklist before linking the repo:
 - avoid custom invite, verification, password-setup, password-reset, or onboarding-entry UX
 - write a clear summary and description for the listing
 - run `npm run build`
-- commit and push the generated `dist/` directory, including `dist/plannerxchange.publish.json` and `dist/plannerxchange.build-provenance.json`
+- commit and push the generated `distRoot` directory, including `plannerxchange.publish.json` and `plannerxchange.build-provenance.json`
 
 Review guidance:
 
@@ -82,9 +83,9 @@ First workshop-friendly path:
 
 Practical artifact rule:
 
-- if `dist/` is missing, publish will fail
-- if `dist/plannerxchange.publish.json` does not map the manifest `entryPoint`, publish will fail
-- if `dist/plannerxchange.build-provenance.json` is missing or stale, publish will fail before PlannerXchange uploads artifacts
+- if `distRoot` is missing, publish will fail
+- if `<distRoot>/plannerxchange.publish.json` does not map the manifest `entryPoint`, publish will fail
+- if `<distRoot>/plannerxchange.build-provenance.json` is missing or stale, publish will fail before PlannerXchange uploads artifacts
 - if the build emits CSS, PlannerXchange should host and load those emitted CSS assets alongside the JS module
 
 ## Publication classes
@@ -201,8 +202,8 @@ The following issues are common causes of publication rejection. Check for them 
 9. **Bulk or marketing email** — using `email.send` for cold outreach, newsletters, or non-workflow email.
 10. **Missing disclosure or branding consumption** — whitelabel apps that hardcode a single brand instead of reading PX branding/legal context.
 11. **Missing mount export in built artifact** — the compiled plugin JS chunk must export a named `mount` function (or `pluginModule` object). If the build minifier renames `mount` to something like `m`, the shell cannot load the app. Use the starter template's terser config with `reserved: ["mount", "pluginModule", "manifest"]` and do not switch to esbuild minification.
-12. **Missing dist/plannerxchange.publish.json** — the build must emit a publish manifest so PlannerXchange can resolve the source `entryPoint` to the hosted JS module. Run `npm run build` and commit the `dist/` directory.
-13. **Missing or stale dist/plannerxchange.build-provenance.json** — the build must emit provenance so PlannerXchange can verify source inputs, lockfiles, build command, and committed artifact digests before upload. Run `npm run build` after source or dist changes and commit the regenerated `dist/` directory.
+12. **Missing publish manifest** — the build must emit `<distRoot>/plannerxchange.publish.json` so PlannerXchange can resolve the source `entryPoint` to the hosted JS module. Run `npm run build` and commit the `distRoot` directory.
+13. **Missing or stale build provenance** — the build must emit `<distRoot>/plannerxchange.build-provenance.json` so PlannerXchange can verify source inputs, lockfiles, build command, and committed artifact digests before upload. Run `npm run build` after source or build-output changes and commit the regenerated `distRoot` directory.
 14. **Suspicious new dependency** — new direct dependencies are checked for package-name spoofing, limited npm registry reputation, and non-registry sources. Prefer established npm packages with clear repository, maintainer, license, and release history.
 15. **PlannerXchange CodeQL blocking issue** — PlannerXchange runs CodeQL for the exact linked branch commit. Fix high-risk source findings and push a new commit. If feedback says PX CodeQL is still running, no builder action is needed; if it says PX CodeQL infrastructure failed, retry or contact support rather than changing GitHub repo settings.
 16. **Manual PlannerXchange auth or installation context** — app code manually attaches bearer tokens, stores tokens, or passes `appInstallationId` in query strings instead of using `ShellRuntimeContext.authenticatedFetch`.

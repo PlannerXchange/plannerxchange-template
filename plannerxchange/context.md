@@ -21,12 +21,14 @@ What PlannerXchange actually needs is a shell-compatible web artifact with a sta
 
 Important `entryPoint` rule:
 
-- keep `entryPoint` source-oriented, for example `src/plugin.tsx`
+- keep `entryPoint` source-oriented and relative to the manifest `appRoot`, for example `src/plugin.tsx`
 - do not change it to a hashed build filename
-- the production build should emit `dist/plannerxchange.publish.json`
-- the production build should emit `dist/plannerxchange.build-provenance.json`
+- simple repos use `appRoot: "."` and `distRoot: "dist"`
+- larger repos may set a repo-relative `appRoot`, repo-relative `distRoot`, and optional `workspacePackage`
+- the production build should emit `<distRoot>/plannerxchange.publish.json`
+- the production build should emit `<distRoot>/plannerxchange.build-provenance.json`
 - PlannerXchange resolves the source `entryPoint` through that generated publish manifest to the hosted JS module and any emitted CSS assets
-- PlannerXchange verifies the build-provenance source-input digest, lockfile digests, build command, and artifact digest before hosting the committed `dist/` output
+- PlannerXchange verifies the build-provenance source-input digest, lockfile digests, build command, and artifact digest before hosting the committed `distRoot` output
 
 Critical build export rule:
 
@@ -189,7 +191,7 @@ Important:
 - Explorer-tier builders should assume no PlannerXchange-hosted persistence and no portable canonical-data participation until they upgrade into a paid tier that enables it
 - build to the PX canonical contract when the app needs PX-governed data
 - platform review and shell enablement decisions happen inside PlannerXchange
-- shell publication launches built artifacts from `dist/`, not raw source files from `src/`
+- shell publication launches built artifacts from `distRoot`, not raw source files from `appRoot`
 - the app should consume PX runtime and data APIs; it should not try to create firms, create users, accept invitations, or own identity provisioning flows
 - the app should not assume responsibility for invite-link UX, email-verification UX, or initial password choice UX
 - if the app renders branded chrome, request `branding.read` and use resolved logo, favicon, primary color, secondary color, and font color values from the runtime context or approved API payloads

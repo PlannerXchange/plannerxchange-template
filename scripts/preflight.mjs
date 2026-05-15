@@ -23,6 +23,7 @@ try {
 }
 
 const ROOT = resolve(process.cwd());
+const MANIFEST_PATH = join(ROOT, "plannerxchange.app.json");
 const CHECKLIST_PATH = join(ROOT, "plannerxchange.preflight.json");
 
 if (!existsSync(CHECKLIST_PATH)) {
@@ -32,6 +33,7 @@ if (!existsSync(CHECKLIST_PATH)) {
 
 const checklist = JSON.parse(readFileSync(CHECKLIST_PATH, "utf-8"));
 const checks = checklist.checks ?? [];
+let manifestCache = null;
 
 let errors = 0;
 let warnings = 0;
@@ -71,6 +73,84 @@ function walkDir(dir) {
 
 function toRelativePath(filePath) {
   return filePath.replace(ROOT + "/", "").replace(ROOT + "\\", "").replace(/\\/g, "/");
+}
+
+function normalizeRepoRelativePath(value, fallback) {
+  const rawValue = typeof value === "string" && value.trim() ? value.trim() : fallback;
+  const normalized = rawValue
+    .replace(/\\/g, "/")
+    .replace(/^\.\/+/, "")
+    .replace(/^\/+|\/+$/g, "");
+
+  if (!normalized || normalized === ".") {
+    return ".";
+  }
+
+  if (
+    normalized.startsWith("../") ||
+    normalized.includes("/../") ||
+    normalized.endsWith("/..") ||
+    /^[a-z]:\//i.test(normalized)
+  ) {
+    throw new Error(`'${rawValue}' must be a repo-relative path inside the repository.`);
+  }
+
+  return normalized;
+}
+
+function joinRepoRelativePath(base, child) {
+  const normalizedChild = normalizeRepoRelativePath(child, ".");
+
+  if (normalizedChild === ".") {
+    return base;
+  }
+
+  return base === "." ? normalizedChild : `${base}/${normalizedChild}`;
+}
+
+function readManifest() {
+  if (manifestCache) {
+    return manifestCache;
+  }
+
+  if (!existsSync(MANIFEST_PATH)) {
+    return null;
+  }
+
+  manifestCache = JSON.parse(readFileSync(MANIFEST_PATH, "utf-8"));
+  return manifestCache;
+}
+
+function getAppBoundary() {
+  const manifest = readManifest() ?? {};
+  const appRoot = normalizeRepoRelativePath(manifest.appRoot, ".");
+  const distRoot = normalizeRepoRelativePath(
+    manifest.distRoot,
+    appRoot === "." ? "dist" : `${appRoot}/dist`
+  );
+  const entryPoint = normalizeRepoRelativePath(manifest.entryPoint, "src/plugin.tsx");
+  const workspacePackage =
+    typeof manifest.workspacePackage === "string" && manifest.workspacePackage.trim()
+      ? manifest.workspacePackage.trim()
+      : null;
+
+  return {
+    appRoot,
+    distRoot,
+    entryPoint,
+    workspacePackage,
+    pluginSourcePath: joinRepoRelativePath(appRoot, entryPoint),
+    publishManifestPath: `${distRoot}/plannerxchange.publish.json`,
+    buildProvenancePath: `${distRoot}/plannerxchange.build-provenance.json`
+  };
+}
+
+function resolveChecklistPath(pathTemplate) {
+  const boundary = getAppBoundary();
+  return String(pathTemplate)
+    .replaceAll("$appRoot", boundary.appRoot)
+    .replaceAll("$distRoot", boundary.distRoot)
+    .replaceAll("$entryPoint", boundary.entryPoint);
 }
 
 function globToRegExp(pattern) {
@@ -186,12 +266,11 @@ function runGrepCheck(check) {
 }
 
 function runManifestFieldCheck(check) {
-  const manifestPath = join(ROOT, "plannerxchange.app.json");
-  if (!existsSync(manifestPath)) {
+  if (!existsSync(MANIFEST_PATH)) {
     report(check, false, "plannerxchange.app.json not found");
     return;
   }
-  const manifest = JSON.parse(readFileSync(manifestPath, "utf-8"));
+  const manifest = readManifest();
   const val = manifest[check.field];
 
   let pass = false;
@@ -204,10 +283,73 @@ function runManifestFieldCheck(check) {
   report(check, pass, pass ? undefined : `Field "${check.field}" is missing or empty`);
 }
 
+function runManifestBoundaryCheck(check) {
+  if (!existsSync(MANIFEST_PATH)) {
+    report(check, false, "plannerxchange.app.json not found");
+    return;
+  }
+
+  try {
+    const boundary = getAppBoundary();
+    const pluginSourcePath = join(ROOT, boundary.pluginSourcePath);
+
+    if (!existsSync(pluginSourcePath) || !statSync(pluginSourcePath).isFile()) {
+      report(
+        check,
+        false,
+        `entryPoint "${boundary.entryPoint}" was not found under app folder "${boundary.appRoot}". Expected ${boundary.pluginSourcePath}.`
+      );
+      return;
+    }
+
+    report(check, true);
+  } catch (error) {
+    report(check, false, error instanceof Error ? error.message : "Invalid app folder or build output path.");
+  }
+}
+
+function runBuildProvenanceBoundaryCheck(check) {
+  const boundary = getAppBoundary();
+  const provenancePath = join(ROOT, boundary.buildProvenancePath);
+
+  if (!existsSync(provenancePath)) {
+    report(check, false, `Path not found: ${boundary.buildProvenancePath}`);
+    return;
+  }
+
+  try {
+    const provenance = JSON.parse(readFileSync(provenancePath, "utf-8"));
+    const appRoot = normalizeRepoRelativePath(provenance.appRoot, ".");
+    const distRoot = normalizeRepoRelativePath(provenance.distRoot, appRoot === "." ? "dist" : `${appRoot}/dist`);
+    const builderSource =
+      typeof provenance.builder?.source === "string" ? normalizeRepoRelativePath(provenance.builder.source, "") : "";
+
+    if (appRoot !== boundary.appRoot) {
+      report(check, false, `Build provenance appRoot is "${appRoot}", expected "${boundary.appRoot}".`);
+      return;
+    }
+
+    if (distRoot !== boundary.distRoot) {
+      report(check, false, `Build provenance distRoot is "${distRoot}", expected "${boundary.distRoot}".`);
+      return;
+    }
+
+    if (builderSource && builderSource !== boundary.buildProvenancePath) {
+      report(check, false, `Build provenance builder.source is "${builderSource}", expected "${boundary.buildProvenancePath}".`);
+      return;
+    }
+
+    report(check, true);
+  } catch (error) {
+    report(check, false, error instanceof Error ? error.message : "Build provenance is not valid JSON.");
+  }
+}
+
 function runPathExistsCheck(check) {
-  const target = join(ROOT, check.path);
+  const resolvedPath = resolveChecklistPath(check.path);
+  const target = join(ROOT, resolvedPath);
   const pass = existsSync(target);
-  report(check, pass, pass ? undefined : `Path not found: ${check.path}`);
+  report(check, pass, pass ? undefined : `Path not found: ${resolvedPath}`);
 }
 
 // ---- Main ------------------------------------------------------------------
@@ -221,6 +363,12 @@ for (const check of checks) {
       break;
     case "manifest-field":
       runManifestFieldCheck(check);
+      break;
+    case "manifest-boundary":
+      runManifestBoundaryCheck(check);
+      break;
+    case "build-provenance-boundary":
+      runBuildProvenanceBoundaryCheck(check);
       break;
     case "path-exists":
       runPathExistsCheck(check);

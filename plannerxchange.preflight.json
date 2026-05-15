@@ -59,6 +59,13 @@
       "check": "non-empty"
     },
     {
+      "id": "manifest-app-boundary",
+      "severity": "error",
+      "title": "Manifest app folder is valid",
+      "description": "Optional appRoot and distRoot values must be repo-relative paths, and entryPoint must resolve inside the app folder.",
+      "type": "manifest-boundary"
+    },
+    {
       "id": "manifest-permissions",
       "severity": "warning",
       "title": "Manifest has permissions",
@@ -71,25 +78,32 @@
       "id": "build-output-exists",
       "severity": "error",
       "title": "Build output exists",
-      "description": "dist/ directory must exist. Run `npm run build` before preflight.",
+      "description": "The configured distRoot directory must exist. Run `npm run build` before preflight.",
       "type": "path-exists",
-      "path": "dist"
+      "path": "$distRoot"
     },
     {
       "id": "publish-manifest-exists",
       "severity": "error",
       "title": "Publish manifest generated",
-      "description": "dist/plannerxchange.publish.json must exist after build.",
+      "description": "The configured distRoot must contain plannerxchange.publish.json after build.",
       "type": "path-exists",
-      "path": "dist/plannerxchange.publish.json"
+      "path": "$distRoot/plannerxchange.publish.json"
     },
     {
       "id": "build-provenance-exists",
       "severity": "error",
       "title": "Build provenance generated",
-      "description": "dist/plannerxchange.build-provenance.json must exist after build.",
+      "description": "The configured distRoot must contain plannerxchange.build-provenance.json after build.",
       "type": "path-exists",
-      "path": "dist/plannerxchange.build-provenance.json"
+      "path": "$distRoot/plannerxchange.build-provenance.json"
+    },
+    {
+      "id": "build-provenance-boundary",
+      "severity": "error",
+      "title": "Build provenance matches app folder",
+      "description": "plannerxchange.build-provenance.json must record the same appRoot and distRoot declared by plannerxchange.app.json.",
+      "type": "build-provenance-boundary"
     },
     {
       "id": "no-localstorage-prod",

@@ -6,6 +6,9 @@
   "description": "Use this starter to build a lightweight advisor tool that relies on PlannerXchange for auth, routing, and governed publication. Add branding, legal, portability, and data scopes only when the app needs them.",
   "priceLabel": "Included",
   "framework": "react",
+  "appRoot": ".",
+  "distRoot": "dist",
+  "workspacePackage": null,
   "entryPoint": "src/plugin.tsx",
   "permissions": [
     "tenant.read",

@@ -77,12 +77,23 @@ without needing extra PlannerXchange packages before they understand the backend
 This starter is npm-first and should keep `package-lock.json` committed so installs stay repeatable
 across workshop runs, AI-assisted coding sessions, and future CI checks.
 
-The production build emits `dist/plannerxchange.publish.json` and `dist/plannerxchange.build-provenance.json`.
+The production build emits `<distRoot>/plannerxchange.publish.json` and `<distRoot>/plannerxchange.build-provenance.json`.
 
 That file maps the manifest's source `entryPoint` such as `src/plugin.tsx` to the built JS module and
 any emitted CSS assets that PlannerXchange should host and launch.
 The build-provenance file records the source-input digest, lockfile digests, build command,
 package manager, and committed artifact digest evidence PlannerXchange verifies before hosting.
+
+The default app folder is the repository root:
+
+- `appRoot`: `.`
+- `distRoot`: `dist`
+- `entryPoint`: `src/plugin.tsx`, resolved relative to `appRoot`
+
+Most builders should keep those defaults. Larger repositories and monorepos may
+declare a repo-relative `appRoot`, a repo-relative `distRoot`, and an optional
+`workspacePackage` in `plannerxchange.app.json`. The starter build and preflight
+scripts read those fields and emit publish/provenance files under `distRoot`.
 
 ## How to start a repo correctly
 
@@ -168,7 +179,7 @@ Identity rules — do not tell me to do any of the following, because PlannerXch
 4. **Port 5173 is required** — PlannerXchange allows CORS and auth callbacks from `localhost:5173`. Do not change the port.
 5. Open the Vite preview and confirm the plugin mounts with the mock shell context from `src/dev-context.ts`.
 6. Build your own UI and routes; the default template does not ship a styled frontend starter.
-7. Run `npm run build` before publication to generate `dist/`, `dist/plannerxchange.publish.json`, and `dist/plannerxchange.build-provenance.json`.
+7. Run `npm run build` before publication to generate `distRoot`, `plannerxchange.publish.json`, and `plannerxchange.build-provenance.json`.
 
 ### Mock vs live mode
 
@@ -207,7 +218,7 @@ Recommended workshop flow:
 5. student builds Phase 1 (local-only app with mock data, using `src/lib/px-gateway.ts` in mock mode)
 6. student wires Phase 2 (PX API integration through the gateway's live mode)
 7. student runs `npm run build` then `npm run preflight`
-8. student commits and pushes source plus the generated `dist/` output
+8. student commits and pushes source plus the generated `distRoot` output
 9. student logs into PlannerXchange and links the repository for governed publication
 10. PlannerXchange pins the linked commit and runs the required CodeQL lane in PlannerXchange-owned review infrastructure
 
@@ -218,11 +229,11 @@ when needed.
 ## Builder checklist
 
 - Keep `plannerxchange.app.json` aligned with `src/plugin.tsx`.
-- Keep `entryPoint` source-oriented, such as `src/plugin.tsx`; do not replace it with a hashed build file.
-- Run `npm run build` before publish and commit the generated `dist/` output, including the publish manifest and build-provenance file.
+- Keep `entryPoint` source-oriented and relative to `appRoot`, such as `src/plugin.tsx`; do not replace it with a hashed build file.
+- Run `npm run build` before publish and commit the generated `distRoot` output, including the publish manifest and build-provenance file.
 - Run `npm run preflight` after building to catch common rejection issues before submitting.
 - Do not enable GitHub code scanning just to publish on PlannerXchange. PlannerXchange runs the required CodeQL lane after repo linking.
-- Do not hand-edit `dist/plannerxchange.publish.json` or `dist/plannerxchange.build-provenance.json`; let the build regenerate them.
+- Do not hand-edit generated publish or build-provenance files under `distRoot`; let the build regenerate them.
 - Use `ShellRuntimeContext.authenticatedFetch` for protected PlannerXchange API calls. Do not manually attach bearer tokens or pass `appInstallationId` in query strings.
 - Declare the correct `dataPortabilityMode` before linking the repo.
 - Do not add app-owned login flows.
@@ -275,8 +286,8 @@ Auth lifecycle reminder:
 - `src/lib/px-gateway.ts`: mock/live API gateway pattern for PX API calls
 - `.env.example`: environment variable template (copy to `.env`)
 - `scripts/preflight.mjs`: pre-publish validation script
-- `dist/plannerxchange.publish.json`: generated publish manifest that maps source `entryPoint` values to built artifact files
-- `dist/plannerxchange.build-provenance.json`: generated build evidence that binds source inputs, lockfiles, build command, and committed artifact digests
+- `<distRoot>/plannerxchange.publish.json`: generated publish manifest that maps source `entryPoint` values to built artifact files
+- `<distRoot>/plannerxchange.build-provenance.json`: generated build evidence that binds source inputs, lockfiles, build command, and committed artifact digests
 
 ## Scope
 

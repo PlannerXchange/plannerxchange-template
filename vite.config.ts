@@ -6,8 +6,16 @@ import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 
 const rootDir = dirname(fileURLToPath(import.meta.url));
-const pluginSourcePath = "src/plugin.tsx";
-const buildProvenancePath = "plannerxchange.build-provenance.json";
+const manifestPath = "plannerxchange.app.json";
+const publishManifestFileName = "plannerxchange.publish.json";
+const buildProvenanceFileName = "plannerxchange.build-provenance.json";
+
+interface PlannerXchangeManifestDraft {
+  entryPoint?: unknown;
+  appRoot?: unknown;
+  distRoot?: unknown;
+  workspacePackage?: unknown;
+}
 
 interface FileDigest {
   path: string;
@@ -15,9 +23,88 @@ interface FileDigest {
   sizeBytes: number;
 }
 
+interface AppBoundary {
+  appRoot: string;
+  distRoot: string;
+  workspacePackage: string | null;
+  entryPoint: string;
+  pluginSourcePath: string;
+  buildProvenancePath: string;
+}
+
 function normalizeRelativePath(filePath: string): string {
   return filePath.replace(/\\/g, "/");
 }
+
+function normalizeRepoRelativePath(value: unknown, fallback: string): string {
+  const rawValue = typeof value === "string" && value.trim() ? value.trim() : fallback;
+  const normalized = normalizeRelativePath(rawValue)
+    .replace(/^\.\/+/, "")
+    .replace(/^\/+|\/+$/g, "");
+
+  if (!normalized || normalized === ".") {
+    return ".";
+  }
+
+  if (
+    normalized.startsWith("../") ||
+    normalized.includes("/../") ||
+    normalized.endsWith("/..") ||
+    /^[a-z]:\//i.test(normalized)
+  ) {
+    throw new Error(`PlannerXchange path '${rawValue}' must be a repo-relative path inside the repository.`);
+  }
+
+  return normalized;
+}
+
+function joinRepoRelativePath(base: string, child: string): string {
+  const normalizedChild = normalizeRepoRelativePath(child, ".");
+
+  if (normalizedChild === ".") {
+    return base;
+  }
+
+  return base === "." ? normalizedChild : `${base}/${normalizedChild}`;
+}
+
+function isPathWithin(filePath: string, rootPath: string): boolean {
+  return filePath === rootPath || filePath.startsWith(`${rootPath.replace(/\/+$/, "")}/`);
+}
+
+function readPlannerXchangeManifest(): PlannerXchangeManifestDraft {
+  const fullManifestPath = resolve(rootDir, manifestPath);
+
+  if (!existsSync(fullManifestPath)) {
+    throw new Error(`${manifestPath} is required at the repository root.`);
+  }
+
+  return JSON.parse(readFileSync(fullManifestPath, "utf8")) as PlannerXchangeManifestDraft;
+}
+
+function resolveAppBoundary(): AppBoundary {
+  const manifest = readPlannerXchangeManifest();
+  const appRoot = normalizeRepoRelativePath(manifest.appRoot, ".");
+  const defaultDistRoot = appRoot === "." ? "dist" : `${appRoot}/dist`;
+  const distRoot = normalizeRepoRelativePath(manifest.distRoot, defaultDistRoot);
+  const entryPoint = normalizeRepoRelativePath(manifest.entryPoint, "src/plugin.tsx");
+  const workspacePackage =
+    typeof manifest.workspacePackage === "string" && manifest.workspacePackage.trim()
+      ? manifest.workspacePackage.trim()
+      : null;
+  const pluginSourcePath = joinRepoRelativePath(appRoot, entryPoint);
+
+  return {
+    appRoot,
+    distRoot,
+    workspacePackage,
+    entryPoint,
+    pluginSourcePath,
+    buildProvenancePath: `${distRoot}/${buildProvenanceFileName}`
+  };
+}
+
+const appBoundary = resolveAppBoundary();
 
 function sha256Hex(body: string | Uint8Array): string {
   return createHash("sha256").update(body).digest("hex");
@@ -75,7 +162,7 @@ function isBuildInputPath(filePath: string): boolean {
   const fileName = filePath.slice(filePath.lastIndexOf("/") + 1);
 
   if (
-    filePath.startsWith("dist/") ||
+    isPathWithin(filePath, appBoundary.distRoot) ||
     filePath.startsWith("node_modules/") ||
     filePath.startsWith(".git/") ||
     filePath.startsWith("build/") ||
@@ -85,14 +172,17 @@ function isBuildInputPath(filePath: string): boolean {
   }
 
   return (
-    filePath === "plannerxchange.app.json" ||
+    filePath === manifestPath ||
     filePath === "package.json" ||
     isDependencyLockfilePath(filePath) ||
     fileName === "index.html" ||
     fileName === "tsconfig.json" ||
     fileName.startsWith("vite.config.") ||
-    filePath.startsWith("src/") ||
-    filePath.startsWith("public/")
+    isPathWithin(filePath, joinRepoRelativePath(appBoundary.appRoot, "src")) ||
+    isPathWithin(filePath, joinRepoRelativePath(appBoundary.appRoot, "public")) ||
+    filePath === joinRepoRelativePath(appBoundary.appRoot, "package.json") ||
+    filePath === joinRepoRelativePath(appBoundary.appRoot, "tsconfig.json") ||
+    isDependencyLockfilePath(filePath.slice(appBoundary.appRoot === "." ? 0 : appBoundary.appRoot.length + 1))
   );
 }
 
@@ -112,6 +202,7 @@ function walkFiles(dir: string): string[] {
       relPath === ".git" ||
       relPath === "node_modules" ||
       relPath === "dist" ||
+      isPathWithin(relPath, appBoundary.distRoot) ||
       relPath === "build" ||
       relPath === "coverage"
     ) {
@@ -143,8 +234,18 @@ function readBuildInputDigests(): FileDigest[] {
 }
 
 function readLockfileDigests(): FileDigest[] {
+  const candidatePaths = new Set<string>();
+
+  for (const filePath of ["package-lock.json", "npm-shrinkwrap.json", "yarn.lock", "pnpm-lock.yaml", "bun.lock", "bun.lockb"]) {
+    candidatePaths.add(filePath);
+
+    if (appBoundary.appRoot !== ".") {
+      candidatePaths.add(joinRepoRelativePath(appBoundary.appRoot, filePath));
+    }
+  }
+
   return sortFileDigests(
-    ["package-lock.json", "npm-shrinkwrap.json", "yarn.lock", "pnpm-lock.yaml", "bun.lock", "bun.lockb"]
+    [...candidatePaths]
       .filter((filePath) => existsSync(resolve(rootDir, filePath)))
       .map((filePath) => createFileDigest(filePath, readFileSync(resolve(rootDir, filePath))))
   );
@@ -179,7 +280,7 @@ function readDistArtifactDigests(outputDir: string): FileDigest[] {
         fullPath: filePath,
         relPath: normalizeRelativePath(relative(rootDir, filePath))
       }))
-      .filter((file) => file.relPath !== `dist/${buildProvenancePath}`)
+      .filter((file) => file.relPath !== appBoundary.buildProvenancePath)
       .map((file) => createFileDigest(file.relPath, readFileSync(file.fullPath)))
   );
 }
@@ -211,22 +312,25 @@ function plannerXchangePublishManifestPlugin(): Plugin {
     name: "plannerxchange-publish-manifest",
     generateBundle(_, bundle) {
       const pluginEntryChunk = Object.values(bundle).find(
-        (entry): entry is Extract<(typeof bundle)[string], { type: "chunk" }> =>
+            (entry): entry is Extract<(typeof bundle)[string], { type: "chunk" }> =>
           entry.type === "chunk" &&
           entry.isEntry &&
           typeof entry.facadeModuleId === "string" &&
-            normalizeRelativePath(entry.facadeModuleId).endsWith(`/${pluginSourcePath}`)
+            normalizeRelativePath(entry.facadeModuleId).endsWith(`/${appBoundary.pluginSourcePath}`)
       );
 
       if (!pluginEntryChunk) {
-        throw new Error(`Unable to find built output for ${pluginSourcePath}.`);
+        throw new Error(`Unable to find built output for ${appBoundary.pluginSourcePath}.`);
       }
 
       const publishManifestSource = `${JSON.stringify(
         {
           schemaVersion: 1,
+          appRoot: appBoundary.appRoot,
+          distRoot: appBoundary.distRoot,
+          workspacePackage: appBoundary.workspacePackage,
           entryPoints: {
-            [pluginSourcePath]: {
+            [appBoundary.entryPoint]: {
               file: pluginEntryChunk.fileName,
               css: pluginEntryChunk.viteMetadata?.importedCss
                 ? [...pluginEntryChunk.viteMetadata.importedCss]
@@ -240,7 +344,7 @@ function plannerXchangePublishManifestPlugin(): Plugin {
 
       this.emitFile({
         type: "asset",
-        fileName: "plannerxchange.publish.json",
+        fileName: publishManifestFileName,
         source: publishManifestSource
       });
 
@@ -250,14 +354,22 @@ function plannerXchangePublishManifestPlugin(): Plugin {
       const artifactDigests = readDistArtifactDigests(outputDir);
       const lockfileDigests = readLockfileDigests();
       const sourceInputDigests = readBuildInputDigests();
+      const sourceInputTotalBytes = sourceInputDigests.reduce((sum, file) => sum + file.sizeBytes, 0);
       const buildProvenanceSource = `${JSON.stringify(
         {
           schemaVersion: "build_provenance_v1",
+          appRoot: appBoundary.appRoot,
+          distRoot: appBoundary.distRoot,
+          workspacePackage: appBoundary.workspacePackage,
           sourceInputDigest: buildAggregateDigest(sourceInputDigests),
+          sourceInputFileCount: sourceInputDigests.length,
+          sourceInputTotalBytes,
           buildCommand: "npm run build",
           packageManager: inferPackageManager(lockfileDigests),
           nodeVersion: process.version,
           builder: {
+            type: "committed_dist_attestation",
+            source: appBoundary.buildProvenancePath,
             name: "plannerxchange-template-vite-plugin"
           },
           aggregateArtifactDigest: buildAggregateDigest(artifactDigests),
@@ -268,7 +380,7 @@ function plannerXchangePublishManifestPlugin(): Plugin {
         2
       )}\n`;
 
-      writeFileSync(join(outputDir, buildProvenancePath), buildProvenanceSource);
+      writeFileSync(join(outputDir, buildProvenanceFileName), buildProvenanceSource);
     }
   };
 }
@@ -278,6 +390,7 @@ export default defineConfig({
   // Note: Vite defaults to port 5173. Do not change this — PlannerXchange's dev
   // environment allows CORS and Cognito auth callbacks from localhost:5173.
   build: {
+    outDir: appBoundary.distRoot,
     manifest: true,
     // Use terser instead of esbuild to preserve export names.
     // esbuild's minification renames exports (e.g. "mount" -> "m") which breaks
@@ -292,7 +405,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         preview: resolve(rootDir, "index.html"),
-        plugin: resolve(rootDir, pluginSourcePath)
+        plugin: resolve(rootDir, appBoundary.pluginSourcePath)
       },
       // preserveEntrySignatures is required so Rollup keeps the `mount` export
       // on the plugin chunk instead of tree-shaking or re-routing it.

@@ -44,8 +44,8 @@ and CI validation resolve the same dependency tree by default.
 
 Generated build output is intentionally not checked into the starter by default.
 Before PlannerXchange publication, builders should run the production build and commit the resulting
-`dist/` directory, including `dist/plannerxchange.publish.json` and
-`dist/plannerxchange.build-provenance.json`.
+`distRoot` directory, including `<distRoot>/plannerxchange.publish.json` and
+`<distRoot>/plannerxchange.build-provenance.json`.
 
 Do not copy:
 
