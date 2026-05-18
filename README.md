@@ -51,7 +51,7 @@ Demo mode is enabled from Creator Studio after review eligibility. It is not cur
 - `app_managed_nonportable`
   - use this when the app is demo/external-showcase oriented, uses only app-owned non-PX data, or has a separately approved enterprise exception
   - the app may still use approved PX app-data APIs for builder-owned work product when PX-hosted persistence is preferred
-  - this is not permission to store PX/client/subscriber data in Neon, Supabase, Firebase, Postgres, MongoDB, Redis, or another builder-owned backend
+  - this is not permission to store PX/client/subscriber data in a builder-owned database, storage service, service-role backend, or other app-managed backend
   - the app can still publish through PlannerXchange, but its app-owned data is not eligible for the PX portability contract
 
 Important:
@@ -149,7 +149,7 @@ Important setup rules:
 11. Use the current live API route paths documented in plannerxchange/api-reference.md (root-scoped like /households, /clients, /accounts), not the future /canonical/* namespace.
 12. Use the default Vite port (5173) for local development — PlannerXchange allows CORS and auth callbacks only from localhost:5173.
 13. Treat PlannerXchange CodeQL findings in review feedback as security blockers or remediation tasks. Fix the underlying code issue and push a new commit. PlannerXchange owns CodeQL execution.
-14. Do not add builder-owned databases, service-role keys, database URL env vars, or direct provider API clients for PX/client/subscriber data. Use PX canonical APIs and PX app-data instead.
+14. Do not add builder-owned databases, service-role keys, database URL env vars, or direct integration-provider API clients for PX/client/subscriber data. Use PX canonical APIs and PX app-data instead.
 15. If the app accepts CSV or file uploads, declare the ingress in plannerxchange.app.json. App-owned CSV work product may go to PX app-data; canonical transaction/account/client/household imports must use a PX-owned Core Data import handoff when that contract exists.
 16. Before editing plannerxchange.app.json from review feedback, read plannerxchange/ai-index.md and map review capability labels to actual manifest fields. Do not add guessed fields like capabilities, portableData, marketplace, demoMode, demoModeEnabled, or supportsDemoMode.
 

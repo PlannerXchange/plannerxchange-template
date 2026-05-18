@@ -145,7 +145,7 @@ PlannerXchange maintains canonical firm data that apps can read without building
 - **models** — target allocation templates with security weights
 - **sleeves** — composite of models
 
-Firms populate this data through CSV upload, manual entry, or shell-owned partner imports such as Altruist after PlannerXchange mapping and reconciliation. Builder apps declare permission scopes in the manifest and read the data through governed canonical API routes.
+Firms populate this data through CSV upload, manual entry, or shell-owned partner imports after PlannerXchange mapping and reconciliation. Builder apps declare permission scopes in the manifest and read the data through governed canonical API routes.
 
 Current API route paths:
 
@@ -179,10 +179,10 @@ Canonical request transport:
 
 Marketplace billing boundary:
 
-- published app code should not own Stripe checkout, payout-account setup, coupon creation, refund issuance, or payout-ledger accounting
+- published app code should not own payment checkout, payout-account setup, coupon creation, refund issuance, or payout-ledger accounting
 - PlannerXchange shell owns app pricing-plan configuration, entitlements, coupon and refund authorization, and commercial access decisions
-- Stripe-hosted surfaces launched from PlannerXchange handle payout-account-native operations such as connected-account onboarding, bank details, and tax profile management
-- app code should rely on PlannerXchange app access and entitlements rather than direct Stripe state to decide whether a paid feature is available
+- payment-processor-hosted surfaces launched from PlannerXchange handle payout-account-native operations such as connected-account onboarding, bank details, and tax profile management
+- app code should rely on PlannerXchange app access and entitlements rather than direct payment-processor state to decide whether a paid feature is available
 - quantity-based app pricing such as `per_account_monthly` and `per_client_monthly` only makes sense when PlannerXchange can govern those counts from canonical data
 
 Important:

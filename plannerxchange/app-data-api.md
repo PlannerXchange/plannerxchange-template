@@ -48,7 +48,7 @@ Every app-data record has this shape:
     },
     {
       "sourceType": "integration_exposed",
-      "sourceSystem": "altruist",
+      "sourceSystem": "custodian_provider",
       "sourceId": "portfolio_789",
       "asOf": "2026-03-19T15:04:05Z"
     }
@@ -109,7 +109,7 @@ Rules:
 - do not create or mutate canonical transactions, accounts, clients, households, positions, cost basis, restricted PII, account-owner links, or import jobs through app-data
 - canonical position, transaction, and cost-basis CSV imports must use PlannerXchange-owned Core Data import handoff, not app-owned CSV logic
 - builder apps may read canonical positions, transactions, and cost basis through approved PX APIs and scopes, then store only derived app-owned work product and source references in app-data
-- do not call `/imports/*`, `/integrations/*`, Altruist import-job routes, or shell-only Core Data mutation routes from app-owned CSV workflows
+- do not call `/imports/*`, `/integrations/*`, provider import-job routes, or shell-only Core Data mutation routes from app-owned CSV workflows
 - do not persist raw PX client, account, custodian, transaction, or tax-lot data in app-local storage
 - app-data categorization records are not cross-app portable until PlannerXchange publishes an explicit canonical contract
 

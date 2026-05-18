@@ -20,7 +20,7 @@ Questions:
 7. Does the app need to create or edit shared PlannerXchange canonical records such as households or clients? If yes, do not assume public builder write routes exist unless PlannerXchange has documented that contract explicitly.
 8. Does the app need stricter intra-firm scoping, such as limiting each advisor to their own book of business?
 9. Should those stricter intra-firm boundaries be configurable by firm users or admins rather than hardcoded?
-10. Does the app depend on external integrations such as Wealthbox, Plaid, Altruist, Holistiplan, or another partner system?
+10. Does the app depend on external CRM, custodian, tax-planning, aggregation, or another partner system?
 11. Does the app render branded chrome, logos, or disclosure text that should inherit PlannerXchange private-label settings? If not, avoid requesting `branding.read` or `legal.read` just because the starter demonstrates those fields.
 12. What built artifact should PlannerXchange launch for the manifest `entryPoint`, and does the production build emit the matching publish manifest?
 13. Does the app need to send outbound email (for example, delivering a questionnaire link, a completed-workflow confirmation, or a report)? If yes, declare `email.send` in the manifest permissions and read `docs/builder-spec/outbound-email-v1.md` before writing any email-related code.

@@ -137,7 +137,7 @@ Return the resulting record payload.
 | `startDate`, `endDate` | Transactions | ISO date range |
 | `accountId` | Top-level portfolio routes | Filter by canonical account |
 | `symbol`, `cusip` | Positions, transactions, cost basis | Filter by security identifier |
-| `sourceSystem` | Positions, transactions, cost basis | Filter by source such as `csv` or `altruist` |
+| `sourceSystem` | Positions, transactions, cost basis | Filter by source such as `csv` or a provider-derived source |
 | `recordType` | App-data | Filter by app-data record type |
 
 ## Error envelope
@@ -225,8 +225,8 @@ If your app is calling the live backend today, use the current live platform pat
 | `canonical.security.read` | `/securities`, `/securities/{id}` | Platform security master with firm overrides |
 | `canonical.model.read` | `/models`, `/models/{id}/holdings` | Models and holdings |
 | `canonical.sleeve.read` | `/sleeves`, `/sleeves/{id}/allocations` | Sleeves and allocations |
-| `canonical.crm_note.read` | `/crm-notes`, `/crm-notes/{id}` | Synced CRM notes from shell-owned partner integrations such as Wealthbox |
-| `canonical.crm_task.read` | `/crm-tasks`, `/crm-tasks/{id}` | Synced CRM tasks from shell-owned partner integrations such as Wealthbox |
+| `canonical.crm_note.read` | `/crm-notes`, `/crm-notes/{id}` | Synced CRM notes normalized by PlannerXchange |
+| `canonical.crm_task.read` | `/crm-tasks`, `/crm-tasks/{id}` | Synced CRM tasks normalized by PlannerXchange |
 | `app_access.read` | `/app-access/me` | Current user's app access grant |
 | `feature_entitlements.read` | `/feature-entitlements/me` | Current user's feature entitlements |
 | `branding.read` | `/branding/current` | Resolved branding for current firm context |
@@ -240,10 +240,10 @@ Important:
 - `app_data.write` is not a canonical write scope — it covers builder-owned work product only
 - `client.sensitive.read` is high-risk and requires stronger review and governance
 - Requesting client-data scopes does not permit external AI-provider or third-party egress of PX client data
-- Partner OAuth integrations such as Altruist are shell-owned PlannerXchange workflows. Apps do not receive partner OAuth tokens and should consume Altruist-sourced data only after PlannerXchange maps it into approved canonical or integration-exposed APIs.
-- Altruist-derived household, account, position, transaction, and cost-basis records are builder-facing only after PlannerXchange reconciliation. Apps must not call `/integrations/altruist/*`, inspect Altruist import jobs, or use unreconciled staging/diagnostic payloads as app data.
+- Partner OAuth integrations are shell-owned PlannerXchange workflows. Apps do not receive partner OAuth tokens and should consume provider-sourced data only after PlannerXchange maps it into approved canonical or integration-exposed APIs.
+- Provider-derived household, account, position, transaction, and cost-basis records are builder-facing only after PlannerXchange reconciliation. Apps must not call `/integrations/*`, inspect provider import jobs, or use unreconciled staging/diagnostic payloads as app data.
 - Top-level portfolio reads default to the latest available position/cost-basis `asOfDate` or newest transaction activity, use `limit=10` by default with max `100`, and may use S3-backed opaque cursors. Apps must not request direct S3 access or parse cursor contents.
-- CRM integrations such as Wealthbox are shell-owned PlannerXchange workflows. Apps do not receive Wealthbox API keys and should consume Wealthbox-sourced notes/tasks only through `/crm-notes` and `/crm-tasks` with the declared read scopes.
+- CRM integrations are shell-owned PlannerXchange workflows. Apps do not receive provider API keys and should consume synced notes/tasks only through `/crm-notes` and `/crm-tasks` with the declared read scopes.
 - CRM reads expose only records that PlannerXchange has matched and accepted into the normalized CRM surface. Unmatched staging records, match candidates, sync jobs, and partner-import progress are shell-only and are not available to installed apps.
 - Student apps should treat an empty CRM response as normal: the firm may not have connected the CRM yet, or a firm admin may not have completed the matching flow.
 

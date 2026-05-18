@@ -21,6 +21,5 @@ Core rules:
 - PlannerXchange owns auth, routing, shell context, disclosure, publication review, and app installation identity.
 - Use `ShellRuntimeContext.authenticatedFetch` for protected PlannerXchange API calls.
 - Keep mock data obviously synthetic and use `@example.test` emails.
-- Do not add app-owned login, direct database clients, service-role keys, direct Wealthbox/Altruist access, direct `/imports/*` calls, or external AI/provider egress for PlannerXchange client data.
+- Do not add app-owned login, direct database clients, service-role keys, direct provider API access, direct `/imports/*` calls, or external AI/provider egress for PlannerXchange client data.
 - Before publication, run `npm run build`, then `npm run preflight`, and commit the generated `distRoot` output.
-

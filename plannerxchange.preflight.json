@@ -157,7 +157,7 @@
       "id": "no-direct-byo-backend",
       "severity": "error",
       "title": "No builder-owned data backend for PX/client data",
-      "description": "Shell-published self-serve apps must not use Neon, Supabase, Firebase, Prisma, Postgres, MongoDB, Redis, database URL env vars, or service-role keys for PX/client/subscriber data.",
+      "description": "Shell-published self-serve apps must not use builder-owned database clients, ORM clients, service-role keys, database URL env vars, or app-managed subscriber-data backends for PX/client/subscriber data.",
       "type": "grep",
       "pattern": "@neondatabase/serverless|drizzle-orm|kysely|@vercel/postgres|\\bpg\\b|\\bpostgres\\b|@supabase/supabase-js|firebase-admin|firebase/firestore|mongodb|mongoose|ioredis|@upstash/redis|@prisma/client|\\bPrismaClient\\b|DATABASE_URL|NEON_DATABASE_URL|POSTGRES_URL|PGHOST|PGPASSWORD|SUPABASE_SERVICE_ROLE_KEY|MONGODB_URI|REDIS_URL|UPSTASH_REDIS_REST_TOKEN",
       "include": ["src/**/*.{ts,tsx,js,jsx,json}", "package*.json"],

@@ -72,7 +72,7 @@ Builder apps must not add direct KMS clients, decrypt commands, or app-side rest
 
 Apps that receive `restricted_pii` through PlannerXchange APIs must follow these rules:
 
-- **Do not store PX/client/subscriber data in builder-owned backends** - Neon, Supabase, Firebase, Postgres, MongoDB, Redis, Prisma, service-role keys, and database URL env vars are publish-review blockers for self-serve shell apps that touch PX/client data
+- **Do not store PX/client/subscriber data in builder-owned backends** - builder-owned database clients, ORM clients, service-role keys, and database URL env vars are publish-review blockers for self-serve shell apps that touch PX/client data
 - **Do not upload real client CSVs to non-PX hosts** - canonical and high-risk app-owned file ingress must use PlannerXchange-controlled ingress or enterprise exception review
 - **Do not call shell-only import routes** - `/imports/*`, mapping, validation, execute, rollback, and import-job routes are PlannerXchange-owned
 - **Do not persist decrypted PII in browser storage** — no `localStorage`, `IndexedDB`, `sessionStorage`, or client-side databases

@@ -36,7 +36,7 @@ If the app is `app_managed_nonportable`:
 - you may still read approved PX runtime, branding, legal, and other allowed APIs through PX interfaces
 - you should not request PX canonical client/account/transaction scopes unless the app truly needs them and can pass elevated review
 - you still must pass PlannerXchange security and publication review
-- do not use Neon, Supabase, Firebase, Postgres, MongoDB, Redis, Prisma, service-role keys, database URL env vars, or builder-owned API backends for PX/client/subscriber data in the normal self-serve shell-published path
+- do not use builder-owned database clients, ORM clients, service-role keys, database URL env vars, or app-managed API backends for PX/client/subscriber data in the normal self-serve shell-published path
 - label the app honestly as app-managed rather than portable
 - app-owned data is not eligible for the PX portability contract
 
@@ -80,7 +80,7 @@ Worked patterns:
 1. PX client data plus PX app-data
    Rebalancer app reads PX canonical client and account summaries, then saves `recommendation_set` records through PX app-data. The recommendations are governed and exportable, but they are not canonical across apps by default.
 2. Partner data plus PX app-data
-   Cashflow app reads Plaid or other partner data through PX-governed integration paths, then saves `projection_run` records through PX app-data. The partner facts stay partner-sourced; the projections are builder-owned work product.
+   Cashflow app reads approved partner-sourced data through PX-governed integration paths, then saves `projection_run` records through PX app-data. The partner facts stay partner-sourced; the projections are builder-owned work product.
 3. App-managed nonportable
    Marketing or content app may use no PX client data at all and may keep its own outputs in app-owned storage. It can still publish through PlannerXchange, but it should not imply its app-owned data is portable.
 4. Cashflow CSV categorization
@@ -218,7 +218,7 @@ Tax-read examples:
 ```text
 household
 - latestTaxYear = 2024
-- latestTaxDataSource = holistiplan
+- latestTaxDataSource = tax_provider
 - latestTaxSyncedAt = 2026-04-01T18:42:00Z
 - taxDataStatus = synced
 
@@ -267,8 +267,8 @@ Declare these in the manifest `permissions` array. Only request what the app act
 | `canonical.security.read` | Platform security master with firm overrides merged |
 | `canonical.model.read` | Models and their holdings |
 | `canonical.sleeve.read` | Sleeves and sleeve allocations |
-| `canonical.crm_note.read` | Synced CRM notes, including Wealthbox-sourced notes normalized by PlannerXchange |
-| `canonical.crm_task.read` | Synced CRM tasks, including Wealthbox-sourced tasks normalized by PlannerXchange |
+| `canonical.crm_note.read` | Synced CRM notes normalized by PlannerXchange |
+| `canonical.crm_task.read` | Synced CRM tasks normalized by PlannerXchange |
 | `canonical.tax.summary.read` | Household tax status and tax-summary fields on households |
 | `canonical.tax.detail.read` | Household tax-filing records by year and filing unit |
 
@@ -291,7 +291,7 @@ Shell-only boundary:
 - CSV import, custom-field admin, category mappings, security-allocation editing, and auto-classify are shell-owned workflows
 - partner connection, OAuth, credential entry, sync/import jobs, and match-review workflows under `/integrations/*` are shell-owned workflows
 - student apps should only target the documented canonical read routes below unless PlannerXchange later publishes a new builder-facing contract
-- synced CRM routes return only matched PlannerXchange-normalized records; unmatched Wealthbox staging records, match candidates, and partner-import job progress are not builder-facing app data
+- synced CRM routes return only matched PlannerXchange-normalized records; unmatched CRM staging records, match candidates, and partner-import job progress are not builder-facing app data
 
 ### API routes
 
@@ -350,7 +350,7 @@ Most other canonical list routes default to `limit=25` with max `100`.
 | `endDate` | Transactions | Inclusive end of date range |
 | `symbol` | Positions, transactions, cost basis | Filter by security symbol |
 | `cusip` | Positions, transactions, cost basis | Filter by CUSIP |
-| `sourceSystem` | Positions, transactions, cost basis | Filter by source system such as `csv` or `altruist` |
+| `sourceSystem` | Positions, transactions, cost basis | Filter by source system such as `csv` or a provider-derived source |
 | `search` | Households, accounts, securities | Text search on name/ticker |
 
 ### Key fields by entity (required vs optional)
@@ -404,7 +404,7 @@ These are the actual response payloads builder apps receive from each canonical 
   "taxState": "CA",
   "latestTaxYear": 2024,
   "latestTaxFilingId": "tax_2024_joint",
-  "latestTaxDataSource": "holistiplan",
+  "latestTaxDataSource": "tax_provider",
   "latestTaxSyncedAt": "2026-04-01T18:42:00Z",
   "taxDataStatus": "synced",
   "assignedAdvisorUserIds": ["fu_456"],
@@ -426,9 +426,9 @@ These are the actual response payloads builder apps receive from each canonical 
   "primaryClientId": "cl_abc123",
   "secondaryClientId": "cl_def456",
   "sourceType": "integration_sync",
-  "sourceSystem": "holistiplan",
+  "sourceSystem": "tax_provider",
   "sourceRecordType": "income_tax",
-  "sourceRecordId": "hp_income_tax_987",
+  "sourceRecordId": "tax_provider_income_tax_987",
   "sourceSyncStatus": "synced",
   "sourceLastSyncedAt": "2026-04-01T18:42:00Z",
   "totalIncome": 315000.0,
@@ -491,7 +491,7 @@ Summary reads do not return raw PII fields.
   "householdId": "hh_abc123",
   "accountNumber": "****5678",
   "accountName": "Example IRA",
-  "custodianName": "Schwab",
+  "custodianName": "Example Custodian",
   "accountType": "IRA",
   "taxType": "tax_deferred",
   "taxTreatment": "tax_advantaged_pre_tax",
@@ -670,7 +670,7 @@ const masked =
 - do not cache canonical data in IndexedDB or long-lived local storage â€” re-fetch from the API to ensure freshness
 - do not export or send PX canonical client data to external AI providers or third parties in Day 1
 - handle null on all optional fields â€” not every firm imports every field, and different custodian exports include different columns
-- firms populate canonical data through PlannerXchange's CSV import wizard, which supports common custodian formats (Altruist, Schwab, Fidelity, etc.) with fuzzy column matching â€” but data completeness depends on what the firm uploaded
+- firms populate canonical data through PlannerXchange's CSV import wizard, which supports common custodian formats with fuzzy column matching â€” but data completeness depends on what the firm uploaded
 - respect `verificationStatus` on securities: `unverified` or `review_needed` securities may have incomplete or incorrect metadata
 - do not build student-app workflows around shell-only canonical admin routes such as import setup, custom fields, category mappings, or auto-classify
 - if the app renders household or account totals, the firm's data may be partial â€” do not imply completeness unless the firm confirms it

@@ -219,7 +219,7 @@ The following issues are common causes of publication rejection. Check for them 
 17. **Direct KMS or decrypt access** — app code or dependencies include direct KMS clients, decrypt commands, or restricted-PII decrypt helpers. PlannerXchange decrypts protected data only inside governed backend APIs.
 18. **Unsafe shell navigation control** - app code uses `window.top`, `window.parent.location`, or hardcoded `/apps/<appSlug>` prefixes instead of app-relative routes plus `ShellRuntimeContext.navigate`.
 
-19. **Builder-owned backend for PX/client data** - app code or dependencies include Neon, Supabase, Firebase, Postgres, MongoDB, Redis, Prisma, service-role keys, database URL env vars, or similar app-managed subscriber-data storage.
+19. **Builder-owned backend for PX/client data** - app code or dependencies include builder-owned database clients, ORM clients, service-role keys, database URL env vars, or similar app-managed subscriber-data storage.
 20. **Undeclared or unsafe CSV/file ingress** - file inputs, `FileReader`, `FormData`, Papa Parse, csv/xlsx packages, drag/drop uploads, external upload hosts, or direct `/imports/*` calls without the approved PlannerXchange ingress lane.
 
 ## PX Approved badge direction
@@ -276,9 +276,9 @@ Important:
 
 Shell-owned provider review rule:
 
-- Apps must read synced Wealthbox data only through PlannerXchange `/crm-notes` and `/crm-tasks`.
+- Apps must read synced CRM data only through PlannerXchange `/crm-notes` and `/crm-tasks`.
 - Apps receive only CRM records that PlannerXchange has matched and accepted into the normalized CRM surface; unmatched staging records, match candidates, sync jobs, and partner-import progress are shell-only.
-- Apps must read Altruist-sourced investment data only through approved PlannerXchange canonical account, position, transaction, cost-basis, or integration-exposed routes after PlannerXchange mapping.
-- Apps must treat Altruist import jobs, refresh diagnostics, staging payloads, OAuth state, provider object IDs, and tax-lot identifiers as shell-internal governance data, not app data.
+- Apps must read provider-sourced investment data only through approved PlannerXchange canonical account, position, transaction, cost-basis, or integration-exposed routes after PlannerXchange mapping.
+- Apps must treat provider import jobs, refresh diagnostics, staging payloads, OAuth state, provider object IDs, and tax-lot identifiers as shell-internal governance data, not app data.
 - Account UI may show both specific account type and tax treatment. Use `accountType` for product/registration display and generic `taxTreatment` labels (`Taxable`, `Tax-advantaged pre-tax`, `Tax-advantaged post-tax`, `Tax-advantaged pre-and-post`, `Unknown`) for tax classification.
-- Apps must not call Wealthbox or Altruist directly, ask for partner API keys/OAuth tokens, call `/integrations/*`, build app-owned partner sync/matching flows, cache CRM/investment content in browser storage, or send CRM/client/account/investment content to external AI providers or third-party APIs in Day 1 publication.
+- Apps must not call providers directly, ask for partner API keys/OAuth tokens, call `/integrations/*`, build app-owned partner sync/matching flows, cache CRM/investment content in browser storage, or send CRM/client/account/investment content to external AI providers or third-party APIs in Day 1 publication.

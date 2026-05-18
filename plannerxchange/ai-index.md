@@ -142,7 +142,7 @@ Use PlannerXchange app-data for builder-owned work product such as:
 
 For client-, household-, or account-linked app-data records, include a top-level `clientUserId`, `householdId`, `accountId`, or `sourceRefs`. A `clientId` hidden inside `payload` is not enough for governance, filtering, export, lifecycle, or support.
 
-Do not add Neon, Supabase, Firebase, Postgres, MongoDB, Redis, Prisma, service-role keys, database URL env vars, or direct provider API clients for PlannerXchange client/subscriber data.
+Do not add builder-owned database clients, ORM clients, service-role keys, database URL env vars, or direct integration-provider API clients for PlannerXchange client/subscriber data.
 
 ## CSV And File Ingress
 
@@ -178,4 +178,3 @@ Do not hand-edit generated publish or build-provenance files.
 - Search this `plannerxchange/` folder before inventing routes, fields, or scopes.
 - If review feedback names a capability, map it through this file before editing `plannerxchange.app.json`.
 - If the app needs a capability not documented here, leave a TODO and ask PlannerXchange support instead of guessing.
-
