@@ -29,7 +29,7 @@ Then read only the file needed for the current task.
 | Handle CSV or file uploads | `plannerxchange/app-data-api.md`, `plannerxchange/data-contract.md`, `plannerxchange/pii-and-security.md` | `plannerxchange.app.json`, upload flow |
 | Fix auth/session review findings | `plannerxchange/context.md`, `plannerxchange/api-reference.md` | remove app-owned auth code |
 | Fix build or publish artifact findings | `plannerxchange/publish-notes.md`, `vite.config.ts`, `scripts/preflight.mjs` | build config, committed `distRoot` |
-| Fetch PlannerXchange review feedback | `README.md`, `plannerxchange/publish-notes.md` | run `px review watch --env dev --commit HEAD --format markdown` |
+| Fetch PlannerXchange review feedback | `README.md`, `plannerxchange/publish-notes.md` | ask the builder for the current goal, then run `px review watch --env dev --goal <selected-goal> --commit HEAD --format markdown` |
 | Decide mock vs live behavior | `plannerxchange/context.md`, `src/plannerxchange.ts`, `src/dev-context.ts` | runtime branching |
 
 ## Manifest Schema
@@ -171,7 +171,7 @@ Before publication:
 4. Run `npm run preflight`.
 5. Commit source, lockfiles, manifest, and generated `distRoot` output from the same code version.
 6. Push to GitHub so PlannerXchange review can run for that commit.
-7. Run `px review watch --env dev --commit HEAD --format markdown`.
+7. Ask the builder which goal applies now, then run `px review watch --env dev --goal <selected-goal> --commit HEAD --format markdown`.
 8. If required fixes return, fix only the current fix group, rebuild, commit, push, and watch again.
 
 Do not hand-edit generated publish or build-provenance files.

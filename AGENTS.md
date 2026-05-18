@@ -31,6 +31,8 @@ Core rules:
 - Do not add app-owned login, direct database clients, service-role keys, direct provider API access, direct `/imports/*` calls, or external AI/provider egress for PlannerXchange client data.
 - Before review, run `npm run build`, then `npm run preflight`, and commit the generated `distRoot` output.
 - After pushing to GitHub, use the PlannerXchange CLI when available:
-  `px review watch --env dev --commit HEAD --format markdown`.
-- Fix only the current required fix group returned by PlannerXchange review,
+  `px review watch --env dev --goal <selected-goal> --commit HEAD --format markdown`.
+- Before choosing the goal, ask the builder whether the current target is `draft`,
+  `marketplace`, `demo_mode`, `private_label`, or `data_persistence`.
+- Fix only the current required fix group returned for the selected goal,
   then rebuild, commit, push, and run the watch command again.

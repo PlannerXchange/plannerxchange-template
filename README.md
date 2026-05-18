@@ -154,7 +154,7 @@ Important setup rules:
 14. Do not add builder-owned databases, service-role keys, database URL env vars, or direct integration-provider API clients for PX/client/subscriber data. Use PX canonical APIs and PX app-data instead.
 15. If the app accepts CSV or file uploads, declare the ingress in plannerxchange.app.json. App-owned CSV work product may go to PX app-data; canonical transaction/account/client/household imports must use a PX-owned Core Data import handoff when that contract exists.
 16. Before editing plannerxchange.app.json from review feedback, read plannerxchange/ai-index.md and map review capability labels to actual manifest fields. Do not add guessed fields like capabilities, portableData, marketplace, demoMode, demoModeEnabled, or supportsDemoMode.
-17. After each push, fetch PlannerXchange review feedback with px review watch --env dev --commit HEAD --format markdown. If it exits 2, fix only the current required fix group, rebuild, commit, push, and watch again. If it exits 0, no required fixes remain for that reviewed commit.
+17. Before fetching review feedback, ask me which PlannerXchange goal I want right now: draft, marketplace, demo_mode, private_label, or data_persistence. Then run px review watch --env dev --goal <selected-goal> --commit HEAD --format markdown. If it exits 2, fix only the current required fix group for that goal, rebuild, commit, push, and watch again. If it exits 0, no required fixes remain for that goal on the reviewed commit.
 
 Before writing code, ask me these questions and wait for my answers:
 
@@ -214,28 +214,38 @@ Use `--env prod` only when PlannerXchange tells you the app should use the produ
 
 After the repo is linked in PlannerXchange and the CLI is authenticated, run the review loop from the builder-owned app repo:
 
+Before watching review feedback, the AI agent should ask the builder which goal applies now:
+
+- `draft`: run inside PlannerXchange for internal testing only
+- `marketplace`: become listed and installable in the PlannerXchange marketplace
+- `demo_mode`: support a publicly available demo with synthetic/sample data
+- `private_label`: consume PlannerXchange firm branding, legal, and disclosure context
+- `data_persistence`: use approved PlannerXchange app-data/canonical data contracts
+
+Do not fix data-persistence, private-label, or demo findings unless the builder selected that capability or the finding also blocks the selected goal.
+
 ```bash
 npm run build
 npm run preflight
 git add .
 git commit -m "Update PlannerXchange app"
 git push
-px review watch --env dev --commit HEAD --format markdown
+px review watch --env dev --goal <selected-goal> --commit HEAD --format markdown
 ```
 
 Exit codes:
 
-- `0`: review completed and no required fixes remain for the watched commit
+- `0`: review completed and no required fixes remain for the selected goal on the watched commit
 - `1`: auth, access, configuration, API, timeout, or unexpected local/platform error; read the terminal error and stop instead of guessing manifest fields
-- `2`: PlannerXchange returned required fixes; fix only the current fix group, rebuild, commit, push, and watch again
+- `2`: PlannerXchange returned required fixes for the selected goal; fix only the current fix group, rebuild, commit, push, and watch again
 - `3`: PlannerXchange review reached `failed_to_complete`; treat it as platform retry/support unless the markdown clearly names an app-code finding
 - `130`: the user interrupted the command; stop the loop until the builder asks you to continue
 
 Useful commands:
 
 - `px review list --env dev`: list linked repos visible to the authenticated PlannerXchange user
-- `px review latest --env dev --format markdown`: print latest review feedback for the current GitHub remote
-- `px review latest --env dev --repo-link-id <id> --format json`: fetch machine-readable review feedback when auto-detection is ambiguous
+- `px review latest --env dev --goal marketplace --format markdown`: print goal-scoped latest review feedback for the current GitHub remote
+- `px review latest --env dev --goal data_persistence --repo-link-id <id> --format json`: fetch machine-readable review feedback when auto-detection is ambiguous
 - `px review open --env dev`: open the matching repo review surface in PlannerXchange
 
 ## Local development
@@ -290,8 +300,8 @@ Recommended workshop flow:
 10. student commits and pushes source plus the generated `distRoot` output
 11. student logs into PlannerXchange and links the repository for governed publication
 12. PlannerXchange pins the linked commit and runs the required CodeQL lane in PlannerXchange-owned review infrastructure
-13. the AI agent runs `px review watch --env dev --commit HEAD --format markdown`
-14. if required fixes return, the agent fixes only the current fix group, rebuilds, commits, pushes, and watches again
+13. the AI agent asks the builder which goal applies now, then runs `px review watch --env dev --goal <selected-goal> --commit HEAD --format markdown`
+14. if required fixes return, the agent fixes only the current fix group for that selected goal, rebuilds, commits, pushes, and watches again
 
 The intended UI should require little more than the GitHub URL. PlannerXchange should read the
 required metadata from `plannerxchange.app.json` and only ask for optional merchandising overrides
@@ -304,8 +314,8 @@ when needed.
 - Run `npm run build` before publish and commit the generated `distRoot` output, including the publish manifest and build-provenance file.
 - Run `npm run preflight` after building to catch common rejection issues before submitting.
 - Do not enable GitHub code scanning just to publish on PlannerXchange. PlannerXchange runs the required CodeQL lane after repo linking.
-- Use `px review watch --env dev --commit HEAD --format markdown` after pushing to fetch review feedback directly from PlannerXchange instead of relying on manual copy/paste from the shell.
-- If `px review watch` exits `2`, fix only the current required fix group in the markdown export, rebuild, commit, push, and watch again.
+- Use `px review watch --env dev --goal <selected-goal> --commit HEAD --format markdown` after pushing to fetch review feedback directly from PlannerXchange instead of relying on manual copy/paste from the shell.
+- If `px review watch` exits `2`, fix only the current required fix group for the selected goal in the markdown export, rebuild, commit, push, and watch again.
 - Do not hand-edit generated publish or build-provenance files under `distRoot`; let the build regenerate them.
 - Use `ShellRuntimeContext.authenticatedFetch` for protected PlannerXchange API calls. Do not manually attach bearer tokens or pass `appInstallationId` in query strings.
 - Declare the correct `dataPortabilityMode` before linking the repo.
