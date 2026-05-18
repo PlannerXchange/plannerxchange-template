@@ -76,6 +76,17 @@ Review guidance:
 - PlannerXchange may show badges such as `Portable Data` or `App-Managed Data` in the catalog
 - apps that appear not to be white-label-ready may receive non-blocking risk findings
 
+PX CLI feedback loop:
+
+- GitHub push remains the review trigger.
+- The CLI is read-only. It does not publish, deploy, mutate repo links, change pricing, manage billing, or access canonical client data.
+- After pushing source plus generated `distRoot`, run `px review watch --env dev --commit HEAD --format markdown`. Use `--env prod` only when Creator Studio copies a prod-specific loop for this app.
+- Exit `0` means no required fixes remain for the watched commit.
+- Exit `1` means the CLI could not complete because of auth, access, configuration, API, timeout, or unexpected local/platform errors. Read the terminal error and do not guess manifest fields from this failure.
+- Exit `2` means PlannerXchange returned required fixes. Fix only the current fix group in the markdown export, rebuild, commit, push, and watch again.
+- Exit `3` means PlannerXchange review reached a terminal `failed_to_complete` state. Treat this as a platform retry/support state unless the markdown export clearly names an app-code finding.
+- Exit `130` usually means the user interrupted the command with Ctrl+C. Stop the loop until the builder asks you to continue.
+
 White-label readiness signals:
 
 - if the app renders branded chrome, it should request `branding.read`

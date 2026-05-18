@@ -1,8 +1,10 @@
-# Advisor App Starter
+# PlannerXchange AI Agent Governance Context Pack
 
-This template is the first local scaffold for an advisor-owned PlannerXchange app repo.
+This repository is the public PlannerXchange context pack for AI agents building advisor-owned apps in builder-owned repositories.
 
-It is designed to show the minimum v1 publication shape:
+Use it to teach an AI coding agent the PlannerXchange shell runtime, manifest, data, security, and review rules before it edits app code. The minimal scaffold remains available as an optional reference when a builder wants a Vite/plugin baseline.
+
+It documents the minimum v1 publication shape:
 
 - `plannerxchange.app.json`
 - a shell-compatible `src/plugin.tsx` entrypoint
@@ -86,13 +88,12 @@ The template context pack also includes current guidance for:
 
 ## Current status
 
-This starter is self-contained enough to copy into a separate builder repository, including the
-`plannerxchange/` markdown files that explain the PX backend contract.
+This context pack is self-contained enough for an AI agent to read by URL or for a builder to copy into a separate builder repository. The `plannerxchange/` markdown files explain the PX backend contract.
 
 It includes a small local `src/plannerxchange.ts` contract shim so students can start building
 without needing extra PlannerXchange packages before they understand the backend rules.
 
-This starter is npm-first and should keep `package-lock.json` committed so installs stay repeatable
+The optional scaffold is npm-first and should keep `package-lock.json` committed so installs stay repeatable
 across workshop runs, AI-assisted coding sessions, and future CI checks.
 
 The production build emits `<distRoot>/plannerxchange.publish.json` and `<distRoot>/plannerxchange.build-provenance.json`.
@@ -117,14 +118,15 @@ scripts read those fields and emit publish/provenance files under `distRoot`.
 
 Use one of these patterns:
 
-1. Use GitHub's template-repo flow from `https://github.com/PlannerXchange/plannerxchange-template`
-2. Copy the starter files into the root of a fresh builder-owned repository
-3. Export or download the starter and initialize a new builder-owned repo around it
+1. Point the coding agent at `https://github.com/PlannerXchange/plannerxchange-template` and tell it to treat this repo as PlannerXchange governance context.
+2. Work in the builder-owned app repository that will be linked to PlannerXchange.
+3. Copy the optional starter files into the app repo root only if the repo needs a shell-plugin baseline.
+4. Export or download the scaffold and initialize a new builder-owned repo around it only when starting from scratch.
 
 Do not `git clone` this repo into `docs/` or another subfolder inside a separate app repo.
 
 That creates a nested git repository, confuses future coding agents about which repo is the real app,
-and turns the starter into reference material instead of the working project.
+and turns the context pack into embedded reference material instead of clear governance context.
 
 ## Recommended Initial AI Prompt
 
@@ -136,7 +138,7 @@ I am starting a new app that may be published on PlannerXchange.
 Use the PlannerXchange template and markdown docs as backend and publish-contract guidance only, not as frontend design guidance.
 
 Important setup rules:
-1. Start from the PlannerXchange template repository itself, or copy its files into the root of this repo.
+1. Treat https://github.com/PlannerXchange/plannerxchange-template as PlannerXchange governance context first. Work only in my builder-owned app repo unless I explicitly ask you to maintain the context pack.
 2. Do not git clone the template into docs/ or any subfolder.
 3. Read the plannerxchange markdown files first and treat them as the source of truth for auth, runtime context, API contracts, data persistence, whitelabeling, and publication rules.
 4. Do not assume undocumented PlannerXchange API routes exist.
@@ -152,6 +154,7 @@ Important setup rules:
 14. Do not add builder-owned databases, service-role keys, database URL env vars, or direct integration-provider API clients for PX/client/subscriber data. Use PX canonical APIs and PX app-data instead.
 15. If the app accepts CSV or file uploads, declare the ingress in plannerxchange.app.json. App-owned CSV work product may go to PX app-data; canonical transaction/account/client/household imports must use a PX-owned Core Data import handoff when that contract exists.
 16. Before editing plannerxchange.app.json from review feedback, read plannerxchange/ai-index.md and map review capability labels to actual manifest fields. Do not add guessed fields like capabilities, portableData, marketplace, demoMode, demoModeEnabled, or supportsDemoMode.
+17. After each push, fetch PlannerXchange review feedback with px review watch --env dev --commit HEAD --format markdown. If it exits 2, fix only the current required fix group, rebuild, commit, push, and watch again. If it exits 0, no required fixes remain for that reviewed commit.
 
 Before writing code, ask me these questions and wait for my answers:
 
@@ -190,9 +193,54 @@ Identity rules — do not tell me to do any of the following, because PlannerXch
 - do not tell me to manually update appId, appBasename, shellAppBasename, or navigate; they are mock values in dev-context.ts and real values come from PX at runtime
 ```
 
+## PX CLI review loop
+
+PlannerXchange review starts from the GitHub push webhook. The CLI does not publish, deploy, mutate repo links, change pricing, or access canonical data.
+
+Prerequisites:
+
+- PlannerXchange has provided the `px` CLI install path.
+- The builder is a PlannerXchange user with Creator Studio access to the linked repo.
+- The app repo is connected through the PlannerXchange GitHub App.
+- The local terminal is inside the builder-owned app repo, not inside this context-pack repo.
+
+Login is a one-time browser PKCE flow for the local machine. The CLI discovers the public PlannerXchange login configuration for the selected environment; users do not need a Cognito client id.
+
+```bash
+px login --env dev
+```
+
+Use `--env prod` only when PlannerXchange tells you the app should use the production shell and review pipeline. Creator Studio's "Copy CLI loop for AI agent" action provides the right environment-specific command.
+
+After the repo is linked in PlannerXchange and the CLI is authenticated, run the review loop from the builder-owned app repo:
+
+```bash
+npm run build
+npm run preflight
+git add .
+git commit -m "Update PlannerXchange app"
+git push
+px review watch --env dev --commit HEAD --format markdown
+```
+
+Exit codes:
+
+- `0`: review completed and no required fixes remain for the watched commit
+- `1`: auth, access, configuration, API, timeout, or unexpected local/platform error; read the terminal error and stop instead of guessing manifest fields
+- `2`: PlannerXchange returned required fixes; fix only the current fix group, rebuild, commit, push, and watch again
+- `3`: PlannerXchange review reached `failed_to_complete`; treat it as platform retry/support unless the markdown clearly names an app-code finding
+- `130`: the user interrupted the command; stop the loop until the builder asks you to continue
+
+Useful commands:
+
+- `px review list --env dev`: list linked repos visible to the authenticated PlannerXchange user
+- `px review latest --env dev --format markdown`: print latest review feedback for the current GitHub remote
+- `px review latest --env dev --repo-link-id <id> --format json`: fetch machine-readable review feedback when auto-detection is ambiguous
+- `px review open --env dev`: open the matching repo review surface in PlannerXchange
+
 ## Local development
 
-1. Start from this template at the root of the builder repo.
+1. Work in the builder-owned app repo. Copy this scaffold into the repo root only if you need the optional Vite/plugin baseline.
 2. Run `npm install`.
 3. Run `npm run dev` — this starts the dev server on `localhost:5173` (Vite default).
 4. **Port 5173 is required** — PlannerXchange allows CORS and auth callbacks from `localhost:5173`. Do not change the port.
@@ -230,16 +278,20 @@ Local development modes:
 
 Recommended workshop flow:
 
-1. student starts a new GitHub repository from this template or copies these files into the repo root
-2. student copies `.env.example` to `.env` (mock mode is the default)
-3. student reads the `plannerxchange/` markdown files first
-4. student uses an AI coding agent against the local repo
-5. student builds Phase 1 (local-only app with mock data, using `src/lib/px-gateway.ts` in mock mode)
-6. student wires Phase 2 (PX API integration through the gateway's live mode)
-7. student runs `npm run build` then `npm run preflight`
-8. student commits and pushes source plus the generated `distRoot` output
-9. student logs into PlannerXchange and links the repository for governed publication
-10. PlannerXchange pins the linked commit and runs the required CodeQL lane in PlannerXchange-owned review infrastructure
+1. student creates or opens a builder-owned GitHub repository
+2. student points their AI coding agent at this repository as PlannerXchange governance context
+3. student copies the optional scaffold into the repo root only if they need the baseline shell-plugin files
+4. student copies `.env.example` to `.env` when using the scaffold (mock mode is the default)
+5. student reads the `plannerxchange/` markdown files first
+6. student uses an AI coding agent against the local app repo
+7. student builds Phase 1 (local-only app with mock data, using `src/lib/px-gateway.ts` in mock mode when using the scaffold)
+8. student wires Phase 2 (PX API integration through the gateway's live mode)
+9. student runs `npm run build` then `npm run preflight`
+10. student commits and pushes source plus the generated `distRoot` output
+11. student logs into PlannerXchange and links the repository for governed publication
+12. PlannerXchange pins the linked commit and runs the required CodeQL lane in PlannerXchange-owned review infrastructure
+13. the AI agent runs `px review watch --env dev --commit HEAD --format markdown`
+14. if required fixes return, the agent fixes only the current fix group, rebuilds, commits, pushes, and watches again
 
 The intended UI should require little more than the GitHub URL. PlannerXchange should read the
 required metadata from `plannerxchange.app.json` and only ask for optional merchandising overrides
@@ -252,6 +304,8 @@ when needed.
 - Run `npm run build` before publish and commit the generated `distRoot` output, including the publish manifest and build-provenance file.
 - Run `npm run preflight` after building to catch common rejection issues before submitting.
 - Do not enable GitHub code scanning just to publish on PlannerXchange. PlannerXchange runs the required CodeQL lane after repo linking.
+- Use `px review watch --env dev --commit HEAD --format markdown` after pushing to fetch review feedback directly from PlannerXchange instead of relying on manual copy/paste from the shell.
+- If `px review watch` exits `2`, fix only the current required fix group in the markdown export, rebuild, commit, push, and watch again.
 - Do not hand-edit generated publish or build-provenance files under `distRoot`; let the build regenerate them.
 - Use `ShellRuntimeContext.authenticatedFetch` for protected PlannerXchange API calls. Do not manually attach bearer tokens or pass `appInstallationId` in query strings.
 - Declare the correct `dataPortabilityMode` before linking the repo.
@@ -290,6 +344,7 @@ Auth lifecycle reminder:
 - `plannerxchange.app.json`: publish manifest
 - `plannerxchange.preflight.json`: machine-readable preflight checklist
 - `AGENTS.md`: repo-level rules for AI coding agents
+- `AGENT_CONTEXT_FILES.md`: maintained inventory for this public context pack
 - `plannerxchange/ai-index.md`: lookup index that maps build/review tasks to the right docs and schema fields
 - `plannerxchange/app-brief.md`: the student-facing project brief
 - `plannerxchange/api-reference.md`: HTTP conventions and current builder-facing route matrix
@@ -314,13 +369,14 @@ Auth lifecycle reminder:
 
 This repository should stay intentionally small:
 
-- starter code only
+- AI-agent governance context
+- optional minimal starter/example code
 - `plannerxchange/` markdown pack
 - one strong README
 
 Do not mirror the full platform docs tree into the student repo. The template should carry the
 high-signal subset students and their coding agents actually need.
 
-This repository is the public builder starter only. Internal platform architecture, persistence,
+This repository is the public builder context pack. Internal platform architecture, persistence,
 security, KMS, infrastructure, and runbook docs remain private in `plannerxchange-platform` and are
 not duplicated here.

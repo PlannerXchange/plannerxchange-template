@@ -1,6 +1,13 @@
-# PlannerXchange Student App Agent Guide
+# PlannerXchange Builder Agent Context Guide
 
-This repository is a PlannerXchange app starter. Treat it as the working app repo, not as reference docs copied into another project.
+This repository is the public PlannerXchange AI-agent governance context pack.
+Use it to understand the shell runtime, manifest, data, security, and review
+rules for apps that builders create in their own repositories.
+
+If these files have been copied into the root of a builder-owned app repo, treat
+that local repo as the working app. If you are reading
+`PlannerXchange/plannerxchange-template` by URL, do not edit this context repo;
+make app changes only in the builder-owned app repository.
 
 Before changing app code, read:
 
@@ -22,4 +29,8 @@ Core rules:
 - Use `ShellRuntimeContext.authenticatedFetch` for protected PlannerXchange API calls.
 - Keep mock data obviously synthetic and use `@example.test` emails.
 - Do not add app-owned login, direct database clients, service-role keys, direct provider API access, direct `/imports/*` calls, or external AI/provider egress for PlannerXchange client data.
-- Before publication, run `npm run build`, then `npm run preflight`, and commit the generated `distRoot` output.
+- Before review, run `npm run build`, then `npm run preflight`, and commit the generated `distRoot` output.
+- After pushing to GitHub, use the PlannerXchange CLI when available:
+  `px review watch --env dev --commit HEAD --format markdown`.
+- Fix only the current required fix group returned by PlannerXchange review,
+  then rebuild, commit, push, and run the watch command again.

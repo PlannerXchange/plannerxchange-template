@@ -1,5 +1,7 @@
 # PlannerXchange Context
 
+Use this file as governance context for the builder-owned app repository. If you are reading this from `PlannerXchange/plannerxchange-template` by URL, do not edit the public context pack while building an app; make code changes in the app repo that PlannerXchange will review.
+
 PlannerXchange owns:
 
 - authentication
