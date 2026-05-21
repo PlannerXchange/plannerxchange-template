@@ -237,6 +237,8 @@ The `px-gateway.ts` helper in `src/lib/` already uses this pattern.
 
 Egress governance is the platform's responsibility and is enforced by the publish review, not by individual app code. Use `ctx.apiBaseUrl` directly when constructing API calls.
 
+`egressDeclarations` are review evidence, not approval. Day 1 self-serve publication has no non-enterprise exception for PX/client data egress to Tavily, OpenAI, Anthropic, Gemini, analytics, support, vendor APIs, or other external processors.
+
 ## Local development modes
 
 The starter should make the current runtime mode obvious.
@@ -290,7 +292,6 @@ The shell calls `mount(context)` when the user navigates to the app. The context
 - `userId` — the current authenticated user ID
 - `firmId` — the current firm context
 - `tenantId` — the current tenant
-- `containerElement` — the DOM element to render into
 
 ### Unmount and cleanup
 
@@ -312,7 +313,12 @@ import { createRoot, Root } from "react-dom/client";
 let root: Root | null = null;
 
 export async function mount(context: ShellRuntimeContext) {
-  const container = context.containerElement;
+  const container = document.getElementById("root");
+
+  if (!container) {
+    throw new Error("Missing #root container for PlannerXchange plugin mount.");
+  }
+
   root = createRoot(container);
   root.render(<App context={context} />);
 }
@@ -383,3 +389,16 @@ Rules:
 - Do not use `window.top`, `window.parent.location`, or cross-frame DOM access to control shell routing.
 
 Deep links work naturally. Users can bookmark `/apps/my-tool/households/abc123/accounts` and the shell will mount the app at the correct route.
+
+## App-owned backend routes
+
+PlannerXchange shell-published apps are static frontend plugins. The shell does not host builder-owned API routes behind your app artifact.
+
+Rules:
+
+- do not call relative app backend routes such as `/api/questions`, `/api/results`, `/api/session`, `/questions`, or `/results`
+- do not use `VITE_API_URL`, `VITE_BACKEND_URL`, `NEXT_PUBLIC_API_URL`, or similar frontend env vars for shell-published behavior
+- do not use frontend external-provider keys such as `VITE_TAVILY_API_KEY`, `VITE_OPENAI_API_KEY`, or `NEXT_PUBLIC_*_API_KEY`
+- use bundled static/mock data for local preview
+- use `context.authenticatedFetch` for documented PlannerXchange APIs when running inside the shell
+- if a real external/backend service or AI/search provider is needed for subscriber data, treat that as an enterprise exception path before self-serve publication

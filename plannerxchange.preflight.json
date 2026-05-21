@@ -164,6 +164,46 @@
       "exclude": ["node_modules/**", "src/dev-context.ts"]
     },
     {
+      "id": "no-app-owned-api-routes",
+      "severity": "error",
+      "title": "No app-owned backend API routes",
+      "description": "Shell-published apps are static frontend plugins. Do not call standalone app backend routes such as /api/questions, /api/results, /questions, or /results.",
+      "type": "grep",
+      "pattern": "fetch\\s*\\(\\s*[\"'](/api/(?!auth/user\\b|login\\b|logout\\b)|/(questions?|answers?|responses?|sessions?|profile|users/me|assessments?|scores?|results?|cashflows?|uploads?)(/|\\b|\\?))|axios(\\.[A-Za-z]+)?\\s*\\(\\s*[\"'](/api/|/(questions?|answers?|responses?|sessions?|profile|users/me|assessments?|scores?|results?|cashflows?|uploads?)(/|\\b|\\?))",
+      "include": ["src/**/*.{ts,tsx,js,jsx}"],
+      "exclude": ["node_modules/**", "src/dev-context.ts"]
+    },
+    {
+      "id": "no-app-backend-env-vars",
+      "severity": "error",
+      "title": "No app-owned backend URL env vars",
+      "description": "Do not use VITE_API_URL, VITE_BACKEND_URL, NEXT_PUBLIC_API_URL, or similar frontend env vars for shell-published runtime behavior.",
+      "type": "grep",
+      "pattern": "\\b(VITE|REACT_APP|NEXT_PUBLIC|PUBLIC)_(APP_)?(API|BACKEND|SERVER)(_BASE)?_?(URL|ENDPOINT)\\b|\\b(API_BASE_URL|BACKEND_URL|APP_API_URL|APP_BACKEND_URL)\\b",
+      "include": ["src/**/*.{ts,tsx,js,jsx,json}", ".env*"],
+      "exclude": ["node_modules/**", "src/dev-context.ts"]
+    },
+    {
+      "id": "router-uses-px-basename",
+      "severity": "error",
+      "title": "Router uses PlannerXchange runtime path context",
+      "description": "Browser routers must use context.appBasename, and memory/hash routers must initialize from context.initialPath so PX shell deep links do not render an app-owned 404.",
+      "type": "grep",
+      "pattern": "<BrowserRouter(?![^>]*appBasename)|createBrowserRouter\\s*\\((?!.*appBasename)|createWebHistory\\s*\\((?!.*appBasename)",
+      "include": ["src/**/*.{ts,tsx,js,jsx}"],
+      "exclude": ["node_modules/**", "src/dev-context.ts", "src/main.tsx", "src/main.ts", "src/main.jsx", "src/main.js"]
+    },
+    {
+      "id": "no-container-element-context",
+      "severity": "error",
+      "title": "No stale containerElement runtime contract",
+      "description": "PlannerXchange calls mount(context); the current context does not provide containerElement. Resolve #root or #app inside mount(context).",
+      "type": "grep",
+      "pattern": "containerElement",
+      "include": ["src/**/*.{ts,tsx,js,jsx}", "plannerxchange/**/*.md", "README.md"],
+      "exclude": ["node_modules/**"]
+    },
+    {
       "id": "csv-file-ingress-declaration",
       "severity": "warning",
       "title": "CSV/file ingress must be declared",
@@ -194,12 +234,22 @@
       "exclude": ["node_modules/**", "src/dev-context.ts"]
     },
     {
+      "id": "no-frontend-external-provider-api-keys",
+      "severity": "error",
+      "title": "No frontend external provider API keys",
+      "description": "Do not expose Tavily, OpenAI, Anthropic, Gemini, or similar provider API keys in browser code. Shell-published apps run in users' browsers.",
+      "type": "grep",
+      "pattern": "\\b(VITE|REACT_APP|NEXT_PUBLIC|PUBLIC)_[A-Z0-9_]*(TAVILY|OPENAI|ANTHROPIC|GEMINI|GOOGLE_AI|AI|LLM|SEARCH)[A-Z0-9_]*(API_)?KEY\\b|\\b(TAVILY|OPENAI|ANTHROPIC|GEMINI|GOOGLE_AI)_API_KEY\\b",
+      "include": ["src/**/*.{ts,tsx,js,jsx,json}", ".env*"],
+      "exclude": ["node_modules/**", "src/dev-context.ts"]
+    },
+    {
       "id": "external-ai-sdk-usage",
       "severity": "warning",
-      "title": "External AI SDK usage flagged",
-      "description": "External AI-provider usage is a publish-review trigger. Day 1 external AI-provider or third-party egress of PX client data is not allowed.",
+      "title": "External AI/search SDK usage flagged",
+      "description": "External AI or search-provider usage is a publish-review trigger. Day 1 external provider egress of PX/client data is not allowed without an enterprise exception.",
       "type": "grep",
-      "pattern": "@ai-sdk/|\\bopenai\\b|\\banthropic\\b|@google/generative-ai|\\bGemini\\b",
+      "pattern": "@ai-sdk/|\\bopenai\\b|\\banthropic\\b|@google/generative-ai|\\bGemini\\b|@tavily/core|\\btavily\\b|api\\.tavily\\.com",
       "include": ["src/**/*.{ts,tsx,js,jsx,json}", "package*.json"],
       "exclude": ["node_modules/**"]
     },

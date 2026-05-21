@@ -10,14 +10,14 @@ Apps integrate through approved PlannerXchange APIs. Published apps do not recei
 
 The API base URL is environment-specific. Do not hardcode `https://api.plannerxchange.ai` or any AWS execute-api URL.
 
-**Source the base URL from `ShellRuntimeContext.apiBaseUrl`:**
+**Source protected PlannerXchange requests from `ShellRuntimeContext.authenticatedFetch`:**
 
 ```typescript
 const ctx: ShellRuntimeContext = /* passed into mount() */;
-const url = `${ctx.apiBaseUrl}/canonical-data/households`;
+const response = await ctx.authenticatedFetch?.("/households");
 ```
 
-This ensures the app works correctly across dev, staging, and production environments. The shell injects the correct base URL for the current environment.
+This ensures the shell attaches the current user session and app installation boundary. If a low-level helper needs an absolute URL, source the base URL from `ctx.apiBaseUrl`; do not hardcode `https://api.plannerxchange.ai` or an AWS execute-api URL.
 
 For local development without the shell, `dev-context.ts` provides a mock context with a default API URL that can be overridden via `VITE_PX_API_BASE` env var.
 
@@ -74,6 +74,8 @@ The student rule is simple:
 - do not put `appInstallationId` in query strings, route params, or manually assembled URLs
 - do not read, store, or forward `idToken` or bearer tokens for PlannerXchange API calls
 - do not call shell-only routes such as `/imports/*`, `/integrations/*`, `/admin/*`, `/workspace/*`, `/builder/*`, or `/shell/route-capability`
+- do not call app-owned backend routes such as `/api/questions`, `/api/results`, `/questions`, or `/results`; shell-published apps are static frontend plugins and should use bundled mock data or documented PlannerXchange APIs
+- do not call external AI/search providers such as Tavily, OpenAI, Anthropic, or Gemini with PX/client data, and do not ship browser-exposed provider API keys
 
 CSV and import boundary:
 
@@ -239,7 +241,7 @@ Important:
 
 - `app_data.write` is not a canonical write scope — it covers builder-owned work product only
 - `client.sensitive.read` is high-risk and requires stronger review and governance
-- Requesting client-data scopes does not permit external AI-provider or third-party egress of PX client data
+- Requesting client-data scopes does not permit external AI/search-provider or third-party egress of PX client data; `egressDeclarations` document the request but do not approve it
 - Partner OAuth integrations are shell-owned PlannerXchange workflows. Apps do not receive partner OAuth tokens and should consume provider-sourced data only after PlannerXchange maps it into approved canonical or integration-exposed APIs.
 - Provider-derived household, account, position, transaction, and cost-basis records are builder-facing only after PlannerXchange reconciliation. Apps must not call `/integrations/*`, inspect provider import jobs, or use unreconciled staging/diagnostic payloads as app data.
 - Top-level portfolio reads default to the latest available position/cost-basis `asOfDate` or newest transaction activity, use `limit=10` by default with max `100`, and may use S3-backed opaque cursors. Apps must not request direct S3 access or parse cursor contents.

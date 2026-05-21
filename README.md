@@ -62,6 +62,7 @@ Important:
 - `plannerxchange_portable` is an architecture declaration, not a statement about what the current builder account is allowed to enable in the shell
 - `plannerxchange_portable` does not mean every PlannerXchange-hosted record becomes canonical or cross-app portable by default
 - shell-published self-serve apps are default-deny for builder-owned subscriber-data backends and third-party API egress of PX/client data
+- external AI/search/provider calls such as Tavily, OpenAI, Anthropic, Gemini, analytics, support, or vendor APIs are not non-enterprise self-serve exceptions; `egressDeclarations` document the request but do not approve PX/client data leaving the shell
 - CSV/file imports must be declared; canonical imports must use PlannerXchange-owned Core Data import handling, not app-owned import routes or parent-matching logic
 - platform review and product entitlements are handled inside PlannerXchange, not in this repo
 
@@ -318,6 +319,9 @@ when needed.
 - If `px review watch` exits `2`, fix only the current required fix group for the selected goal in the markdown export, rebuild, commit, push, and watch again.
 - Do not hand-edit generated publish or build-provenance files under `distRoot`; let the build regenerate them.
 - Use `ShellRuntimeContext.authenticatedFetch` for protected PlannerXchange API calls. Do not manually attach bearer tokens or pass `appInstallationId` in query strings.
+- Do not call app-owned backend routes such as `/api/questions`, `/api/results`, `/questions`, or `/results` from shell-published code. Published apps are static frontend plugins; use bundled mock data for preview or documented PX APIs through `authenticatedFetch`.
+- Do not add `VITE_API_URL`, `VITE_BACKEND_URL`, `NEXT_PUBLIC_API_URL`, or similar frontend env vars for shell-published runtime behavior.
+- Do not add frontend provider keys such as `VITE_TAVILY_API_KEY`, `VITE_OPENAI_API_KEY`, `NEXT_PUBLIC_*_API_KEY`, or direct Tavily/OpenAI/Anthropic/Gemini calls for PX/client data. That path needs an accepted enterprise exception before publication.
 - Declare the correct `dataPortabilityMode` before linking the repo.
 - Do not add app-owned login flows.
 - Route app-owned record reads and writes through the PX gateway pattern (`src/lib/px-gateway.ts`). Do not use `localStorage` as a production persistence layer.

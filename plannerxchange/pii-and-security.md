@@ -77,7 +77,8 @@ Apps that receive `restricted_pii` through PlannerXchange APIs must follow these
 - **Do not call shell-only import routes** - `/imports/*`, mapping, validation, execute, rollback, and import-job routes are PlannerXchange-owned
 - **Do not persist decrypted PII in browser storage** — no `localStorage`, `IndexedDB`, `sessionStorage`, or client-side databases
 - **Do not send PII to analytics, logging, or error-reporting services**
-- **Do not send PII to external AI providers or third-party APIs** — Day 1 external AI-provider or third-party egress of PX client data is not allowed
+- **Do not send PII to external AI/search providers or third-party APIs** — Day 1 external provider egress of PX client data is not allowed. This includes Tavily, OpenAI, Anthropic, Gemini, analytics, support, and vendor APIs unless PlannerXchange accepts an enterprise exception.
+- **Do not ship frontend provider keys** — browser-exposed keys such as `VITE_TAVILY_API_KEY`, `VITE_OPENAI_API_KEY`, or `NEXT_PUBLIC_*_API_KEY` are publish-review blockers
 - **Do not mirror PII into an app-owned shadow schema** — use PlannerXchange canonical data APIs as the source of truth
 - **Do not request sensitive scopes you do not need** — request `canonical.client.summary.read` instead of `canonical.client.sensitive.read` when display names and status are sufficient
 - **Do not log PII in console output, error messages, or diagnostic payloads**

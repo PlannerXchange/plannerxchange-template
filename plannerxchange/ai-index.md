@@ -80,7 +80,7 @@ Do not add these unsupported fields:
 | Private-label ready | Eligibility outcome for branding/legal behavior | Request `branding.read` or `legal.read` only when the UI consumes those contexts |
 | App-data write | App stores builder-owned work product through PX | Add `app_data.write` and use the app-data contract |
 | CSV/file ingress | App parses or uploads files | Add `dataIngressDeclarations`; use an approved target lane |
-| External egress | App references non-PX hosts | Add `egressDeclarations`; high-risk client-data egress may still be blocked |
+| External egress | App references non-PX hosts | Add `egressDeclarations`; high-risk client-data egress remains blocked unless PlannerXchange accepts an enterprise exception |
 
 ## Permission Lookup
 
@@ -127,6 +127,10 @@ Request only the scopes the app actually uses.
 - Use `ctx.appBasename`, `ctx.initialPath`, and `ctx.navigate` for app routing.
 - Use `isShellHosted(ctx)` to distinguish real shell runtime from local mock mode.
 - Do not use build-time env vars such as `VITE_PX_MODE` to choose live behavior in the published artifact.
+- Do not call app-owned backend routes such as `/api/questions`, `/api/results`, `/questions`, or `/results`; shell-published apps are static frontend plugins.
+- Do not use `VITE_API_URL`, `VITE_BACKEND_URL`, `NEXT_PUBLIC_API_URL`, or similar frontend env vars for shell-published runtime behavior.
+- Do not use browser-exposed provider keys such as `VITE_TAVILY_API_KEY`, `VITE_OPENAI_API_KEY`, or `NEXT_PUBLIC_*_API_KEY`, and do not call Tavily/OpenAI/Anthropic/Gemini directly with PX/client data.
+- Treat `egressDeclarations` as review evidence, not approval. There is no non-enterprise Day 1 self-serve exception for external PX/client data egress.
 - Do not manually attach bearer tokens.
 - Do not pass `appInstallationId` in query strings.
 

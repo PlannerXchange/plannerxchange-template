@@ -69,7 +69,7 @@ Review guidance:
 - apps that save builder-owned work product inside PX should use the governed PX app-data contract rather than trying to mutate immutable PX reference facts
 - apps that parse CSV/files must declare `dataIngressDeclarations`; canonical imports must use PlannerXchange-owned Core Data import handling rather than app-owned `/imports/*` calls
 - apps that touch client data, PII, or external egress paths should expect stricter review
-- Day 1 external AI-provider or third-party egress of PX client data is not allowed
+- Day 1 external AI/search-provider or third-party egress of PX client data is not allowed; this includes Tavily, OpenAI, Anthropic, Gemini, analytics, support, and vendor APIs unless PlannerXchange accepts an enterprise exception
 - new direct dependencies are checked for package reputation, typosquat risk, and non-registry sources before approval
 - direct KMS clients, decrypt commands, or app-side restricted-PII decrypt helpers are blockers
 - apps that pass the full PlannerXchange governance and client-data safety review may earn a `PX Approved` trust badge
@@ -136,7 +136,7 @@ Minimum requirements for the elevated portability review:
 - no direct KMS or decrypt access
 - no builder-owned MCP connector into PlannerXchange-hosted canonical data
 - no persistence of decrypted hosted client PII in browser localStorage, IndexedDB, analytics, or client-side logs
-- Day 1 external AI-provider or third-party egress of PX client data is **not allowed**
+- Day 1 external AI/search-provider or third-party egress of PX client data is **not allowed**; `egressDeclarations` document a request but do not approve it
 
 ## Publication risk classes
 
@@ -233,7 +233,8 @@ The following issues are common causes of publication rejection. Check for them 
 18. **Unsafe shell navigation control** - app code uses `window.top`, `window.parent.location`, or hardcoded `/apps/<appSlug>` prefixes instead of app-relative routes plus `ShellRuntimeContext.navigate`.
 
 19. **Builder-owned backend for PX/client data** - app code or dependencies include builder-owned database clients, ORM clients, service-role keys, database URL env vars, or similar app-managed subscriber-data storage.
-20. **Undeclared or unsafe CSV/file ingress** - file inputs, `FileReader`, `FormData`, Papa Parse, csv/xlsx packages, drag/drop uploads, external upload hosts, or direct `/imports/*` calls without the approved PlannerXchange ingress lane.
+20. **Frontend external provider key** - app code references browser-exposed keys such as `VITE_TAVILY_API_KEY`, `VITE_OPENAI_API_KEY`, or `NEXT_PUBLIC_*_API_KEY`. Shell-published apps run in users' browsers, so provider keys cannot be shipped.
+21. **Undeclared or unsafe CSV/file ingress** - file inputs, `FileReader`, `FormData`, Papa Parse, csv/xlsx packages, drag/drop uploads, external upload hosts, or direct `/imports/*` calls without the approved PlannerXchange ingress lane.
 
 ## PX Approved badge direction
 
@@ -294,4 +295,4 @@ Shell-owned provider review rule:
 - Apps must read provider-sourced investment data only through approved PlannerXchange canonical account, position, transaction, cost-basis, or integration-exposed routes after PlannerXchange mapping.
 - Apps must treat provider import jobs, refresh diagnostics, staging payloads, OAuth state, provider object IDs, and tax-lot identifiers as shell-internal governance data, not app data.
 - Account UI may show both specific account type and tax treatment. Use `accountType` for product/registration display and generic `taxTreatment` labels (`Taxable`, `Tax-advantaged pre-tax`, `Tax-advantaged post-tax`, `Tax-advantaged pre-and-post`, `Unknown`) for tax classification.
-- Apps must not call providers directly, ask for partner API keys/OAuth tokens, call `/integrations/*`, build app-owned partner sync/matching flows, cache CRM/investment content in browser storage, or send CRM/client/account/investment content to external AI providers or third-party APIs in Day 1 publication.
+- Apps must not call providers directly, ask for partner API keys/OAuth tokens, call `/integrations/*`, build app-owned partner sync/matching flows, cache CRM/investment content in browser storage, or send CRM/client/account/investment content to Tavily, OpenAI, Anthropic, Gemini, external AI/search providers, or third-party APIs in Day 1 publication.
