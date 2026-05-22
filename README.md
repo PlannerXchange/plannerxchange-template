@@ -103,6 +103,8 @@ That file maps the manifest's source `entryPoint` such as `src/plugin.tsx` to th
 any emitted CSS assets that PlannerXchange should host and launch.
 The build-provenance file records the source-input digest, lockfile digests, build command,
 package manager, and committed artifact digest evidence PlannerXchange verifies before hosting.
+Published artifacts are not served from the shell domain root. Keep Vite `base: "./"` and import static
+assets from source modules so the build emits app-relative asset URLs instead of `/assets/...` paths.
 
 The default app folder is the repository root:
 
@@ -314,6 +316,7 @@ when needed.
 - Keep `entryPoint` source-oriented and relative to `appRoot`, such as `src/plugin.tsx`; do not replace it with a hashed build file.
 - Run `npm run build` before publish and commit the generated `distRoot` output, including the publish manifest and build-provenance file.
 - Run `npm run preflight` after building to catch common rejection issues before submitting.
+- Keep Vite `base: "./"` and do not hardcode root-relative build asset paths such as `/assets/logo.png` or `/logo.png`; import images, fonts, and other static files so the build points at hosted app-version assets.
 - Do not enable GitHub code scanning just to publish on PlannerXchange. PlannerXchange runs the required CodeQL lane after repo linking.
 - Use `px review watch --env dev --goal <selected-goal> --commit HEAD --format markdown` after pushing to fetch review feedback directly from PlannerXchange instead of relying on manual copy/paste from the shell.
 - If `px review watch` exits `2`, fix only the current required fix group for the selected goal in the markdown export, rebuild, commit, push, and watch again.

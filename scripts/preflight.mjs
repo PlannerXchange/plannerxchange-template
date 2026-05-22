@@ -41,11 +41,19 @@ let warnings = 0;
 // ---- Helpers ---------------------------------------------------------------
 
 function resolveGlob(patterns) {
+  const resolvedPatterns = patterns.map((pattern) => resolveChecklistPath(pattern));
+  const boundary = getAppBoundary();
+  const includesDistRoot = resolvedPatterns.some(
+    (pattern) => pattern === boundary.distRoot || pattern.startsWith(`${boundary.distRoot}/`)
+  );
+
   if (!glob) {
-    return walkDir(ROOT).filter((fp) => matchesAnyPattern(toRelativePath(fp), patterns));
+    return walkDir(ROOT, { includeDist: includesDistRoot }).filter((fp) =>
+      matchesAnyPattern(toRelativePath(fp), resolvedPatterns)
+    );
   }
   const files = new Set();
-  for (const p of patterns) {
+  for (const p of resolvedPatterns) {
     for (const f of glob(p, { cwd: ROOT, nodir: true })) {
       files.add(join(ROOT, f));
     }
@@ -55,15 +63,17 @@ function resolveGlob(patterns) {
 
 // ---- Helpers ---------------------------------------------------------------
 
-function walkDir(dir) {
+function walkDir(dir, options = {}) {
   const results = [];
   if (!existsSync(dir)) return results;
   for (const entry of readdirSync(dir)) {
-    if ([".git", "node_modules", "dist"].includes(entry)) continue;
+    if ([".git", "node_modules"].includes(entry) || (entry === "dist" && !options.includeDist)) {
+      continue;
+    }
     const full = join(dir, entry);
     const st = statSync(full);
     if (st.isDirectory()) {
-      results.push(...walkDir(full));
+      results.push(...walkDir(full, options));
     } else {
       results.push(full);
     }
@@ -231,16 +241,23 @@ function report(check, pass, detail) {
 
 function runGrepCheck(check) {
   const include = check.include ?? ["src/**/*.{ts,tsx,js,jsx}"];
-  const exclude = check.exclude ?? [];
+  const resolvedInclude = include.map((pattern) => resolveChecklistPath(pattern));
+  const exclude = (check.exclude ?? []).map((pattern) => resolveChecklistPath(pattern));
+  const boundary = getAppBoundary();
+  const includesDistRoot = resolvedInclude.some(
+    (pattern) => pattern === boundary.distRoot || pattern.startsWith(`${boundary.distRoot}/`)
+  );
 
   let files;
   try {
     files = resolveGlob(include);
   } catch {
-    files = walkDir(ROOT).filter((fp) => matchesAnyPattern(toRelativePath(fp), include));
+    files = walkDir(ROOT, { includeDist: includesDistRoot }).filter((fp) =>
+      matchesAnyPattern(toRelativePath(fp), resolvedInclude)
+    );
   }
   files = files
-    .filter((f) => matchesExtension(f, include))
+    .filter((f) => matchesExtension(f, resolvedInclude))
     .filter((f) => !matchesAnyPattern(toRelativePath(f), exclude));
 
   const re = new RegExp(check.pattern, "gi");

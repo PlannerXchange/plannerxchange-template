@@ -114,6 +114,16 @@
       "type": "build-provenance-boundary"
     },
     {
+      "id": "no-root-relative-build-assets",
+      "severity": "error",
+      "title": "Build assets use app-relative URLs",
+      "description": "Committed build output must not reference root-relative image/font assets such as /assets/logo.png, /logo.png, /images/..., /favicon.ico, or localhost asset URLs. Keep Vite base set to \"./\", import assets from source modules, rebuild, and commit the generated distRoot.",
+      "type": "grep",
+      "pattern": "[\"'`](?:/(?:assets|images|img|media|static|fonts)/[^\"'`\\s)]+|/(?!/)[^\"'`\\s)]*\\.(?:png|jpe?g|gif|svg|webp|avif|ico|woff2?|ttf|otf|eot)(?:[?#][^\"'`\\s)]*)?)[\"'`]|\\burl\\(\\s*[\"']?/(?!/)[^\"')\\s]+\\.(?:png|jpe?g|gif|svg|webp|avif|ico|woff2?|ttf|otf|eot)(?:[?#][^\"')\\s]*)?[\"']?\\s*\\)|https?://(?:localhost|127\\.0\\.0\\.1|\\[?::1\\]?)(?::\\d+)?/(?!/)[^\"'`\\s)]*\\.(?:png|jpe?g|gif|svg|webp|avif|ico|woff2?|ttf|otf|eot)(?:[?#][^\"'`\\s)]*)?",
+      "include": ["$distRoot/**/*.{js,css,html}"],
+      "exclude": ["node_modules/**"]
+    },
+    {
       "id": "no-localstorage-prod",
       "severity": "warning",
       "title": "Browser storage usage flagged",

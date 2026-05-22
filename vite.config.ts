@@ -387,6 +387,10 @@ function plannerXchangePublishManifestPlugin(): Plugin {
 
 export default defineConfig({
   plugins: [react(), plannerXchangePublishManifestPlugin()],
+  // Published PlannerXchange artifacts are hosted under an app-version CDN path,
+  // not the shell domain root. Relative asset URLs keep images/fonts working
+  // in both local preview and the isolated shell runner.
+  base: "./",
   // Note: Vite defaults to port 5173. Do not change this — PlannerXchange's dev
   // environment allows CORS and Cognito auth callbacks from localhost:5173.
   build: {

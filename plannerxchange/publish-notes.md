@@ -23,6 +23,7 @@ Important:
 - simple repos use `appRoot: "."` and `distRoot: "dist"`; larger repos may declare a nested app folder and build output folder
 - the build must emit `<distRoot>/plannerxchange.publish.json` so PlannerXchange can resolve that source path to the hosted JS module and emitted CSS assets
 - the build must emit `<distRoot>/plannerxchange.build-provenance.json` so PlannerXchange can verify the source-input digest, lockfile digests, build command, and artifact digest before upload
+- published artifacts must use app-relative asset URLs; keep Vite `base: "./"` and do not ship root-relative `/assets/...`, `/logo.png`, `/images/...`, `/favicon.ico`, or localhost asset references in committed build output
 - PlannerXchange runs required CodeQL review for the exact linked commit after repo linking
 
 Manifest schema guardrail:
@@ -226,15 +227,16 @@ The following issues are common causes of publication rejection. Check for them 
 11. **Missing mount export in built artifact** — the compiled plugin JS chunk must export a named `mount` function (or `pluginModule` object). If the build minifier renames `mount` to something like `m`, the shell cannot load the app. Use the starter template's terser config with `reserved: ["mount", "pluginModule", "manifest"]` and do not switch to esbuild minification.
 12. **Missing publish manifest** — the build must emit `<distRoot>/plannerxchange.publish.json` so PlannerXchange can resolve the source `entryPoint` to the hosted JS module. Run `npm run build` and commit the `distRoot` directory.
 13. **Missing or stale build provenance** — the build must emit `<distRoot>/plannerxchange.build-provenance.json` so PlannerXchange can verify source inputs, lockfiles, build command, and committed artifact digests before upload. Run `npm run build` after source or build-output changes and commit the regenerated `distRoot` directory.
-14. **Suspicious new dependency** — new direct dependencies are checked for package-name spoofing, limited npm registry reputation, and non-registry sources. Prefer established npm packages with clear repository, maintainer, license, and release history.
-15. **PlannerXchange CodeQL blocking issue** — PlannerXchange runs CodeQL for the exact linked branch commit. Fix high-risk source findings and push a new commit. If feedback says PX CodeQL is still running, no builder action is needed; if it says PX CodeQL infrastructure failed, retry or contact support rather than changing GitHub repo settings.
-16. **Manual PlannerXchange auth or installation context** — app code manually attaches bearer tokens, stores tokens, or passes `appInstallationId` in query strings instead of using `ShellRuntimeContext.authenticatedFetch`.
-17. **Direct KMS or decrypt access** — app code or dependencies include direct KMS clients, decrypt commands, or restricted-PII decrypt helpers. PlannerXchange decrypts protected data only inside governed backend APIs.
-18. **Unsafe shell navigation control** - app code uses `window.top`, `window.parent.location`, or hardcoded `/apps/<appSlug>` prefixes instead of app-relative routes plus `ShellRuntimeContext.navigate`.
+14. **Root-relative static asset URLs** - committed build output references `/assets/logo.png`, `/logo.png`, `/images/...`, `/favicon.ico`, or localhost asset URLs. Keep Vite `base: "./"`, import assets from source modules, rebuild, and commit the regenerated `distRoot`.
+15. **Suspicious new dependency** — new direct dependencies are checked for package-name spoofing, limited npm registry reputation, and non-registry sources. Prefer established npm packages with clear repository, maintainer, license, and release history.
+16. **PlannerXchange CodeQL blocking issue** — PlannerXchange runs CodeQL for the exact linked branch commit. Fix high-risk source findings and push a new commit. If feedback says PX CodeQL is still running, no builder action is needed; if it says PX CodeQL infrastructure failed, retry or contact support rather than changing GitHub repo settings.
+17. **Manual PlannerXchange auth or installation context** — app code manually attaches bearer tokens, stores tokens, or passes `appInstallationId` in query strings instead of using `ShellRuntimeContext.authenticatedFetch`.
+18. **Direct KMS or decrypt access** — app code or dependencies include direct KMS clients, decrypt commands, or restricted-PII decrypt helpers. PlannerXchange decrypts protected data only inside governed backend APIs.
+19. **Unsafe shell navigation control** - app code uses `window.top`, `window.parent.location`, or hardcoded `/apps/<appSlug>` prefixes instead of app-relative routes plus `ShellRuntimeContext.navigate`.
 
-19. **Builder-owned backend for PX/client data** - app code or dependencies include builder-owned database clients, ORM clients, service-role keys, database URL env vars, or similar app-managed subscriber-data storage.
-20. **Frontend external provider key** - app code references browser-exposed keys such as `VITE_TAVILY_API_KEY`, `VITE_OPENAI_API_KEY`, or `NEXT_PUBLIC_*_API_KEY`. Shell-published apps run in users' browsers, so provider keys cannot be shipped.
-21. **Undeclared or unsafe CSV/file ingress** - file inputs, `FileReader`, `FormData`, Papa Parse, csv/xlsx packages, drag/drop uploads, external upload hosts, or direct `/imports/*` calls without the approved PlannerXchange ingress lane.
+20. **Builder-owned backend for PX/client data** - app code or dependencies include builder-owned database clients, ORM clients, service-role keys, database URL env vars, or similar app-managed subscriber-data storage.
+21. **Frontend external provider key** - app code references browser-exposed keys such as `VITE_TAVILY_API_KEY`, `VITE_OPENAI_API_KEY`, or `NEXT_PUBLIC_*_API_KEY`. Shell-published apps run in users' browsers, so provider keys cannot be shipped.
+22. **Undeclared or unsafe CSV/file ingress** - file inputs, `FileReader`, `FormData`, Papa Parse, csv/xlsx packages, drag/drop uploads, external upload hosts, or direct `/imports/*` calls without the approved PlannerXchange ingress lane.
 
 ## PX Approved badge direction
 
