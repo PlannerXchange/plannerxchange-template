@@ -67,7 +67,8 @@ Review guidance:
 - apps built to PX canonical data contracts get stricter checks for PX data access patterns
 - nonportable apps do not get a self-serve right to store PX/client/subscriber data in builder-owned backends; app-managed storage for real PX data requires demo-only isolation or enterprise exception review
 - app-owned identity UX such as custom invite redemption, email verification, or password-setup flows will be treated as governance findings because PlannerXchange owns auth and onboarding
-- apps that save builder-owned work product inside PX should use the governed PX app-data contract rather than trying to mutate immutable PX reference facts
+- apps that save builder-owned work product inside PX should use the governed PX app-data contract
+- apps that mutate shared PX shell data should use governed canonical write APIs with matching `canonical.*.write` scopes, approved fields, explicit user action, optimistic concurrency, and shared-record UI copy
 - apps that parse CSV/files must declare `dataIngressDeclarations`; canonical imports must use PlannerXchange-owned Core Data import handling rather than app-owned `/imports/*` calls
 - apps that touch client data, PII, or external egress paths should expect stricter review
 - Day 1 external AI/search-provider or third-party egress of PX client data is not allowed; this includes Tavily, OpenAI, Anthropic, Gemini, analytics, support, and vendor APIs unless PlannerXchange accepts an enterprise exception
@@ -195,7 +196,7 @@ Checks (everything in standard review, plus):
 - secret and provider-setting review
 - rejection of direct canonical-database access patterns
 - rejection of app-owned schemas pretending to be PX-portable canonical data
-- rejection of direct `/imports/*` route calls, external CSV upload hosts, missing data-ingress declarations, and app-side parent matching/auto-create logic for canonical records
+- rejection of hard-delete, purge, provider-secret management, platform-only import route calls, external CSV upload hosts, missing data-ingress declarations, and app-side parent matching/auto-create logic outside governed canonical contracts
 
 ### What triggers high-risk classification
 
@@ -203,6 +204,7 @@ An app is treated as high-risk if any of the following are true:
 
 - it reads canonical client records
 - it writes canonical client records
+- it soft-deletes canonical client, household, account, tax, or provider-linked records
 - it allows export or sync of client data outside PlannerXchange
 - it parses or uploads real client CSV/files
 - it exposes client data to external AI providers, plugins, or agents
@@ -263,14 +265,26 @@ Current builder-facing scopes (request only what the app actually needs):
 | `client.summary.read` | Client list (display name, status — no raw PII) |
 | `client.sensitive.read` | Full client PII (name, DOB, email, phone, address) |
 | `canonical.household.read` | Households |
+| `canonical.household.write` | Household create/update/soft-delete |
 | `canonical.client.summary.read` | Canonical client summary |
 | `canonical.client.sensitive.read` | Canonical client PII detail |
+| `canonical.client.write` | Client create/update/soft-delete |
 | `canonical.account.read` | Accounts with balances |
+| `canonical.account.write` | Account create/update/soft-delete |
+| `canonical.tax.summary.read` | Household tax summary |
+| `canonical.tax.detail.read` | Household tax filing detail |
+| `canonical.tax.write` | Household tax filing create/update/soft-delete |
+| `canonical.integration_link.write` | Entity integration-link create/update/soft-delete, excluding provider OAuth secrets |
 | `canonical.position.read` | Positions |
 | `canonical.transaction.read` | Transactions |
 | `canonical.cost_basis.read` | Cost basis lots |
 | `canonical.security.read` | Security master with firm overrides |
+| `canonical.security.firm_override` | Firm security overrides and allocations |
+| `canonical.asset_class.write` | Asset class reference writes |
+| `canonical.category_mapping.write` | Category mapping writes |
+| `canonical.custom_field.write` | Custom field definition writes |
 | `canonical.model.read` | Models and holdings |
+| `canonical.model.write` | Model writes where exposed |
 | `canonical.sleeve.read` | Sleeves and allocations |
 | `canonical.crm_note.read` | Synced CRM notes from PlannerXchange-owned integrations |
 | `canonical.crm_task.read` | Synced CRM tasks from PlannerXchange-owned integrations |
@@ -280,11 +294,15 @@ Current builder-facing scopes (request only what the app actually needs):
 | `legal.read` | Legal/disclosure context |
 | `app_data.read` | App-data records (read) |
 | `app_data.write` | App-data records (write) |
+| `canonical.import.read` | PX Core Data import handoff state |
+| `canonical.import.write` | PX Core Data import handoff/workflow |
 | `email.send` | Outbound transactional email |
 
 Important:
 
-- `app_data.write` does not permit mutating immutable canonical reference facts
+- `app_data.write` does not permit mutating shared canonical records
+- canonical write scopes permit create, update, and soft-delete only through documented governed route families
+- canonical `DELETE` is soft-delete only; hard-delete, purge, provider OAuth secret management, and platform repair remain outside installed-app authority
 - `client.sensitive.read` is a high-risk scope under tight governance
 - `canonical.account.read`, `canonical.position.read`, `canonical.transaction.read`, and `canonical.cost_basis.read` are high-risk when they expose provider-sourced investment or custodian data
 - `canonical.crm_note.read` and `canonical.crm_task.read` are high-risk scopes because CRM notes and task descriptions may contain restricted client data

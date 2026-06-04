@@ -93,16 +93,30 @@ Apps that receive `restricted_pii` through PlannerXchange APIs must follow these
 | `client.sensitive.read` | **restricted_pii** |
 | `canonical.client.summary.read` | internal (no raw PII) |
 | `canonical.client.sensitive.read` | **restricted_pii** |
+| `canonical.client.write` | **restricted_pii** high-risk mutation scope |
 | `canonical.account.read` | confidential; high-risk review trigger when provider-sourced account data is exposed |
+| `canonical.account.write` | confidential or **restricted_pii** depending on account identifiers; high-risk mutation scope |
 | `canonical.position.read` | confidential; high-risk review trigger when provider-sourced investment data is exposed |
 | `canonical.transaction.read` | confidential; high-risk review trigger when provider-sourced transaction data is exposed |
 | `canonical.cost_basis.read` | confidential; high-risk review trigger because tax-lot IDs may be restricted_pii |
 | `canonical.household.read` | confidential |
+| `canonical.household.write` | confidential high-risk mutation scope |
+| `canonical.tax.summary.read` | confidential |
+| `canonical.tax.detail.read` | confidential or **restricted_pii**, depending on filing contents |
+| `canonical.tax.write` | confidential or **restricted_pii** high-risk mutation scope |
+| `canonical.integration_link.write` | confidential; provider OAuth secrets remain shell-owned |
 | `canonical.security.read` | internal |
+| `canonical.security.firm_override` | confidential mutation scope |
+| `canonical.asset_class.write` | internal mutation scope |
+| `canonical.category_mapping.write` | internal mutation scope |
+| `canonical.custom_field.write` | confidential mutation scope when attached to client/account domains |
 | `canonical.model.read` | internal |
+| `canonical.model.write` | internal mutation scope |
 | `canonical.sleeve.read` | internal |
 | `canonical.crm_note.read` | confidential or **restricted_pii**, depending on note content |
 | `canonical.crm_task.read` | confidential or **restricted_pii**, depending on task content |
+| `canonical.import.read` | confidential; high-risk when import state references client/account data |
+| `canonical.import.write` | confidential or **restricted_pii** high-risk workflow scope |
 | `branding.read` | confidential |
 | `legal.read` | confidential |
 | `app_data.read` | confidential |
@@ -117,7 +131,7 @@ Requesting higher-classification scopes raises the publication review bar:
 
 - **Low review**: apps that only request `public` or `internal` scopes (e.g. simple calculators, UI-only tools)
 - **Standard governed review**: apps that request `confidential` scopes (e.g. canonical firm data, provisioning, entitlements)
-- **High-risk review**: apps that request `restricted_pii` scopes (e.g. `client.sensitive.read`, `canonical.client.sensitive.read`), request provider-sourced account/position/transaction/cost-basis or CRM note/task scopes, or create external data egress paths
+- **High-risk review**: apps that request `restricted_pii` scopes (e.g. `client.sensitive.read`, `canonical.client.sensitive.read`), request canonical mutation scopes, request provider-sourced account/position/transaction/cost-basis or CRM note/task scopes, or create external data egress paths
 - CSV/file ingress that includes client, account, transaction, CRM, cost-basis, or restricted-PII data is also high-risk and must be declared in `dataIngressDeclarations`
 
 See `publish-notes.md` § Publication risk classes for details on what each review level checks.

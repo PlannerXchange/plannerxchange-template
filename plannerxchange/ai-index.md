@@ -23,6 +23,7 @@ Then read only the file needed for the current task.
 | Add or change API access | `plannerxchange/api-reference.md`, `plannerxchange/data-contract.md` | `plannerxchange.app.json`, app API calls |
 | Save app-owned work product | `plannerxchange/app-data-api.md` | `src/lib/px-gateway.ts`, app data models |
 | Read clients, households, accounts, positions, transactions, CRM, or tax data | `plannerxchange/api-reference.md`, `plannerxchange/data-contract.md`, `plannerxchange/pii-and-security.md` | `plannerxchange.app.json`, app API calls |
+| Create, update, or soft-delete PX canonical records | `plannerxchange/api-reference.md`, `plannerxchange/data-contract.md`, `plannerxchange/pii-and-security.md` | `plannerxchange.app.json`, `src/lib/px-gateway.ts`, app API calls |
 | Add white-label branding or disclosures | `plannerxchange/branding-and-legal-api.md` | UI components, `plannerxchange.app.json` scopes |
 | Check access grants or feature entitlements | `plannerxchange/app-access.md` | runtime access checks |
 | Send workflow email | `plannerxchange/email-api.md` | `plannerxchange.app.json`, email call site |
@@ -79,6 +80,7 @@ Do not add these unsupported fields:
 | Demo mode | Optional Creator Studio mode using synthetic data | Do not edit the manifest; enable demo mode in Creator Studio when eligible |
 | Private-label ready | Eligibility outcome for branding/legal behavior | Request `branding.read` or `legal.read` only when the UI consumes those contexts |
 | App-data write | App stores builder-owned work product through PX | Add `app_data.write` and use the app-data contract |
+| Canonical write | App mutates shared PX shell data | Add the narrowest matching `canonical.*.write` scope and use governed canonical APIs |
 | CSV/file ingress | App parses or uploads files | Add `dataIngressDeclarations`; use an approved target lane |
 | External egress | App references non-PX hosts | Add `egressDeclarations`; high-risk client-data egress remains blocked unless PlannerXchange accepts an enterprise exception |
 
@@ -104,6 +106,8 @@ Canonical data reads:
 - `canonical.client.summary.read`
 - `canonical.client.sensitive.read`
 - `canonical.account.read`
+- `canonical.tax.summary.read`
+- `canonical.tax.detail.read`
 - `canonical.position.read`
 - `canonical.transaction.read`
 - `canonical.cost_basis.read`
@@ -112,6 +116,21 @@ Canonical data reads:
 - `canonical.sleeve.read`
 - `canonical.crm_note.read`
 - `canonical.crm_task.read`
+
+Canonical data writes:
+
+- `canonical.household.write`
+- `canonical.client.write`
+- `canonical.account.write`
+- `canonical.tax.write`
+- `canonical.integration_link.write`
+- `canonical.security.firm_override`
+- `canonical.asset_class.write`
+- `canonical.category_mapping.write`
+- `canonical.custom_field.write`
+- `canonical.import.write`
+
+Write scopes allow create, update, and soft-delete for the approved route family only. `DELETE` means soft-delete. Hard-delete, purge, provider OAuth secrets, and platform cleanup are not builder-facing capabilities.
 
 Email:
 
@@ -147,6 +166,8 @@ Use PlannerXchange app-data for builder-owned work product such as:
 
 For client-, household-, or account-linked app-data records, include a top-level `clientUserId`, `householdId`, `accountId`, or `sourceRefs`. A `clientId` hidden inside `payload` is not enough for governance, filtering, export, lifecycle, or support.
 
+Use governed canonical write APIs only when the app needs to mutate shared PX shell data such as households, clients, accounts, tax filings, integration links, or approved reference/admin records. These mutations affect the firm-wide canonical record other apps may read later.
+
 Do not add builder-owned database clients, ORM clients, service-role keys, database URL env vars, or direct integration-provider API clients for PlannerXchange client/subscriber data.
 
 ## CSV And File Ingress
@@ -155,8 +176,8 @@ If the app accepts CSVs, spreadsheets, drag/drop files, browser `FileReader`, `F
 
 1. Add `dataIngressDeclarations`.
 2. Choose an approved target lane.
-3. Do not call `/imports/*` or `/integrations/*` directly.
-4. Do not auto-create canonical households, clients, accounts, positions, transactions, cost basis, restricted PII, or import jobs from app-managed CSV logic.
+3. Do not call provider OAuth `/integrations/*`, hard-delete/cleanup routes, or platform-only import routes directly.
+4. Do not auto-create canonical households, clients, accounts, positions, transactions, cost basis, restricted PII, or import jobs from app-managed CSV logic outside the governed PX import handoff and canonical write contracts.
 
 Approved target lanes:
 

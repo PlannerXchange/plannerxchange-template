@@ -1,4 +1,4 @@
-# Data Contract Notes
+﻿# Data Contract Notes
 
 Use these rules while building:
 
@@ -69,8 +69,8 @@ CSV and file ingress:
 - declare CSV/file/API ingress with `dataIngressDeclarations` in `plannerxchange.app.json`
 - app-owned CSV outputs may become PX app-data records when they are builder-owned work product
 - canonical imports, including position, transaction, and cost-basis CSV imports, must use PlannerXchange-owned Core Data import handling
-- do not call `/imports/*`, `/integrations/*`, mapping, validation, execute, rollback, or undocumented canonical write/import routes directly from app code
-- do not auto-create canonical households, clients, accounts, account-owner links, positions, transactions, cost basis, restricted PII, or import jobs from app-managed CSV logic
+- do not call provider OAuth `/integrations/*`, hard-delete/cleanup routes, platform-only import routes, or undocumented canonical write/import routes directly from app code
+- do not auto-create canonical households, clients, accounts, account-owner links, positions, transactions, cost basis, restricted PII, or import jobs from app-managed CSV logic outside the governed PX import handoff and canonical write contracts
 - every canonical transaction import row must resolve to a canonical account, and every account must resolve to a household, through PX-owned matching and review
 - ambiguous or unmatched parent records stay staged for PX review, correction, skip, or accepted stub creation; app code should not write orphan canonical records
 - if an app supports its own CSV workflow, keep the result in app-data as derived work product or hand canonical Core Data import back to PlannerXchange; do not persist raw PX client, account, custodian, transaction, or tax-lot data in browser storage or app-local storage
@@ -95,7 +95,7 @@ Provenance-aware UI guidance:
 Outbound email guidance:
 
 - if the app needs to send transactional email (questionnaire links, workflow confirmations, report delivery), declare `email.send` in the manifest `permissions` array
-- call `POST /app-email/send` through the PlannerXchange API â€” the app never holds sending credentials
+- call `POST /app-email/send` through the PlannerXchange API Ã¢â‚¬â€ the app never holds sending credentials
 - PlannerXchange resolves the sending identity: firm-verified address if configured, otherwise `noreply@plannerxchange.ai`
 - do not use the outbound email API for identity invitations, verification links, password setup, password reset, or onboarding access links; those are PlannerXchange-owned auth flows
 - pass the recipient's email from PX canonical client data when available; require `canonical.client.sensitive.read` if the app auto-fills the email from PX canonical client detail
@@ -121,7 +121,7 @@ Brand asset standards:
 Cross-browser and persistence warning:
 
 - `localStorage` and `sessionStorage` are acceptable for mock/demo mode but must never be the production persistence layer
-- in production, the PlannerXchange shell may be accessed from different browsers, devices, or by different firm members — browser-local state is invisible to other sessions
+- in production, the PlannerXchange shell may be accessed from different browsers, devices, or by different firm members â€” browser-local state is invisible to other sessions
 - any data that should survive across sessions or be visible to other firm users must be persisted through the PX app-data API (`app_data.read` / `app_data.write` scopes)
 - shareable links, saved reports, and workflow state all require server-side persistence via PX app-data
 - if the app uses `localStorage` for caching or UI preferences, clearly separate that from record persistence and do not let it become the primary data store
@@ -129,7 +129,7 @@ Cross-browser and persistence warning:
 Before adding data writes, decide:
 
 1. Is this PX canonical data or app-owned / partner-managed data?
-2. If it is PX canonical data, is it an immutable reference fact that should remain read-only, or an explicitly approved PX write contract?
+2. If it is PX canonical data, is it an imported/reference fact that should remain read-only, or an explicitly approved PX write contract?
 3. If it is app-owned or partner-managed, is this app intentionally `app_managed_nonportable`?
 4. Does this app need client-level access, account-level access, or only firm/advisor context?
 5. Does the builder want stricter sub-scoping inside the firm?
@@ -139,25 +139,25 @@ Before adding data writes, decide:
 
 ## Canonical data available out-of-the-box
 
-PlannerXchange manages canonical firm data that apps can read through governed APIs. Firms import this data through CSV uploads or manual entry in the PlannerXchange shell. Builder apps do not need to import, transform, or store this data â€” they read it from the platform.
+PlannerXchange manages canonical firm data that apps can read through governed APIs. Firms import this data through CSV uploads or manual entry in the PlannerXchange shell. Builder apps do not need to import, transform, or store this data Ã¢â‚¬â€ they read it from the platform.
 
 ### Entity hierarchy
 
 ```text
 firm
-  â†’ household
-    â†’ client (one or more per household)
-    â†’ account (belongs to one household; may have multiple client owners)
-      â†’ position (point-in-time holdings; date-specific)
-      â†’ transaction (activity records; date-specific)
-      â†’ cost_basis (tax-lot records; date-specific)
-  â†’ model (target allocation template)
-    â†’ model_holding (security + weight)
-  â†’ sleeve (composite of models)
-    â†’ sleeve_allocation (model + weight)
+  Ã¢â€ â€™ household
+    Ã¢â€ â€™ client (one or more per household)
+    Ã¢â€ â€™ account (belongs to one household; may have multiple client owners)
+      Ã¢â€ â€™ position (point-in-time holdings; date-specific)
+      Ã¢â€ â€™ transaction (activity records; date-specific)
+      Ã¢â€ â€™ cost_basis (tax-lot records; date-specific)
+  Ã¢â€ â€™ model (target allocation template)
+    Ã¢â€ â€™ model_holding (security + weight)
+  Ã¢â€ â€™ sleeve (composite of models)
+    Ã¢â€ â€™ sleeve_allocation (model + weight)
 
 platform (global, shared across all firms)
-  â†’ security (security master; firms can overlay with overrides)
+  Ã¢â€ â€™ security (security master; firms can overlay with overrides)
 ```
 
 ### Household tax data direction
@@ -258,19 +258,31 @@ Declare these in the manifest `permissions` array. Only request what the app act
 | Scope | Grants access to |
 |-------|-----------------|
 | `canonical.household.read` | Household list and detail |
-| `canonical.client.summary.read` | Client list with display name, status, flags â€” no raw PII |
+| `canonical.household.write` | Household create, update, and soft-delete |
+| `canonical.client.summary.read` | Client list with display name, status, flags Ã¢â‚¬â€ no raw PII |
 | `canonical.client.sensitive.read` | Full client detail including name, DOB, email, phone, and address |
+| `canonical.client.write` | Client create, update, and soft-delete |
 | `canonical.account.read` | Account list, detail, and balance |
+| `canonical.account.write` | Account create, update, and soft-delete with protected account identifiers |
 | `canonical.position.read` | Firm-wide and account-scoped positions |
 | `canonical.transaction.read` | Firm-wide and account-scoped transactions |
 | `canonical.cost_basis.read` | Firm-wide and account-scoped cost basis lots |
 | `canonical.security.read` | Platform security master with firm overrides merged |
+| `canonical.security.firm_override` | Firm security overrides and security allocations |
+| `canonical.asset_class.write` | Asset class reference data create, update, and soft-delete |
+| `canonical.category_mapping.write` | Category mapping updates |
+| `canonical.custom_field.write` | Custom field definition create, update, and soft-delete |
 | `canonical.model.read` | Models and their holdings |
+| `canonical.model.write` | Model mutation route families when exposed |
 | `canonical.sleeve.read` | Sleeves and sleeve allocations |
 | `canonical.crm_note.read` | Synced CRM notes normalized by PlannerXchange |
 | `canonical.crm_task.read` | Synced CRM tasks normalized by PlannerXchange |
 | `canonical.tax.summary.read` | Household tax status and tax-summary fields on households |
 | `canonical.tax.detail.read` | Household tax-filing records by year and filing unit |
+| `canonical.tax.write` | Household tax-filing create, update, and soft-delete |
+| `canonical.integration_link.write` | Entity integration-link create, update, and soft-delete, excluding provider OAuth secrets |
+| `canonical.import.read` | PlannerXchange-owned Core Data import handoff/job state |
+| `canonical.import.write` | PlannerXchange-owned Core Data import handoff/workflow routes, not direct database writes |
 
 ### Installed-app request transport
 
@@ -288,9 +300,9 @@ Publish-review rule:
 
 Shell-only boundary:
 
-- CSV import, custom-field admin, category mappings, security-allocation editing, and auto-classify are shell-owned workflows
+- hard-delete, purge, retention cleanup, destructive repair, and auto-classify are shell-owned workflows
 - partner connection, OAuth, credential entry, sync/import jobs, and match-review workflows under `/integrations/*` are shell-owned workflows
-- student apps should only target the documented canonical read routes below unless PlannerXchange later publishes a new builder-facing contract
+- student apps should target documented canonical read and governed write routes only; direct persistence access is never part of the builder contract
 - synced CRM routes return only matched PlannerXchange-normalized records; unmatched CRM staging records, match candidates, and partner-import job progress are not builder-facing app data
 
 ### API routes
@@ -305,14 +317,26 @@ Current live platform route registration is root-scoped for canonical reads. If 
 |-------------------|--------------------|-------|--------|-------------|
 | `GET /canonical/households` | `GET /households` | `canonical.household.read` | live | List households |
 | `GET /canonical/households/{householdId}` | `GET /households/{householdId}` | `canonical.household.read` | live | Household detail |
-| `GET /canonical/households/{householdId}/tax-filings` | `GET /households/{householdId}/tax-filings` | `canonical.tax.detail.read` | shell-only today | Household tax filings by year and filing unit |
-| `GET /canonical/households/{householdId}/tax-filings/{taxFilingId}` | `GET /households/{householdId}/tax-filings/{taxFilingId}` | `canonical.tax.detail.read` | shell-only today | Single household tax filing detail |
+| `POST /canonical/households` | `POST /households` | `canonical.household.write` | live | Create household |
+| `PATCH /canonical/households/{householdId}` | `PATCH /households/{householdId}` | `canonical.household.write` | live | Update household; requires `If-Match` |
+| `DELETE /canonical/households/{householdId}` | `DELETE /households/{householdId}` | `canonical.household.write` | live | Soft-delete household; requires `If-Match` |
+| `GET /canonical/households/{householdId}/tax-filings` | `GET /households/{householdId}/tax-filings` | `canonical.tax.detail.read` | live | Household tax filings by year and filing unit |
+| `GET /canonical/households/{householdId}/tax-filings/{taxFilingId}` | `GET /households/{householdId}/tax-filings/{taxFilingId}` | `canonical.tax.detail.read` | live | Single household tax filing detail |
+| `POST /canonical/households/{householdId}/tax-filings` | `POST /households/{householdId}/tax-filings` | `canonical.tax.write` | live | Create household tax filing |
+| `PATCH /canonical/households/{householdId}/tax-filings/{taxFilingId}` | `PATCH /households/{householdId}/tax-filings/{taxFilingId}` | `canonical.tax.write` | live | Update household tax filing; requires `If-Match` |
+| `DELETE /canonical/households/{householdId}/tax-filings/{taxFilingId}` | `DELETE /households/{householdId}/tax-filings/{taxFilingId}` | `canonical.tax.write` | live | Soft-delete household tax filing; requires `If-Match` |
 | `GET /canonical/clients` | `GET /clients` | `canonical.client.summary.read` | live | List clients (summary) |
 | `GET /canonical/households/{householdId}/clients` | `GET /households/{householdId}/clients` | `canonical.client.summary.read` | live | Clients in a household |
 | `GET /canonical/households/{householdId}/clients/{clientId}` | `GET /households/{householdId}/clients/{clientId}` | `canonical.client.sensitive.read` | live | Full client detail |
+| `POST /canonical/households/{householdId}/clients` | `POST /households/{householdId}/clients` | `canonical.client.write` | live | Create client |
+| `PATCH /canonical/households/{householdId}/clients/{clientId}` | `PATCH /households/{householdId}/clients/{clientId}` | `canonical.client.write` | live | Update client; requires `If-Match` |
+| `DELETE /canonical/households/{householdId}/clients/{clientId}` | `DELETE /households/{householdId}/clients/{clientId}` | `canonical.client.write` | live | Soft-delete client; requires `If-Match` |
 | `GET /canonical/accounts` | `GET /accounts` | `canonical.account.read` | live | List accounts |
 | `GET /canonical/households/{householdId}/accounts` | `GET /households/{householdId}/accounts` | `canonical.account.read` | live | Accounts in a household |
 | `GET /canonical/accounts/{accountId}` | `GET /accounts/{accountId}` | `canonical.account.read` | live | Account detail |
+| `POST /canonical/households/{householdId}/accounts` | `POST /households/{householdId}/accounts` | `canonical.account.write` | live | Create account |
+| `PATCH /canonical/households/{householdId}/accounts/{accountId}` | `PATCH /households/{householdId}/accounts/{accountId}` | `canonical.account.write` | live | Update account; requires `If-Match` |
+| `DELETE /canonical/households/{householdId}/accounts/{accountId}` | `DELETE /households/{householdId}/accounts/{accountId}` | `canonical.account.write` | live | Soft-delete account and portfolio children; requires `If-Match` |
 | `GET /canonical/positions` | `GET /positions` | `canonical.position.read` | live | Firm-wide positions (default latest `asOfDate`, S3-backed cursor) |
 | `GET /canonical/transactions` | `GET /transactions` | `canonical.transaction.read` | live | Firm-wide transactions (newest activity first, S3-backed cursor) |
 | `GET /canonical/cost-basis` | `GET /cost-basis` | `canonical.cost_basis.read` | live | Firm-wide cost basis lots (default latest `asOfDate`, S3-backed cursor) |
@@ -444,7 +468,7 @@ These are the actual response payloads builder apps receive from each canonical 
 }
 ```
 
-**Client (summary view â€” `canonical.client.summary.read`):**
+**Client (summary view Ã¢â‚¬â€ `canonical.client.summary.read`):**
 
 ```json
 {
@@ -462,7 +486,7 @@ These are the actual response payloads builder apps receive from each canonical 
 
 Summary reads do not return raw PII fields.
 
-**Client (sensitive view â€” `canonical.client.sensitive.read`):**
+**Client (sensitive view Ã¢â‚¬â€ `canonical.client.sensitive.read`):**
 
 ```json
 {
@@ -660,17 +684,20 @@ const masked =
 
 ### Rules for builder apps consuming canonical data
 
-- canonical data is read-only for builder apps in v1
-- do not attempt to create, update, or delete canonical records â€” those operations belong to the PlannerXchange shell
-- if your UX needs household or client create/edit/archive behavior, do not invent undocumented builder routes; use the current shell-owned workflow or wait for an explicit builder write contract
+- canonical data is shared PX shell data, not app-local state
+- create, update, and soft-delete canonical records only through documented governed route contracts and matching `canonical.*.write` scopes
+- do not invent undocumented builder routes; if a route family is not listed here or in `api-reference.md`, treat it as unavailable
+- canonical `DELETE` means soft-delete only; hard-delete, purge, merge, provider-secret management, and platform cleanup are not builder-facing capabilities
+- single-record canonical `PATCH` and `DELETE` require `If-Match` with the last observed `updatedAt`
+- handle `missing_scope`, `field_not_allowed`, `precondition_required`, `write_conflict`, and `unsupported_route` as normal API states in the UI
 - if the app needs to save derived work product (recommendations, projections, scenarios), use the PX app-data API (see `docs/builder-spec/app-data-api-v1.md`)
 - app requests should always include `x-plannerxchange-app-installation-id` from the shell runtime context
 - a bearer token plus API base URL is not enough by itself for installed-app canonical behavior; live calls also need a real PlannerXchange installation context
 - do not pass `appInstallationId` in query strings or manually construct PlannerXchange auth headers; use `ShellRuntimeContext.authenticatedFetch`
-- do not cache canonical data in IndexedDB or long-lived local storage â€” re-fetch from the API to ensure freshness
+- do not cache canonical data in IndexedDB or long-lived local storage Ã¢â‚¬â€ re-fetch from the API to ensure freshness
 - do not export or send PX canonical client data to external AI providers or third parties in Day 1
-- handle null on all optional fields â€” not every firm imports every field, and different custodian exports include different columns
-- firms populate canonical data through PlannerXchange's CSV import wizard, which supports common custodian formats with fuzzy column matching â€” but data completeness depends on what the firm uploaded
+- handle null on all optional fields Ã¢â‚¬â€ not every firm imports every field, and different custodian exports include different columns
+- firms populate canonical data through PlannerXchange's CSV import wizard, which supports common custodian formats with fuzzy column matching Ã¢â‚¬â€ but data completeness depends on what the firm uploaded
 - respect `verificationStatus` on securities: `unverified` or `review_needed` securities may have incomplete or incorrect metadata
-- do not build student-app workflows around shell-only canonical admin routes such as import setup, custom fields, category mappings, or auto-classify
-- if the app renders household or account totals, the firm's data may be partial â€” do not imply completeness unless the firm confirms it
+- do not build student-app workflows around platform-only routes such as hard-delete cleanup, provider OAuth secret management, destructive import repair, or auto-classify
+- if the app renders household or account totals, the firm's data may be partial Ã¢â‚¬â€ do not imply completeness unless the firm confirms it

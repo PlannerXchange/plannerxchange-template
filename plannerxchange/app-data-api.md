@@ -2,11 +2,11 @@
 
 This document defines the builder-facing write contract for PlannerXchange-hosted app-owned work product.
 
-It is separate from the canonical-data read contract. Builder apps read canonical reference facts and write builder-owned work product through different API families.
+It is separate from the canonical-data contract. Builder apps read and mutate shared canonical records through governed canonical APIs, and write builder-owned work product through the app-data API family.
 
 ## Core rule
 
-Immutable or reference facts (accounts, positions, transactions, tax lots) are read-only through canonical data routes. Builder-owned work product (recommendations, scenario runs, questionnaire responses, projections, notes, transaction category rules, category assignment sets, cashflow projection runs, and app-owned upload row sets) is written through the app-data API.
+Imported or reference facts such as positions, transactions, and tax lots remain read-only through canonical data routes unless PlannerXchange documents a governed write contract. Builder-owned work product (recommendations, scenario runs, questionnaire responses, projections, notes, transaction category rules, category assignment sets, cashflow projection runs, and app-owned upload row sets) is written through the app-data API.
 
 ## Availability
 
@@ -19,7 +19,7 @@ Immutable or reference facts (accounts, positions, transactions, tax lots) are r
 | Scope | Purpose |
 |-------|---------|
 | `app_data.read` | Read app-data records for the current app and firm |
-| `app_data.write` | Create and update app-data records for the current app and firm |
+| `app_data.write` | Create, update, and soft-delete app-data records for the current app and firm |
 
 These are separate from canonical data scopes.
 
@@ -131,7 +131,7 @@ Current route status:
 | `POST /app-data` | live | builder-owned work-product create |
 | `GET /app-data/{recordId}` | live | single-record read |
 | `PATCH /app-data/{recordId}` | live | single-record update |
-| `DELETE /app-data/{recordId}` | not yet live | do not assume availability until PlannerXchange exposes it |
+| `DELETE /app-data/{recordId}` | live | soft-delete/archive builder-owned work product |
 
 ### `GET /app-data`
 
@@ -211,9 +211,11 @@ Update mutable fields on an existing record.
 
 ### `DELETE /app-data/{recordId}`
 
-Not live today for builder apps.
+Soft-delete/archive one builder-owned work-product record for the current app installation.
 
-Do not build new app code that depends on delete support unless PlannerXchange explicitly activates this route.
+**Required scope:** `app_data.write`
+
+**Response:** the archived record with `status: "archived"`, deleted metadata, and updated audit fields.
 
 ## Record ownership and boundaries
 
@@ -299,6 +301,7 @@ Builder apps **may**:
 
 - Create new work-product records
 - Update record payloads and status
+- Soft-delete/archive app-owned work-product records
 - Attach work product to the current app, firm, and optional client or account context
 
 Builder apps **may not**:

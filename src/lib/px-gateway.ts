@@ -25,8 +25,81 @@ import {
 
 /** Minimal household shape for demo purposes. Replace with your app types. */
 export interface HouseholdSummary {
-  householdId: string;
+  id: string;
   name: string;
+  status?: string;
+  updatedAt?: string;
+}
+
+export interface ClientSummary {
+  id: string;
+  householdId: string;
+  displayName?: string;
+  firstName?: string;
+  lastName?: string;
+  status?: string;
+  updatedAt?: string;
+}
+
+export interface CanonicalHouseholdCreateInput {
+  name: string;
+}
+
+export type CanonicalHouseholdUpdateInput = Partial<CanonicalHouseholdCreateInput>;
+
+export interface CanonicalClientCreateInput {
+  firstName: string;
+  lastName: string;
+  householdRole?: string;
+  emailPrimary?: string;
+  emailSecondary?: string;
+  phonePrimary?: string;
+  phoneSecondary?: string;
+}
+
+export type CanonicalClientUpdateInput = Partial<CanonicalClientCreateInput>;
+
+export interface CanonicalWriteOptions {
+  /**
+   * Last observed `updatedAt` value from the canonical record.
+   * Required by installed-app PATCH and DELETE routes.
+   */
+  ifMatch?: string;
+}
+
+export interface CanonicalSoftDeleteResult {
+  entityType: string;
+  id: string;
+  isDeleted: true;
+  deletedAt: string;
+  updatedAt: string;
+  updatedBy: string;
+  cascade?: Record<string, number>;
+}
+
+export class PxApiError extends Error {
+  status: number;
+  code?: string;
+  requestId?: string;
+  retryable?: boolean;
+  details?: unknown;
+
+  constructor(path: string, status: number, payload?: Record<string, unknown>) {
+    const code = typeof payload?.code === "string" ? payload.code : undefined;
+    const message =
+      typeof payload?.message === "string"
+        ? payload.message
+        : `PlannerXchange API request failed: ${status}`;
+    super(`PX API ${path}: ${code ? `${code}: ` : ""}${message}`);
+    this.name = "PxApiError";
+    this.status = status;
+    this.code = code;
+    this.requestId =
+      typeof payload?.requestId === "string" ? payload.requestId : undefined;
+    this.retryable =
+      typeof payload?.retryable === "boolean" ? payload.retryable : undefined;
+    this.details = payload?.details;
+  }
 }
 
 /** Generic app-data record envelope. */
@@ -72,16 +145,24 @@ interface AppDataListResponse<T = unknown> {
   items: AppDataRecord<T>[];
 }
 
+interface ListResponse<T> {
+  items: T[];
+}
+
 // ---------------------------------------------------------------------------
 // Mock data — used when the app is not running inside the PlannerXchange shell
 // ---------------------------------------------------------------------------
 
 const MOCK_HOUSEHOLDS: HouseholdSummary[] = [
-  { householdId: "hh-mock-001", name: "Example Household A" },
-  { householdId: "hh-mock-002", name: "Example Household B" },
+  { id: "hh-mock-001", name: "Example Household A", status: "active" },
+  { id: "hh-mock-002", name: "Example Household B", status: "active" },
 ];
 
+const mockHouseholdStore = new Map<string, HouseholdSummary>(
+  MOCK_HOUSEHOLDS.map((household) => [household.id, household])
+);
 const mockAppDataStore = new Map<string, AppDataRecord>();
+const mockClientStore = new Map<string, ClientSummary>();
 
 // ---------------------------------------------------------------------------
 // Gateway factory
@@ -93,11 +174,40 @@ export interface PxGateway {
 
   // Canonical reads
   getHouseholds(): Promise<HouseholdSummary[]>;
+  getClients(householdId: string): Promise<ClientSummary[]>;
+
+  // Governed canonical writes. These mutate shared PX shell data in live mode.
+  createHousehold(input: CanonicalHouseholdCreateInput): Promise<HouseholdSummary>;
+  updateHousehold(
+    householdId: string,
+    input: CanonicalHouseholdUpdateInput,
+    options?: CanonicalWriteOptions
+  ): Promise<HouseholdSummary>;
+  softDeleteHousehold(
+    householdId: string,
+    options: CanonicalWriteOptions
+  ): Promise<CanonicalSoftDeleteResult>;
+  createClient(
+    householdId: string,
+    input: CanonicalClientCreateInput
+  ): Promise<ClientSummary>;
+  updateClient(
+    householdId: string,
+    clientId: string,
+    input: CanonicalClientUpdateInput,
+    options?: CanonicalWriteOptions
+  ): Promise<ClientSummary>;
+  softDeleteClient(
+    householdId: string,
+    clientId: string,
+    options: CanonicalWriteOptions
+  ): Promise<CanonicalSoftDeleteResult>;
 
   // App-data CRUD
   getAppData<T = unknown>(recordType: string): Promise<AppDataRecord<T>[]>;
   createAppData<T = unknown>(input: AppDataCreateInput<T>): Promise<AppDataRecord<T>>;
   updateAppData<T = unknown>(recordId: string, input: AppDataUpdateInput<T>): Promise<AppDataRecord<T>>;
+  softDeleteAppData<T = unknown>(recordId: string): Promise<AppDataRecord<T>>;
 }
 
 export function createPxGateway(ctx: ShellRuntimeContext): PxGateway {
@@ -124,7 +234,130 @@ function mockGateway(): PxGateway {
     isLive: false,
 
     async getHouseholds() {
-      return MOCK_HOUSEHOLDS;
+      return [...mockHouseholdStore.values()];
+    },
+
+    async getClients(householdId: string): Promise<ClientSummary[]> {
+      return [...mockClientStore.values()].filter(
+        (client) => client.householdId === householdId
+      );
+    },
+
+    async createHousehold(input: CanonicalHouseholdCreateInput): Promise<HouseholdSummary> {
+      const now = new Date().toISOString();
+      const household: HouseholdSummary = {
+        id:
+          typeof crypto !== "undefined" && "randomUUID" in crypto
+            ? crypto.randomUUID()
+            : `hh-mock-${Date.now()}`,
+        name: input.name,
+        status: "active",
+        updatedAt: now,
+      };
+      mockHouseholdStore.set(household.id, household);
+      return household;
+    },
+
+    async updateHousehold(
+      householdId: string,
+      input: CanonicalHouseholdUpdateInput
+    ): Promise<HouseholdSummary> {
+      const existing = mockHouseholdStore.get(householdId);
+      if (!existing) {
+        throw new Error(`Mock household not found: ${householdId}`);
+      }
+      const updated: HouseholdSummary = {
+        ...existing,
+        ...input,
+        updatedAt: new Date().toISOString(),
+      };
+      mockHouseholdStore.set(householdId, updated);
+      return updated;
+    },
+
+    async softDeleteHousehold(
+      householdId: string
+    ): Promise<CanonicalSoftDeleteResult> {
+      const existing = mockHouseholdStore.get(householdId);
+      if (!existing) {
+        throw new Error(`Mock household not found: ${householdId}`);
+      }
+      mockHouseholdStore.delete(householdId);
+      const deletedAt = new Date().toISOString();
+      return {
+        entityType: "household",
+        id: householdId,
+        isDeleted: true,
+        deletedAt,
+        updatedAt: deletedAt,
+        updatedBy: "synthetic-user-context",
+      };
+    },
+
+    async createClient(
+      householdId: string,
+      input: CanonicalClientCreateInput
+    ): Promise<ClientSummary> {
+      if (!mockHouseholdStore.has(householdId)) {
+        throw new Error(`Mock household not found: ${householdId}`);
+      }
+      const now = new Date().toISOString();
+      const client: ClientSummary = {
+        id:
+          typeof crypto !== "undefined" && "randomUUID" in crypto
+            ? crypto.randomUUID()
+            : `client-mock-${Date.now()}`,
+        householdId,
+        firstName: input.firstName,
+        lastName: input.lastName,
+        displayName: `${input.firstName} ${input.lastName}`,
+        status: "active",
+        updatedAt: now,
+      };
+      mockClientStore.set(client.id, client);
+      return client;
+    },
+
+    async updateClient(
+      householdId: string,
+      clientId: string,
+      input: CanonicalClientUpdateInput
+    ): Promise<ClientSummary> {
+      const existing = mockClientStore.get(clientId);
+      if (!existing || existing.householdId !== householdId) {
+        throw new Error(`Mock client not found: ${clientId}`);
+      }
+      const firstName = input.firstName ?? existing.firstName;
+      const lastName = input.lastName ?? existing.lastName;
+      const updated: ClientSummary = {
+        ...existing,
+        ...input,
+        displayName:
+          firstName && lastName ? `${firstName} ${lastName}` : existing.displayName,
+        updatedAt: new Date().toISOString(),
+      };
+      mockClientStore.set(clientId, updated);
+      return updated;
+    },
+
+    async softDeleteClient(
+      householdId: string,
+      clientId: string
+    ): Promise<CanonicalSoftDeleteResult> {
+      const existing = mockClientStore.get(clientId);
+      if (!existing || existing.householdId !== householdId) {
+        throw new Error(`Mock client not found: ${clientId}`);
+      }
+      mockClientStore.delete(clientId);
+      const deletedAt = new Date().toISOString();
+      return {
+        entityType: "client",
+        id: clientId,
+        isDeleted: true,
+        deletedAt,
+        updatedAt: deletedAt,
+        updatedBy: "synthetic-user-context",
+      };
     },
 
     async getAppData<T = unknown>(recordType: string): Promise<AppDataRecord<T>[]> {
@@ -176,6 +409,20 @@ function mockGateway(): PxGateway {
       mockAppDataStore.set(recordId, updated);
       return updated;
     },
+
+    async softDeleteAppData<T = unknown>(recordId: string): Promise<AppDataRecord<T>> {
+      const existing = mockAppDataStore.get(recordId) as AppDataRecord<T> | undefined;
+      if (!existing) {
+        throw new Error(`Mock app-data record not found: ${recordId}`);
+      }
+      const archived: AppDataRecord<T> = {
+        ...existing,
+        status: "archived",
+        updatedAt: new Date().toISOString(),
+      };
+      mockAppDataStore.set(recordId, archived);
+      return archived;
+    },
   };
 }
 
@@ -193,6 +440,15 @@ function liveGateway(ctx: ShellRuntimeContext): PxGateway {
   }
   const pxFetchImpl = authenticatedFetch;
 
+  async function readErrorPayload(res: Awaited<ReturnType<typeof pxFetchImpl>>): Promise<Record<string, unknown> | undefined> {
+    try {
+      const payload = await res.json();
+      return payload && typeof payload === "object" ? payload as Record<string, unknown> : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
   async function pxFetch<T>(path: string, init?: PlannerXchangeApiRequestInit): Promise<T> {
     const res = await pxFetchImpl(path, {
       ...init,
@@ -202,16 +458,105 @@ function liveGateway(ctx: ShellRuntimeContext): PxGateway {
       },
     });
     if (!res.ok) {
-      throw new Error(`PX API ${path}: ${res.status}`);
+      throw new PxApiError(path, res.status, await readErrorPayload(res));
     }
     return res.json() as Promise<T>;
+  }
+
+  function jsonInit(
+    method: string,
+    body: unknown,
+    options?: CanonicalWriteOptions
+  ): PlannerXchangeApiRequestInit {
+    return {
+      method,
+      headers: options?.ifMatch ? { "If-Match": options.ifMatch } : {},
+      body: JSON.stringify(body),
+    };
+  }
+
+  function deleteInit(options: CanonicalWriteOptions): PlannerXchangeApiRequestInit {
+    return {
+      method: "DELETE",
+      headers: options.ifMatch ? { "If-Match": options.ifMatch } : {},
+    };
+  }
+
+  function listItems<T>(payload: T[] | ListResponse<T>): T[] {
+    return Array.isArray(payload) ? payload : payload.items ?? [];
   }
 
   return {
     isLive: true,
 
     async getHouseholds() {
-      return pxFetch<HouseholdSummary[]>("/households");
+      const payload = await pxFetch<HouseholdSummary[] | ListResponse<HouseholdSummary>>("/households");
+      return listItems(payload);
+    },
+
+    async getClients(householdId: string): Promise<ClientSummary[]> {
+      const payload = await pxFetch<ClientSummary[] | ListResponse<ClientSummary>>(
+        `/households/${encodeURIComponent(householdId)}/clients`
+      );
+      return listItems(payload);
+    },
+
+    async createHousehold(input: CanonicalHouseholdCreateInput): Promise<HouseholdSummary> {
+      return pxFetch<HouseholdSummary>("/households", jsonInit("POST", input));
+    },
+
+    async updateHousehold(
+      householdId: string,
+      input: CanonicalHouseholdUpdateInput,
+      options?: CanonicalWriteOptions
+    ): Promise<HouseholdSummary> {
+      return pxFetch<HouseholdSummary>(
+        `/households/${encodeURIComponent(householdId)}`,
+        jsonInit("PATCH", input, options)
+      );
+    },
+
+    async softDeleteHousehold(
+      householdId: string,
+      options: CanonicalWriteOptions
+    ): Promise<CanonicalSoftDeleteResult> {
+      return pxFetch<CanonicalSoftDeleteResult>(
+        `/households/${encodeURIComponent(householdId)}`,
+        deleteInit(options)
+      );
+    },
+
+    async createClient(
+      householdId: string,
+      input: CanonicalClientCreateInput
+    ): Promise<ClientSummary> {
+      return pxFetch<ClientSummary>(
+        `/households/${encodeURIComponent(householdId)}/clients`,
+        jsonInit("POST", input)
+      );
+    },
+
+    async updateClient(
+      householdId: string,
+      clientId: string,
+      input: CanonicalClientUpdateInput,
+      options?: CanonicalWriteOptions
+    ): Promise<ClientSummary> {
+      return pxFetch<ClientSummary>(
+        `/households/${encodeURIComponent(householdId)}/clients/${encodeURIComponent(clientId)}`,
+        jsonInit("PATCH", input, options)
+      );
+    },
+
+    async softDeleteClient(
+      householdId: string,
+      clientId: string,
+      options: CanonicalWriteOptions
+    ): Promise<CanonicalSoftDeleteResult> {
+      return pxFetch<CanonicalSoftDeleteResult>(
+        `/households/${encodeURIComponent(householdId)}/clients/${encodeURIComponent(clientId)}`,
+        deleteInit(options)
+      );
     },
 
     async getAppData<T = unknown>(recordType: string): Promise<AppDataRecord<T>[]> {
@@ -238,6 +583,12 @@ function liveGateway(ctx: ShellRuntimeContext): PxGateway {
       return pxFetch<AppDataRecord<T>>(`/app-data/${encodeURIComponent(recordId)}`, {
         method: "PATCH",
         body: JSON.stringify(input),
+      });
+    },
+
+    async softDeleteAppData<T = unknown>(recordId: string): Promise<AppDataRecord<T>> {
+      return pxFetch<AppDataRecord<T>>(`/app-data/${encodeURIComponent(recordId)}`, {
+        method: "DELETE",
       });
     },
   };

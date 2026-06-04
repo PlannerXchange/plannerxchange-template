@@ -64,6 +64,7 @@ Important:
 - shell-published self-serve apps are default-deny for builder-owned subscriber-data backends and third-party API egress of PX/client data
 - external AI/search/provider calls such as Tavily, OpenAI, Anthropic, Gemini, analytics, support, or vendor APIs are not non-enterprise self-serve exceptions; `egressDeclarations` document the request but do not approve PX/client data leaving the shell
 - CSV/file imports must be declared; canonical imports must use PlannerXchange-owned Core Data import handling, not app-owned import routes or parent-matching logic
+- canonical creates, updates, and soft-deletes must use governed PlannerXchange canonical APIs with matching `canonical.*.write` scopes; app-data remains for app-owned work product
 - platform review and product entitlements are handled inside PlannerXchange, not in this repo
 
 ## Platform Contract Map
@@ -155,7 +156,7 @@ Important setup rules:
 12. Use the default Vite port (5173) for local development — PlannerXchange allows CORS and auth callbacks only from localhost:5173.
 13. Treat PlannerXchange CodeQL findings in review feedback as security blockers or remediation tasks. Fix the underlying code issue and push a new commit. PlannerXchange owns CodeQL execution.
 14. Do not add builder-owned databases, service-role keys, database URL env vars, or direct integration-provider API clients for PX/client/subscriber data. Use PX canonical APIs and PX app-data instead.
-15. If the app accepts CSV or file uploads, declare the ingress in plannerxchange.app.json. App-owned CSV work product may go to PX app-data; canonical transaction/account/client/household imports must use a PX-owned Core Data import handoff when that contract exists.
+15. If the app accepts CSV or file uploads, declare the ingress in plannerxchange.app.json. App-owned CSV work product may go to PX app-data; canonical transaction/account/client/household imports must use a PX-owned Core Data import handoff and documented canonical write contracts.
 16. Before editing plannerxchange.app.json from review feedback, read plannerxchange/ai-index.md and map review capability labels to actual manifest fields. Do not add guessed fields like capabilities, portableData, marketplace, demoMode, demoModeEnabled, or supportsDemoMode.
 17. Before fetching review feedback, ask me which PlannerXchange goal I want right now: draft, marketplace, demo_mode, private_label, or data_persistence. Then run px review watch --env dev --goal <selected-goal> --commit HEAD --format markdown. If it exits 2, fix only the current required fix group for that goal, rebuild, commit, push, and watch again. If it exits 0, no required fixes remain for that goal on the reviewed commit.
 
@@ -172,7 +173,7 @@ Before writing code, ask me these questions and wait for my answers:
 
 4. Will your app need to save its own work product (like questionnaire answers, recommendations, or reports) so it persists across sessions? PlannerXchange can store this for you.
 
-5. Beyond reading client data, will your app also need to add or update information about households or clients? (Note: PlannerXchange may not yet support builder-owned writes for all record types.)
+5. Beyond reading client data, will your app also need to create, update, or soft-delete shared PlannerXchange canonical records such as households, clients, accounts, tax filings, or integration links?
 
 After I answer:
 
@@ -223,7 +224,7 @@ Before watching review feedback, the AI agent should ask the builder which goal 
 - `marketplace`: become listed and installable in the PlannerXchange marketplace
 - `demo_mode`: support a publicly available demo with synthetic/sample data
 - `private_label`: consume PlannerXchange firm branding, legal, and disclosure context
-- `data_persistence`: use approved PlannerXchange app-data/canonical data contracts
+- `data_persistence`: use approved PlannerXchange app-data and governed canonical data contracts
 
 Do not fix data-persistence, private-label, or demo findings unless the builder selected that capability or the finding also blocks the selected goal.
 
@@ -341,6 +342,7 @@ when needed.
 - If the app does not render app-owned disclosure text or links, do not request `legal.read` just because the starter demonstrates legal context.
 - Use PlannerXchange APIs and canonical contracts for PX-governed data.
 - Save builder-owned work product such as scenarios, recommendations, questionnaire responses, and projections through approved PX app-data APIs or explicit app-owned persistence.
+- Create, update, or soft-delete shared PX canonical records only through documented governed canonical APIs with the matching `canonical.*.write` scope.
 - Treat `firmId` as the maximum data boundary for PX canonical data. Stricter intra-firm scoping is fine; broader scope is not.
 - If the app is nonportable, it may still read approved PX canonical data through PX APIs by default.
 - If the app is intentionally nonportable, be explicit about that and avoid requesting PX-canonical scopes you do not need.

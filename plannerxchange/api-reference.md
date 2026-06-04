@@ -73,15 +73,15 @@ The student rule is simple:
 - keep `appInstallationId` as app context, but do not manually attach auth headers
 - do not put `appInstallationId` in query strings, route params, or manually assembled URLs
 - do not read, store, or forward `idToken` or bearer tokens for PlannerXchange API calls
-- do not call shell-only routes such as `/imports/*`, `/integrations/*`, `/admin/*`, `/workspace/*`, `/builder/*`, or `/shell/route-capability`
+- do not call shell-only routes such as provider OAuth `/integrations/*`, hard-delete/cleanup routes, platform-only import routes outside the governed import handoff, `/admin/*`, `/workspace/*`, `/builder/*`, or `/shell/route-capability`
 - do not call app-owned backend routes such as `/api/questions`, `/api/results`, `/questions`, or `/results`; shell-published apps are static frontend plugins and should use bundled mock data or documented PlannerXchange APIs
 - do not call external AI/search providers such as Tavily, OpenAI, Anthropic, or Gemini with PX/client data, and do not ship browser-exposed provider API keys
 
 CSV and import boundary:
 
-- `/imports/*` routes are Core Data shell routes, not builder-facing API routes
-- canonical position, transaction, cost-basis, account, client, and household imports must use a PlannerXchange-owned Core Data import handoff when that contract exists
-- builder apps may store app-owned CSV-derived work product through `/app-data`, but must not create canonical records, parent records, account-owner links, or import jobs directly
+- platform-only `/imports/*` routes are Core Data shell routes, not builder-facing API routes
+- canonical position, transaction, cost-basis, account, client, and household imports must use a PlannerXchange-owned Core Data import handoff
+- builder apps may store app-owned CSV-derived work product through `/app-data`, but must not create canonical records, parent records, account-owner links, or import jobs outside governed canonical write and import-handoff contracts
 - builder apps must not call `/integrations/*` or shell-owned custodian import routes to fetch or apply source data; read reconciled canonical facts through approved canonical routes and scopes
 - apps that parse or upload CSV/files should declare `dataIngressDeclarations` in `plannerxchange.app.json`
 
@@ -124,6 +124,12 @@ Return `{ items, pageInfo }`:
 ### Create and update writes
 
 Return the resulting record payload.
+
+### Soft deletes
+
+Canonical `DELETE` routes and app-data `DELETE` routes are soft-delete/archive operations. They retain audit metadata and do not grant hard-delete or purge authority.
+
+Installed-app canonical `PATCH` and `DELETE` calls require an `If-Match` header with the last observed `updatedAt` value from the record being changed.
 
 ### Common query parameters
 
@@ -178,6 +184,11 @@ Common error codes:
 |------|-------------|---------|
 | `missing_scope` | 403 | App manifest does not declare the required permission scope |
 | `installation_not_found` | 403 | `x-plannerxchange-app-installation-id` is missing or invalid |
+| `unsupported_route` | 403 | Route is not part of the installed-app contract |
+| `field_not_allowed` | 400 | Request body contains a field not allowed for the installed-app route |
+| `precondition_required` | 428 | Canonical update/delete requires `If-Match` |
+| `write_conflict` | 409 | `If-Match` does not match the current record version |
+| `soft_delete_only` | 403 | App attempted a hard-delete or purge behavior |
 | `not_found` | 404 | Requested resource does not exist in the current firm context |
 | `validation_error` | 400 | Request body failed validation |
 | `rate_limited` | 429 | Too many requests — back off and retry |
@@ -218,14 +229,26 @@ If your app is calling the live backend today, use the current live platform pat
 | `client.summary.read` | `/client-users`, `/client-users/{id}` | Summary-safe client records (no raw PII) |
 | `client.sensitive.read` | Reserved | Protected client subpaths (future) |
 | `canonical.household.read` | `/households`, `/households/{id}` | Firm-scoped households |
+| `canonical.household.write` | `/households` (POST), `/households/{id}` (PATCH/DELETE) | Create, update, and soft-delete households |
 | `canonical.client.summary.read` | `/clients`, `/households/{householdId}/clients` | Summary-safe canonical clients |
 | `canonical.client.sensitive.read` | `/households/{householdId}/clients/{id}` | Full client detail with PII fields |
+| `canonical.client.write` | `/households/{householdId}/clients` (POST), `/households/{householdId}/clients/{id}` (PATCH/DELETE) | Create, update, and soft-delete clients |
 | `canonical.account.read` | `/accounts`, `/accounts/{id}`, `/households/{householdId}/accounts`, `/households/{householdId}/accounts/{id}` | Accounts and balances |
+| `canonical.account.write` | `/households/{householdId}/accounts` (POST), `/households/{householdId}/accounts/{id}` (PATCH/DELETE) | Create, update, and soft-delete accounts |
+| `canonical.tax.summary.read` | `/households` and `/households/{id}` tax summary fields | Household tax status summary |
+| `canonical.tax.detail.read` | `/households/{householdId}/tax-filings`, `/households/{householdId}/tax-filings/{id}` | Household tax filing records |
+| `canonical.tax.write` | `/households/{householdId}/tax-filings` (POST), `/households/{householdId}/tax-filings/{id}` (PATCH/DELETE) | Create, update, and soft-delete household tax filings |
+| `canonical.integration_link.write` | Entity integration-link routes (POST/PATCH/DELETE) | Create, update, and soft-delete entity integration links; not provider OAuth secrets |
 | `canonical.position.read` | `/positions`, `/accounts/{id}/positions` | Firm-wide and account positions |
 | `canonical.transaction.read` | `/transactions`, `/accounts/{id}/transactions` | Firm-wide and account transactions |
 | `canonical.cost_basis.read` | `/cost-basis`, `/accounts/{id}/cost-basis` | Firm-wide and account cost basis tax lots |
 | `canonical.security.read` | `/securities`, `/securities/{id}` | Platform security master with firm overrides |
+| `canonical.security.firm_override` | security firm-override and allocation routes | Manage firm security overrides and security allocations |
+| `canonical.asset_class.write` | asset-class routes | Manage firm asset-class reference data |
+| `canonical.category_mapping.write` | category-mapping routes | Manage firm category mappings |
+| `canonical.custom_field.write` | custom-field routes | Manage custom field definitions |
 | `canonical.model.read` | `/models`, `/models/{id}/holdings` | Models and holdings |
+| `canonical.model.write` | model mutation route families when exposed | Manage canonical models through approved contracts |
 | `canonical.sleeve.read` | `/sleeves`, `/sleeves/{id}/allocations` | Sleeves and allocations |
 | `canonical.crm_note.read` | `/crm-notes`, `/crm-notes/{id}` | Synced CRM notes normalized by PlannerXchange |
 | `canonical.crm_task.read` | `/crm-tasks`, `/crm-tasks/{id}` | Synced CRM tasks normalized by PlannerXchange |
@@ -234,7 +257,9 @@ If your app is calling the live backend today, use the current live platform pat
 | `branding.read` | `/branding/current` | Resolved branding for current firm context |
 | `legal.read` | `/legal/current` | Resolved legal/disclosure for current context |
 | `app_data.read` | `/app-data`, `/app-data/{id}` | Builder-owned work-product records |
-| `app_data.write` | `/app-data` (POST), `/app-data/{id}` (PATCH) | Create/update builder-owned work-product |
+| `app_data.write` | `/app-data` (POST), `/app-data/{id}` (PATCH/DELETE) | Create, update, and soft-delete builder-owned work-product |
+| `canonical.import.read` | approved import handoff/job routes | Read PX-owned Core Data import handoff state |
+| `canonical.import.write` | approved import handoff/job routes | Launch or advance PX-owned Core Data import handoff; not direct database writes |
 | `email.send` | `/app-email/send` | Send transactional email through PX relay |
 
 Important:
@@ -248,6 +273,48 @@ Important:
 - CRM integrations are shell-owned PlannerXchange workflows. Apps do not receive provider API keys and should consume synced notes/tasks only through `/crm-notes` and `/crm-tasks` with the declared read scopes.
 - CRM reads expose only records that PlannerXchange has matched and accepted into the normalized CRM surface. Unmatched staging records, match candidates, sync jobs, and partner-import progress are shell-only and are not available to installed apps.
 - Student apps should treat an empty CRM response as normal: the firm may not have connected the CRM yet, or a firm admin may not have completed the matching flow.
+
+## Governed canonical writes
+
+Use governed canonical writes when the app needs to mutate shared PX shell data. These are not app-local records. A client created in one installed app may be visible to other approved PlannerXchange apps in the same firm.
+
+Rules:
+
+- request the narrowest matching `canonical.*.write` permission in `plannerxchange.app.json`
+- use `ShellRuntimeContext.authenticatedFetch` or the starter `createPxGateway` helpers
+- show clear UI copy that the change updates shared PlannerXchange data
+- send `If-Match` on single-record `PATCH` and `DELETE` using the last observed `updatedAt`
+- handle `403 missing_scope`, `400 field_not_allowed`, `428 precondition_required`, and `409 write_conflict` as normal user-facing API states
+- never claim or implement hard-delete, purge, merge, provider-secret management, or platform cleanup from installed-app code
+
+Example client create:
+
+```typescript
+const client = await gateway.createClient(householdId, {
+  firstName: "Avery",
+  lastName: "Example",
+  emailPrimary: "avery.example@example.test"
+});
+```
+
+Example guarded update:
+
+```typescript
+await gateway.updateClient(
+  householdId,
+  client.id,
+  { lastName: "Sample" },
+  { ifMatch: client.updatedAt }
+);
+```
+
+Example soft-delete:
+
+```typescript
+await gateway.softDeleteClient(householdId, client.id, {
+  ifMatch: client.updatedAt
+});
+```
 
 ## `GET /session`
 

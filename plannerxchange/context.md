@@ -128,7 +128,8 @@ Data provenance model:
 
 Reference facts versus work product:
 
-- immutable PX or partner reference facts such as account identifiers, positions, and transactions should not be treated as generically app-writable
+- PX or partner reference facts such as account identifiers, positions, and transactions should not be treated as generically app-writable
+- canonical writes are allowed only through documented governed PlannerXchange APIs with matching write scopes, field allowlists, audit, and soft-delete semantics
 - builder-owned work product such as recommendations, questionnaire responses, scenarios, and projections should be saved separately through approved PX app-data APIs or explicit app-owned persistence
 
 ## Canonical data available out-of-the-box
@@ -177,7 +178,8 @@ Canonical request transport:
 - hosted apps should not read, store, or manually send raw bearer tokens
 - hosted apps should not pass `appInstallationId` in query strings, route params, or manually assembled URLs
 - do not construct PlannerXchange `Authorization` headers in app code
-- shell-only canonical admin routes such as import setup, custom-field admin, category mappings, and auto-classify are not part of the student app contract
+- hard-delete, purge, provider OAuth secret management, destructive repair, and auto-classify routes are not part of the student app contract
+- custom fields, category mappings, security overrides, and import handoff workflows are builder-facing only through documented governed scopes and route contracts
 
 Marketplace billing boundary:
 
