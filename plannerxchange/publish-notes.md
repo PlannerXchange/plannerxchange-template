@@ -69,7 +69,7 @@ Review guidance:
 - app-owned identity UX such as custom invite redemption, email verification, or password-setup flows will be treated as governance findings because PlannerXchange owns auth and onboarding
 - apps that save builder-owned work product inside PX should use the governed PX app-data contract
 - apps that mutate shared PX shell data should use governed canonical write APIs with matching `canonical.*.write` scopes, approved fields, explicit user action, optimistic concurrency, and shared-record UI copy
-- apps that parse CSV/files must declare `dataIngressDeclarations`; canonical imports must use PlannerXchange-owned Core Data import handling rather than app-owned `/imports/*` calls
+- apps that parse CSV/files must declare `dataIngressDeclarations`; high-risk client/account/custodian CSVs must use `target: "px_import_session"` and `ctx.openDataImportSession({ declarationId })` rather than app-owned parsers or `/imports/*` calls
 - apps that touch client data, PII, or external egress paths should expect stricter review
 - Day 1 external AI/search-provider or third-party egress of PX client data is not allowed; this includes Tavily, OpenAI, Anthropic, Gemini, analytics, support, and vendor APIs unless PlannerXchange accepts an enterprise exception
 - new direct dependencies are checked for package reputation, typosquat risk, and non-registry sources before approval
@@ -238,7 +238,7 @@ The following issues are common causes of publication rejection. Check for them 
 
 20. **Builder-owned backend for PX/client data** - app code or dependencies include builder-owned database clients, ORM clients, service-role keys, database URL env vars, or similar app-managed subscriber-data storage.
 21. **Frontend external provider key** - app code references browser-exposed keys such as `VITE_TAVILY_API_KEY`, `VITE_OPENAI_API_KEY`, or `NEXT_PUBLIC_*_API_KEY`. Shell-published apps run in users' browsers, so provider keys cannot be shipped.
-22. **Undeclared or unsafe CSV/file ingress** - file inputs, `FileReader`, `FormData`, Papa Parse, csv/xlsx packages, drag/drop uploads, external upload hosts, or direct `/imports/*` calls without the approved PlannerXchange ingress lane.
+22. **Undeclared or unsafe CSV/file ingress** - file inputs, `FileReader`, `FormData`, Papa Parse, csv/xlsx packages, drag/drop uploads, external upload hosts, direct `/imports/*` calls, or high-risk custodian/client CSV parsing without a declared `px_import_session` and `ctx.openDataImportSession({ declarationId })`.
 
 ## PX Approved badge direction
 
@@ -294,8 +294,8 @@ Current builder-facing scopes (request only what the app actually needs):
 | `legal.read` | Legal/disclosure context |
 | `app_data.read` | App-data records (read) |
 | `app_data.write` | App-data records (write) |
-| `canonical.import.read` | PX Core Data import handoff state |
-| `canonical.import.write` | PX Core Data import handoff/workflow |
+| `canonical.import.read` | PX-owned import-session/job state |
+| `canonical.import.write` | PX-owned import-session workflow |
 | `email.send` | Outbound transactional email |
 
 Important:

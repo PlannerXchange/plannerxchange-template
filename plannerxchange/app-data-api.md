@@ -100,17 +100,18 @@ Each source ref should include:
 
 ## CSV-derived app-data
 
-Apps may parse CSV files when the result remains app-owned work product and is saved through this contract.
+Apps may parse CSV files in app code only when the result remains low-risk app-owned work product and is saved through this contract. High-risk client/account/custodian CSV files must be handled by a PX-owned import session, even when the user chooses one-time transient use.
 
 Rules:
 
 - declare CSV/file ingress in `plannerxchange.app.json` with `dataIngressDeclarations`
+- use `target: "px_import_session"` plus `ctx.openDataImportSession({ declarationId })` for high-risk client/account/position/transaction/cost-basis CSVs
 - use `sourceRefs` to link app-owned category assignments or projections to canonical accounts/transactions when applicable
 - do not create or mutate canonical transactions, accounts, clients, households, positions, cost basis, restricted PII, account-owner links, or import jobs through app-data
-- canonical position, transaction, and cost-basis CSV imports must use PlannerXchange-owned Core Data import handoff, not app-owned CSV logic
+- canonical position, transaction, and cost-basis CSV imports must use PlannerXchange-owned import sessions, not app-owned CSV logic
 - builder apps may read canonical positions, transactions, and cost basis through approved PX APIs and scopes, then store only derived app-owned work product and source references in app-data
 - do not call `/imports/*`, `/integrations/*`, provider import-job routes, or shell-only Core Data mutation routes from app-owned CSV workflows
-- do not persist raw PX client, account, custodian, transaction, or tax-lot data in app-local storage
+- do not persist raw PX client, account, custodian, transaction, or tax-lot CSV data in app-data payloads, browser storage, logs, or app-local storage
 - app-data categorization records are not cross-app portable until PlannerXchange publishes an explicit canonical contract
 
 ## Recommended status values

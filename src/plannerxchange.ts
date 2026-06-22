@@ -8,6 +8,78 @@ export type AppVisibility =
 export type AppDataPortabilityMode =
   | "plannerxchange_portable"
   | "app_managed_nonportable";
+export type AppDataIngressTarget =
+  | "px_core_import_handoff"
+  | "px_import_session"
+  | "px_app_data_upload"
+  | "browser_ephemeral_app_data"
+  | "enterprise_external_exception";
+export type AppDataImportSessionMode = "canonical_store" | "transient_session";
+export type AppDataImportCanonicalEntity =
+  | "household"
+  | "client"
+  | "account"
+  | "position"
+  | "transaction"
+  | "cost_basis"
+  | "security";
+export interface AppDataIngressDeclaration {
+  id?: string;
+  source: string;
+  purpose: string;
+  dataClasses: string[];
+  target: AppDataIngressTarget;
+  supportedModes?: AppDataImportSessionMode[];
+  canonicalEntityHints?: AppDataImportCanonicalEntity[];
+  sourceFormatHints?: string[];
+  canonicalMutation?: boolean;
+  retention?: string;
+  notes?: string;
+}
+export interface AppDataImportSessionRequest {
+  declarationId: string;
+  mode?: AppDataImportSessionMode;
+  entityType?: AppDataImportCanonicalEntity;
+  returnToApp?: boolean;
+  metadata?: Record<string, unknown>;
+}
+export interface AppDataImportSessionMappedColumn {
+  csvColumnName: string;
+  targetField?: string;
+  customFieldId?: string;
+  status: "mapped" | "custom_field" | "skipped" | "unmapped";
+}
+export interface AppDataImportSessionMappingSummary {
+  entityType?: AppDataImportCanonicalEntity;
+  rowCount: number;
+  columns: AppDataImportSessionMappedColumn[];
+  mappedColumnCount: number;
+  skippedColumnCount: number;
+  customFieldCount: number;
+}
+export interface AppDataImportSessionCanonicalStoreResult {
+  mode: "canonical_store";
+  status: "launched" | "completed" | "completed_with_errors" | "cancelled";
+  importJobId?: string;
+  canonicalRefs?: Array<{
+    entityType: AppDataImportCanonicalEntity;
+    sourceId: string;
+  }>;
+  mappingSummary?: AppDataImportSessionMappingSummary;
+}
+export interface AppDataImportSessionTransientResult {
+  mode: "transient_session";
+  status: "completed" | "cancelled";
+  expiresAt?: string;
+  rows?: Array<Record<string, unknown>>;
+  mappingSummary?: AppDataImportSessionMappingSummary;
+}
+export type AppDataImportSessionResult =
+  | AppDataImportSessionCanonicalStoreResult
+  | AppDataImportSessionTransientResult;
+export type PlannerXchangeOpenDataImportSession = (
+  request: AppDataImportSessionRequest
+) => Promise<AppDataImportSessionResult>;
 // Legacy summary-safe client-user routes and current canonical entity routes
 // use different scope families. Student apps should prefer the `canonical.*`
 // scopes when targeting `/canonical/*` APIs.
@@ -106,6 +178,7 @@ export interface PlannerXchangeManifest {
   visibility: AppVisibility;
   dataPortabilityMode: AppDataPortabilityMode;
   categories: string[];
+  dataIngressDeclarations?: AppDataIngressDeclaration[];
 }
 
 export interface PlannerXchangeApiRequestInit {
@@ -158,6 +231,13 @@ export interface ShellRuntimeContext {
    * scoped under this app's shell-owned `/apps/...` prefix.
    */
   navigate?: PlannerXchangeNavigate;
+  /**
+   * Opens a PlannerXchange-owned CSV/file import session over the app.
+   * Builder apps declare the matching dataIngressDeclarations entry and pass
+   * its id as declarationId. The shell owns upload, parsing, mapping,
+   * validation, audit, raw-file expiry, and canonical write decisions.
+   */
+  openDataImportSession?: PlannerXchangeOpenDataImportSession;
   /**
    * The base URL for PlannerXchange API calls in the current environment.
    * Apps should use this instead of hardcoding API URLs so they work across

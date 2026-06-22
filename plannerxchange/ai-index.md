@@ -177,14 +177,32 @@ If the app accepts CSVs, spreadsheets, drag/drop files, browser `FileReader`, `F
 1. Add `dataIngressDeclarations`.
 2. Choose an approved target lane.
 3. Do not call provider OAuth `/integrations/*`, hard-delete/cleanup routes, or platform-only import routes directly.
-4. Do not auto-create canonical households, clients, accounts, positions, transactions, cost basis, restricted PII, or import jobs from app-managed CSV logic outside the governed PX import handoff and canonical write contracts.
+4. For high-risk client/account/custodian CSVs, declare `target: "px_import_session"` and call `ctx.openDataImportSession({ declarationId })`.
+5. Do not parse, map, normalize, or auto-create canonical households, clients, accounts, positions, transactions, cost basis, restricted PII, or import jobs from app-managed CSV logic outside the governed PX import-session and canonical write contracts.
 
 Approved target lanes:
 
 - `px_core_import_handoff`
+- `px_import_session`
 - `px_app_data_upload`
 - `browser_ephemeral_app_data`
 - `enterprise_external_exception`
+
+Minimal high-risk CSV declaration:
+
+```json
+{
+  "id": "custodian-trade-csv",
+  "source": "csv_upload",
+  "purpose": "Launch a PX-owned import session for custodian trade CSVs.",
+  "dataClasses": ["transactions", "account_data"],
+  "target": "px_import_session",
+  "supportedModes": ["canonical_store", "transient_session"],
+  "canonicalEntityHints": ["transaction", "account"],
+  "sourceFormatHints": ["altruist", "schwab"],
+  "canonicalMutation": true
+}
+```
 
 ## Build And Preflight
 

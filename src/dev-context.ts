@@ -22,6 +22,34 @@ export const mockRuntimeContext: ShellRuntimeContext = {
   navigate: (path, options) => {
     console.info("[PlannerXchange mock] navigate", { path, replace: options?.replace === true });
   },
+  openDataImportSession: async (request) => {
+    console.info("[PlannerXchange mock] openDataImportSession", request);
+    if (request.mode === "transient_session") {
+      return {
+        mode: "transient_session",
+        status: "cancelled",
+        mappingSummary: {
+          mappedColumnCount: 0,
+          skippedColumnCount: 0,
+          customFieldCount: 0,
+          rowCount: 0,
+          columns: []
+        }
+      };
+    }
+
+    return {
+      mode: "canonical_store",
+      status: "cancelled",
+      mappingSummary: {
+        mappedColumnCount: 0,
+        skippedColumnCount: 0,
+        customFieldCount: 0,
+        rowCount: 0,
+        columns: []
+      }
+    };
+  },
   visibility: "private",
   dataPortabilityMode: "app_managed_nonportable",
   permissions: ["tenant.read", "user.read"],

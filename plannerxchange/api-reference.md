@@ -80,7 +80,8 @@ The student rule is simple:
 CSV and import boundary:
 
 - platform-only `/imports/*` routes are Core Data shell routes, not builder-facing API routes
-- canonical position, transaction, cost-basis, account, client, and household imports must use a PlannerXchange-owned Core Data import handoff
+- canonical or high-risk transient position, transaction, cost-basis, account, client, and household CSV imports must use a PlannerXchange-owned import session declared as `target: "px_import_session"`
+- launch the shell-owned modal with `ctx.openDataImportSession({ declarationId })`; do not call `/imports/*` yourself
 - builder apps may store app-owned CSV-derived work product through `/app-data`, but must not create canonical records, parent records, account-owner links, or import jobs outside governed canonical write and import-handoff contracts
 - builder apps must not call `/integrations/*` or shell-owned custodian import routes to fetch or apply source data; read reconciled canonical facts through approved canonical routes and scopes
 - apps that parse or upload CSV/files should declare `dataIngressDeclarations` in `plannerxchange.app.json`
@@ -258,8 +259,8 @@ If your app is calling the live backend today, use the current live platform pat
 | `legal.read` | `/legal/current` | Resolved legal/disclosure for current context |
 | `app_data.read` | `/app-data`, `/app-data/{id}` | Builder-owned work-product records |
 | `app_data.write` | `/app-data` (POST), `/app-data/{id}` (PATCH/DELETE) | Create, update, and soft-delete builder-owned work-product |
-| `canonical.import.read` | approved import handoff/job routes | Read PX-owned Core Data import handoff state |
-| `canonical.import.write` | approved import handoff/job routes | Launch or advance PX-owned Core Data import handoff; not direct database writes |
+| `canonical.import.read` | approved import-session/job routes | Read PX-owned import-session state |
+| `canonical.import.write` | approved import-session routes | Launch or advance PX-owned import-session workflow; not direct database writes |
 | `email.send` | `/app-email/send` | Send transactional email through PX relay |
 
 Important:

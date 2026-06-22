@@ -63,7 +63,7 @@ Important:
 - `plannerxchange_portable` does not mean every PlannerXchange-hosted record becomes canonical or cross-app portable by default
 - shell-published self-serve apps are default-deny for builder-owned subscriber-data backends and third-party API egress of PX/client data
 - external AI/search/provider calls such as Tavily, OpenAI, Anthropic, Gemini, analytics, support, or vendor APIs are not non-enterprise self-serve exceptions; `egressDeclarations` document the request but do not approve PX/client data leaving the shell
-- CSV/file imports must be declared; canonical imports must use PlannerXchange-owned Core Data import handling, not app-owned import routes or parent-matching logic
+- CSV/file imports must be declared; high-risk client/account/custodian CSVs must use declared PX import sessions (`px_import_session` + `ctx.openDataImportSession`), not app-owned parsers, import routes, or parent-matching logic
 - canonical creates, updates, and soft-deletes must use governed PlannerXchange canonical APIs with matching `canonical.*.write` scopes; app-data remains for app-owned work product
 - platform review and product entitlements are handled inside PlannerXchange, not in this repo
 
@@ -156,7 +156,7 @@ Important setup rules:
 12. Use the default Vite port (5173) for local development — PlannerXchange allows CORS and auth callbacks only from localhost:5173.
 13. Treat PlannerXchange CodeQL findings in review feedback as security blockers or remediation tasks. Fix the underlying code issue and push a new commit. PlannerXchange owns CodeQL execution.
 14. Do not add builder-owned databases, service-role keys, database URL env vars, or direct integration-provider API clients for PX/client/subscriber data. Use PX canonical APIs and PX app-data instead.
-15. If the app accepts CSV or file uploads, declare the ingress in plannerxchange.app.json. App-owned CSV work product may go to PX app-data; canonical transaction/account/client/household imports must use a PX-owned Core Data import handoff and documented canonical write contracts.
+15. If the app accepts CSV or file uploads, declare the ingress in plannerxchange.app.json. App-owned low-risk CSV work product may go to PX app-data; high-risk client/account/custodian CSV imports must use `target: "px_import_session"` and `ctx.openDataImportSession({ declarationId })` for either canonical storage or one-time transient mapped rows.
 16. Before editing plannerxchange.app.json from review feedback, read plannerxchange/ai-index.md and map review capability labels to actual manifest fields. Do not add guessed fields like capabilities, portableData, marketplace, demoMode, demoModeEnabled, or supportsDemoMode.
 17. Before fetching review feedback, ask me which PlannerXchange goal I want right now: draft, marketplace, demo_mode, private_label, or data_persistence. Then run px review watch --env dev --goal <selected-goal> --commit HEAD --format markdown. If it exits 2, fix only the current required fix group for that goal, rebuild, commit, push, and watch again. If it exits 0, no required fixes remain for that goal on the reviewed commit.
 
