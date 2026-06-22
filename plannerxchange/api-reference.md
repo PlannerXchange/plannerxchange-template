@@ -243,10 +243,9 @@ If your app is calling the live backend today, use the current live platform pat
 | `canonical.position.read` | `/positions`, `/accounts/{id}/positions` | Firm-wide and account positions |
 | `canonical.transaction.read` | `/transactions`, `/accounts/{id}/transactions` | Firm-wide and account transactions |
 | `canonical.cost_basis.read` | `/cost-basis`, `/accounts/{id}/cost-basis` | Firm-wide and account cost basis tax lots |
-| `canonical.security.read` | `/securities`, `/securities/{id}` | Platform security master with firm overrides |
-| `canonical.security.firm_override` | security firm-override and allocation routes | Manage firm security overrides and security allocations |
-| `canonical.asset_class.write` | asset-class routes | Manage firm asset-class reference data |
-| `canonical.category_mapping.write` | category-mapping routes | Manage firm category mappings |
+| `canonical.security.read` | `/securities`, `/securities/{id}` | Security master with PX and firm classification summaries |
+| `canonical.security.firm_override` | security firm-override and allocation routes | Manage firm security overrides, firm security allocations, and return expectation overrides |
+| `canonical.asset_class.write` | asset-class routes | Manage firm asset-class hierarchy/reference data |
 | `canonical.custom_field.write` | custom-field routes | Manage custom field definitions |
 | `canonical.model.read` | `/models`, `/models/{id}/holdings` | Models and holdings |
 | `canonical.model.write` | model mutation route families when exposed | Manage canonical models through approved contracts |

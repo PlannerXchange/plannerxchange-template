@@ -108,7 +108,6 @@ Apps that receive `restricted_pii` through PlannerXchange APIs must follow these
 | `canonical.security.read` | internal |
 | `canonical.security.firm_override` | confidential mutation scope |
 | `canonical.asset_class.write` | internal mutation scope |
-| `canonical.category_mapping.write` | internal mutation scope |
 | `canonical.custom_field.write` | confidential mutation scope when attached to client/account domains |
 | `canonical.model.read` | internal |
 | `canonical.model.write` | internal mutation scope |

@@ -126,7 +126,6 @@ Canonical data writes:
 - `canonical.integration_link.write`
 - `canonical.security.firm_override`
 - `canonical.asset_class.write`
-- `canonical.category_mapping.write`
 - `canonical.custom_field.write`
 - `canonical.import.write`
 

@@ -161,6 +161,18 @@ platform (global, shared across all firms)
   Ã¢â€ â€™ security (security master; firms can overlay with overrides)
 ```
 
+### Asset class and security classification model
+
+PlannerXchange has a global read-only PX default asset-class hierarchy. Each firm starts with an editable duplicate of that hierarchy and can rename, add, move, or configure firm asset classes over time.
+
+Security payloads expose both classification views:
+
+- `pxClassification` is PlannerXchange's read-only default classification for the security.
+- `firmClassification` is the firm's editable classification summary, backed by firm security allocation rows.
+- `resolvedReturnExpectation` shows the return assumption used for the security and whether it came from a security override, a firm asset-class default, or the PX asset-class default.
+
+Do not request or build against category-mapping routes. That abstraction is retired. Firm classification writes should update firm security allocation rows. Non-pooled securities use one 100% allocation row; ETF/MF or other pooled securities may have multiple weighted allocation rows.
+
 ### Household tax data direction
 
 PlannerXchange canonical household data includes a household-level tax summary plus year-scoped household tax filing records for actual tax data.
@@ -268,10 +280,9 @@ Declare these in the manifest `permissions` array. Only request what the app act
 | `canonical.position.read` | Firm-wide and account-scoped positions |
 | `canonical.transaction.read` | Firm-wide and account-scoped transactions |
 | `canonical.cost_basis.read` | Firm-wide and account-scoped cost basis lots |
-| `canonical.security.read` | Platform security master with firm overrides merged |
-| `canonical.security.firm_override` | Firm security overrides and security allocations |
-| `canonical.asset_class.write` | Asset class reference data create, update, and soft-delete |
-| `canonical.category_mapping.write` | Category mapping updates |
+| `canonical.security.read` | Security master with PX and firm classification summaries |
+| `canonical.security.firm_override` | Firm security overrides, firm security allocations, and return expectation overrides |
+| `canonical.asset_class.write` | Firm asset-class hierarchy/reference data create, update, and soft-delete |
 | `canonical.custom_field.write` | Custom field definition create, update, and soft-delete |
 | `canonical.model.read` | Models and their holdings |
 | `canonical.model.write` | Model mutation route families when exposed |
@@ -344,7 +355,7 @@ Current live platform route registration is root-scoped for canonical reads. If 
 | `GET /canonical/accounts/{accountId}/positions` | `GET /accounts/{accountId}/positions` | `canonical.position.read` | live | Positions (filter by `asOfDate`) |
 | `GET /canonical/accounts/{accountId}/transactions` | `GET /accounts/{accountId}/transactions` | `canonical.transaction.read` | live | Transactions (filter by `startDate`, `endDate`) |
 | `GET /canonical/accounts/{accountId}/cost-basis` | `GET /accounts/{accountId}/cost-basis` | `canonical.cost_basis.read` | live | Cost basis lots (filter by `asOfDate`) |
-| `GET /canonical/securities` | `GET /securities` | `canonical.security.read` | live | Securities (merged with firm overrides) |
+| `GET /canonical/securities` | `GET /securities` | `canonical.security.read` | live | Securities with PX classification, firm classification, and firm overrides |
 | `GET /canonical/securities/{securityId}` | `GET /securities/{securityId}` | `canonical.security.read` | live | Security detail (merged) |
 | `GET /canonical/models` | `GET /models` | `canonical.model.read` | live | Models list |
 | `GET /canonical/models/{modelId}/holdings` | `GET /models/{modelId}/holdings` | `canonical.model.read` | live | Model holdings |
@@ -408,7 +419,7 @@ Builder apps may show both the specific account type and the tax treatment. For 
 
 Position, transaction, and cost-basis data may come from large S3-backed PlannerXchange canonical shards. Apps should read it only through canonical APIs and should not persist raw tax-lot identifiers, provider account identifiers, raw custodian record IDs, or unreconciled custodian payloads in app-local state.
 
-**Security:** `id`, `securityName`, `status`, `verificationStatus` are required. `ticker`, `cusip`, `symbol`, `securityType`, `fees` are optional. When a firm override exists, `displayName`, `returnExpectation`, `assetClassId`, `benchmark` are included in a `firmOverride` object.
+**Security:** `id`, `securityName`, `status`, `verificationStatus` are required. `ticker`, `cusip`, `symbol`, `securityType`, `fees` are optional. When a firm override exists, `displayName`, `returnExpectation`, and `benchmark` may be included in a `firmOverride` object. Classification is returned separately as `pxClassification`, `firmClassification`, and `resolvedReturnExpectation`.
 
 **Model:** `id`, `name`, `status` are required. `description`, `assetManager` are optional. Holdings are read from the separate `/canonical/models/{modelId}/holdings` route.
 
@@ -594,7 +605,7 @@ Summary reads do not return raw PII fields.
 }
 ```
 
-**Security (with firm override):**
+**Security (with PX and firm classification):**
 
 ```json
 {
@@ -607,14 +618,42 @@ Summary reads do not return raw PII fields.
   "verificationStatus": "verified",
   "firmOverride": {
     "displayName": "Apple",
-    "assetClassId": "ac_us_large_cap",
     "returnExpectation": 0.08,
     "benchmark": "SPY"
+  },
+  "pxClassification": {
+    "label": "US Large Cap",
+    "isMixed": false,
+    "source": "px",
+    "allocations": [
+      {
+        "assetClassId": "px_ac_us_large_cap",
+        "assetClassName": "US Large Cap",
+        "percent": 100
+      }
+    ]
+  },
+  "firmClassification": {
+    "label": "US Large Cap",
+    "isMixed": false,
+    "source": "firm",
+    "allocations": [
+      {
+        "assetClassId": "ac_us_large_cap",
+        "assetClassName": "US Large Cap",
+        "percent": 100
+      }
+    ]
+  },
+  "resolvedReturnExpectation": {
+    "value": 0.08,
+    "source": "security_override",
+    "sourceLabel": "Security override"
   }
 }
 ```
 
-`firmOverride` is null when the firm has not customized the security. `verificationStatus` values: `verified`, `unverified`, `review_needed`, `unverified_no_match`, `manually_verified`.
+`firmOverride` is null when the firm has not customized display, return, or benchmark fields. Firm classification is represented by firm security allocation rows, not `firmOverride.assetClassId`. `pxClassification` is PlannerXchange's read-only default classification. `firmClassification` is the firm's editable allocation summary. `resolvedReturnExpectation` resolves in order: security override, firm asset-class default, then PX asset-class default. `verificationStatus` values: `verified`, `unverified`, `review_needed`, `unverified_no_match`, `manually_verified`.
 
 **Model:**
 

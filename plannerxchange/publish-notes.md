@@ -278,10 +278,9 @@ Current builder-facing scopes (request only what the app actually needs):
 | `canonical.position.read` | Positions |
 | `canonical.transaction.read` | Transactions |
 | `canonical.cost_basis.read` | Cost basis lots |
-| `canonical.security.read` | Security master with firm overrides |
-| `canonical.security.firm_override` | Firm security overrides and allocations |
-| `canonical.asset_class.write` | Asset class reference writes |
-| `canonical.category_mapping.write` | Category mapping writes |
+| `canonical.security.read` | Security master with PX and firm classification summaries |
+| `canonical.security.firm_override` | Firm security overrides, allocations, and return expectation overrides |
+| `canonical.asset_class.write` | Firm asset-class hierarchy/reference writes |
 | `canonical.custom_field.write` | Custom field definition writes |
 | `canonical.model.read` | Models and holdings |
 | `canonical.model.write` | Model writes where exposed |

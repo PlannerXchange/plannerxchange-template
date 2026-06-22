@@ -144,7 +144,8 @@ PlannerXchange maintains canonical firm data that apps can read without building
 - **positions** — point-in-time holdings within accounts (date-specific)
 - **transactions** — trade and cash activity (date-specific)
 - **cost basis** — tax-lot records (date-specific)
-- **securities** — platform-level security master with firm-specific overrides
+- **asset classes** — PX default hierarchy plus the firm's editable hierarchy
+- **securities** — global security master with read-only PX classification, firm-editable classification allocations, and firm-specific return/display overrides
 - **models** — target allocation templates with security weights
 - **sleeves** — composite of models
 
@@ -179,7 +180,7 @@ Canonical request transport:
 - hosted apps should not pass `appInstallationId` in query strings, route params, or manually assembled URLs
 - do not construct PlannerXchange `Authorization` headers in app code
 - hard-delete, purge, provider OAuth secret management, destructive repair, and auto-classify routes are not part of the student app contract
-- custom fields, category mappings, security overrides, and import handoff workflows are builder-facing only through documented governed scopes and route contracts
+- custom fields, firm asset-class hierarchy, security override/allocation edits, and import handoff workflows are builder-facing only through documented governed scopes and route contracts
 
 Marketplace billing boundary:
 

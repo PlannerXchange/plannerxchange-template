@@ -106,7 +106,6 @@ export type AppPermissionScope =
   | "canonical.security.read"
   | "canonical.security.firm_override"
   | "canonical.asset_class.write"
-  | "canonical.category_mapping.write"
   | "canonical.custom_field.write"
   | "canonical.model.read"
   | "canonical.model.write"
