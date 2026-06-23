@@ -13,6 +13,7 @@ PlannerXchange owns:
 Builder apps should not:
 
 - implement their own login flow
+- implement public landing-page signup, login, password, checkout, billing, lead-capture, or provider-connect flows
 - implement invite redemption, email verification, password setup, password reset, or onboarding entry flows
 - assume control of the top-level domain
 - bypass PlannerXchange publication rules
@@ -72,6 +73,30 @@ PlannerXchange does not prescribe one house visual style for builder apps.
 Use your own design system, layout language, typography, and component patterns.
 
 The contract is about shell compatibility, auth/session ownership, disclosure correctness, and data governance, not about copying PlannerXchange's own UI style.
+
+## Public Landing Pages
+
+PlannerXchange may allow an app to have a public landing page at the canonical
+marketplace app URL:
+
+```text
+/marketplace/apps/{slug}
+```
+
+Landing pages are optional reviewed modes, not publication levels and not
+manifest capability fields. Do not add `landingPage`, `landing_page`,
+`publicLandingPage`, `landingPageEnabled`, or `supportsLandingPage` to
+`plannerxchange.app.json`.
+
+The public landing page can explain the app, show public-safe screenshots, and
+embed YouTube or Vimeo demo videos. It must not read live PlannerXchange data,
+call protected PlannerXchange APIs, require shell session context, or collect
+client, firm, account, tax, CRM, document, upload, auth, payment, or provider
+credential data.
+
+PlannerXchange owns the CTA handoff for sign in, sign up, install, checkout,
+review, follow, and demo actions. If the app needs a public landing page, read
+`landing-page.md` before implementing it.
 
 Whitelabel note:
 
@@ -144,8 +169,8 @@ PlannerXchange maintains canonical firm data that apps can read without building
 - **positions** — point-in-time holdings within accounts (date-specific)
 - **transactions** — trade and cash activity (date-specific)
 - **cost basis** — tax-lot records (date-specific)
-- **asset classes** — PX default hierarchy plus the firm's editable hierarchy
-- **securities** — global security master with read-only PX classification, firm-editable classification allocations, and firm-specific return/display overrides
+- **asset classes** — PX default hierarchy plus the firm's editable and inheritable hierarchy
+- **securities** — global security master with AI-generated PX default classification and capital-market expectation, firm-resolved classification/expectation values, and optional firm-specific return/display overrides
 - **models** — target allocation templates with security weights
 - **sleeves** — composite of models
 

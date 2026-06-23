@@ -165,13 +165,17 @@ platform (global, shared across all firms)
 
 PlannerXchange has a global read-only PX default asset-class hierarchy. Each firm starts with an editable duplicate of that hierarchy and can rename, add, move, or configure firm asset classes over time.
 
+Every security in the PlannerXchange security master is expected to have a concrete PX default classification and a concrete PX capital-market return expectation. PlannerXchange AI generates those defaults for existing and newly added securities, with PX employee admin review available only as an upstream exception path. Builder apps should treat classification and return expectations as platform-resolved data, not as app-owned inference work.
+
 Security payloads expose both classification views:
 
 - `pxClassification` is PlannerXchange's read-only default classification for the security.
-- `firmClassification` is the firm's editable classification summary, backed by firm security allocation rows.
-- `resolvedReturnExpectation` shows the return assumption used for the security and whether it came from a security override, a firm asset-class default, or the PX asset-class default.
+- `firmClassification` is the firm-resolved classification summary, backed by firm security allocation rows. It inherits from PX defaults unless the firm customizes the security or related asset-class hierarchy.
+- `resolvedReturnExpectation` shows the concrete capital-market return expectation used for the security and whether it came from a security override, a firm asset-class assumption, or the PX capital-market default.
 
-Do not request or build against category-mapping routes. That abstraction is retired. Firm classification writes should update firm security allocation rows. Non-pooled securities use one 100% allocation row; ETF/MF or other pooled securities may have multiple weighted allocation rows.
+Do not request or build against category-mapping routes. That abstraction is retired. Firm classification writes should update firm security allocation rows. Non-pooled securities use one 100% allocation row; ETF/MF or other pooled securities may have multiple weighted allocation rows. For pooled securities, expected return should be based on the weighted allocation blend rather than the largest class.
+
+Builder apps must not implement local `Unclassified`, `Manual Review Required`, `Not set`, or expected-return fallback logic for securities. If the platform returns an unexpected missing classification or return expectation, treat it as a platform data-quality issue to surface gracefully, not as a reason to create app-local defaults.
 
 ### Household tax data direction
 
@@ -280,8 +284,8 @@ Declare these in the manifest `permissions` array. Only request what the app act
 | `canonical.position.read` | Firm-wide and account-scoped positions |
 | `canonical.transaction.read` | Firm-wide and account-scoped transactions |
 | `canonical.cost_basis.read` | Firm-wide and account-scoped cost basis lots |
-| `canonical.security.read` | Security master with PX and firm classification summaries |
-| `canonical.security.firm_override` | Firm security overrides, firm security allocations, and return expectation overrides |
+| `canonical.security.read` | Security master with PX defaults, firm-resolved classifications, and firm-resolved capital-market expectations |
+| `canonical.security.firm_override` | Firm security overrides, firm allocation blends, and capital-market expectation overrides |
 | `canonical.asset_class.write` | Firm asset-class hierarchy/reference data create, update, and soft-delete |
 | `canonical.custom_field.write` | Custom field definition create, update, and soft-delete |
 | `canonical.model.read` | Models and their holdings |
@@ -355,7 +359,7 @@ Current live platform route registration is root-scoped for canonical reads. If 
 | `GET /canonical/accounts/{accountId}/positions` | `GET /accounts/{accountId}/positions` | `canonical.position.read` | live | Positions (filter by `asOfDate`) |
 | `GET /canonical/accounts/{accountId}/transactions` | `GET /accounts/{accountId}/transactions` | `canonical.transaction.read` | live | Transactions (filter by `startDate`, `endDate`) |
 | `GET /canonical/accounts/{accountId}/cost-basis` | `GET /accounts/{accountId}/cost-basis` | `canonical.cost_basis.read` | live | Cost basis lots (filter by `asOfDate`) |
-| `GET /canonical/securities` | `GET /securities` | `canonical.security.read` | live | Securities with PX classification, firm classification, and firm overrides |
+| `GET /canonical/securities` | `GET /securities` | `canonical.security.read` | live | Securities with PX defaults, firm-resolved classifications, firm-resolved capital-market expectations, and firm overrides |
 | `GET /canonical/securities/{securityId}` | `GET /securities/{securityId}` | `canonical.security.read` | live | Security detail (merged) |
 | `GET /canonical/models` | `GET /models` | `canonical.model.read` | live | Models list |
 | `GET /canonical/models/{modelId}/holdings` | `GET /models/{modelId}/holdings` | `canonical.model.read` | live | Model holdings |
@@ -419,7 +423,7 @@ Builder apps may show both the specific account type and the tax treatment. For 
 
 Position, transaction, and cost-basis data may come from large S3-backed PlannerXchange canonical shards. Apps should read it only through canonical APIs and should not persist raw tax-lot identifiers, provider account identifiers, raw custodian record IDs, or unreconciled custodian payloads in app-local state.
 
-**Security:** `id`, `securityName`, `status`, `verificationStatus` are required. `ticker`, `cusip`, `symbol`, `securityType`, `fees` are optional. When a firm override exists, `displayName`, `returnExpectation`, and `benchmark` may be included in a `firmOverride` object. Classification is returned separately as `pxClassification`, `firmClassification`, and `resolvedReturnExpectation`.
+**Security:** `id`, `securityName`, `status`, `verificationStatus` are required. `ticker`, `cusip`, `symbol`, `securityType`, `fees` are optional. When a firm override exists, `displayName`, `returnExpectation`, and `benchmark` may be included in a `firmOverride` object. Classification and capital-market expectation data is returned separately as `pxClassification`, `firmClassification`, and `resolvedReturnExpectation`; builder apps should consume these resolved values rather than inventing local defaults.
 
 **Model:** `id`, `name`, `status` are required. `description`, `assetManager` are optional. Holdings are read from the separate `/canonical/models/{modelId}/holdings` route.
 
@@ -653,7 +657,7 @@ Summary reads do not return raw PII fields.
 }
 ```
 
-`firmOverride` is null when the firm has not customized display, return, or benchmark fields. Firm classification is represented by firm security allocation rows, not `firmOverride.assetClassId`. `pxClassification` is PlannerXchange's read-only default classification. `firmClassification` is the firm's editable allocation summary. `resolvedReturnExpectation` resolves in order: security override, firm asset-class default, then PX asset-class default. `verificationStatus` values: `verified`, `unverified`, `review_needed`, `unverified_no_match`, `manually_verified`.
+`firmOverride` is null when the firm has not customized display, return, or benchmark fields. Firm classification is represented by firm security allocation rows, not `firmOverride.assetClassId`. `pxClassification` is PlannerXchange's read-only default classification. `firmClassification` is the firm-resolved allocation summary: it inherits PX defaults until the firm customizes the security or related asset-class hierarchy. `resolvedReturnExpectation` resolves in order: security override, firm asset-class assumption, then PX capital-market default. For ETFs, mutual funds, and other pooled securities, the resolved expectation should reflect the weighted allocation blend. `Unclassified`, `Manual Review Required`, and `Not set` are not terminal builder-facing states for security classification or expected return. `verificationStatus` values: `verified`, `unverified`, `review_needed`, `unverified_no_match`, `manually_verified`.
 
 **Model:**
 
@@ -738,6 +742,6 @@ const masked =
 - do not export or send PX canonical client data to external AI providers or third parties in Day 1
 - handle null on all optional fields Ã¢â‚¬â€ not every firm imports every field, and different custodian exports include different columns
 - firms populate canonical data through PlannerXchange's CSV import wizard, which supports common custodian formats with fuzzy column matching Ã¢â‚¬â€ but data completeness depends on what the firm uploaded
-- respect `verificationStatus` on securities: `unverified` or `review_needed` securities may have incomplete or incorrect metadata
+- respect `verificationStatus` on securities: `unverified` or `review_needed` securities may have incomplete or incorrect identity metadata, but classification and return expectation should still come from PlannerXchange's firm-resolved fields rather than app-local fallback logic
 - do not build student-app workflows around platform-only routes such as hard-delete cleanup, provider OAuth secret management, destructive import repair, or auto-classify
 - if the app renders household or account totals, the firm's data may be partial Ã¢â‚¬â€ do not imply completeness unless the firm confirms it

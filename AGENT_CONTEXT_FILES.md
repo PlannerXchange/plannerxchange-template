@@ -25,6 +25,7 @@ It should contain exactly this maintained set:
 - `plannerxchange/context.md`
 - `plannerxchange/data-contract.md`
 - `plannerxchange/email-api.md`
+- `plannerxchange/landing-page.md`
 - `plannerxchange/pii-and-security.md`
 - `plannerxchange/publish-notes.md`
 - `scripts/preflight.mjs`

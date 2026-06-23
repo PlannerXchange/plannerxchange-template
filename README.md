@@ -29,7 +29,7 @@ Examples:
 
 Do not create inferred capability fields from review output.
 
-PlannerXchange review may say it detected capabilities such as marketplace distribution, portable data, or demo mode. Those are review/eligibility labels, not manifest keys. Do not add `capabilities`, `marketplace`, `portableData`, `demoMode`, `demoModeEnabled`, or `supportsDemoMode` to `plannerxchange.app.json`.
+PlannerXchange review may say it detected capabilities such as marketplace distribution, portable data, demo mode, or landing-page readiness. Those are review/eligibility labels, not manifest keys. Do not add `capabilities`, `marketplace`, `portableData`, `demoMode`, `demoModeEnabled`, `supportsDemoMode`, `landingPage`, `landing_page`, `publicLandingPage`, `landingPageEnabled`, or `supportsLandingPage` to `plannerxchange.app.json`.
 
 Use the actual manifest fields instead:
 
@@ -40,7 +40,7 @@ Use the actual manifest fields instead:
 - external hosts: `"egressDeclarations"`
 - CSV/file/API ingress: `"dataIngressDeclarations"`
 
-Demo mode is enabled from Creator Studio after review eligibility. It is not currently a builder manifest field.
+Demo mode and public landing pages are enabled from PlannerXchange after review eligibility. They are not currently builder manifest fields.
 
 `dataPortabilityMode` is a build-contract choice:
 
@@ -79,7 +79,7 @@ This starter mirrors the high-signal subset of these PlannerXchange builder-spec
 - branding and legal
 - publish requirements
 
-For AI coding agents, start with `AGENTS.md` and `plannerxchange/ai-index.md`. The index maps review phrases such as `Portable data`, `Marketplace distribution`, and `Demo mode` to the actual manifest fields and docs.
+For AI coding agents, start with `AGENTS.md` and `plannerxchange/ai-index.md`. The index maps review phrases such as `Portable data`, `Marketplace distribution`, `Demo mode`, and `Landing page` to the actual manifest fields and docs.
 
 If you have access to the PlannerXchange platform repo, review the corresponding `docs/builder-spec/` files for the full contract.
 
@@ -87,6 +87,7 @@ The template context pack also includes current guidance for:
 
 - household tax reads through household summary fields plus year-scoped tax-filing records
 - provider-scoped external identity so households, clients, and accounts can support multiple external mappings over time
+- public landing pages as an optional review mode with PlannerXchange-owned CTA, auth, install, checkout, review, follow, and demo handoffs
 
 ## Current status
 
@@ -157,8 +158,8 @@ Important setup rules:
 13. Treat PlannerXchange CodeQL findings in review feedback as security blockers or remediation tasks. Fix the underlying code issue and push a new commit. PlannerXchange owns CodeQL execution.
 14. Do not add builder-owned databases, service-role keys, database URL env vars, or direct integration-provider API clients for PX/client/subscriber data. Use PX canonical APIs and PX app-data instead.
 15. If the app accepts CSV or file uploads, declare the ingress in plannerxchange.app.json. App-owned low-risk CSV work product may go to PX app-data; high-risk client/account/custodian CSV imports must use `target: "px_import_session"` and `ctx.openDataImportSession({ declarationId })` for either canonical storage or one-time transient mapped rows.
-16. Before editing plannerxchange.app.json from review feedback, read plannerxchange/ai-index.md and map review capability labels to actual manifest fields. Do not add guessed fields like capabilities, portableData, marketplace, demoMode, demoModeEnabled, or supportsDemoMode.
-17. Before fetching review feedback, ask me which PlannerXchange goal I want right now: draft, marketplace, demo_mode, private_label, or data_persistence. Then run px review watch --env dev --goal <selected-goal> --commit HEAD --format markdown. If it exits 2, fix only the current required fix group for that goal, rebuild, commit, push, and watch again. If it exits 0, no required fixes remain for that goal on the reviewed commit.
+16. Before editing plannerxchange.app.json from review feedback, read plannerxchange/ai-index.md and map review capability labels to actual manifest fields. Do not add guessed fields like capabilities, portableData, marketplace, demoMode, demoModeEnabled, supportsDemoMode, landingPage, landing_page, publicLandingPage, landingPageEnabled, or supportsLandingPage.
+17. Before fetching review feedback, ask me which PlannerXchange goal I want right now: draft, marketplace, demo_mode, landing_page, private_label, or data_persistence. Then run px review watch --env dev --goal <selected-goal> --commit HEAD --format markdown. If it exits 2, fix only the current required fix group for that goal, rebuild, commit, push, and watch again. If it exits 0, no required fixes remain for that goal on the reviewed commit.
 
 Before writing code, ask me these questions and wait for my answers:
 
@@ -174,6 +175,8 @@ Before writing code, ask me these questions and wait for my answers:
 4. Will your app need to save its own work product (like questionnaire answers, recommendations, or reports) so it persists across sessions? PlannerXchange can store this for you.
 
 5. Beyond reading client data, will your app also need to create, update, or soft-delete shared PlannerXchange canonical records such as households, clients, accounts, tax filings, or integration links?
+
+6. Do you want a public PlannerXchange landing page for this app? If yes, I will read `plannerxchange/landing-page.md`, keep it public-safe, use only synthetic data in screenshots and fixtures, allow only YouTube or Vimeo video embeds, and route sign in, sign up, install, checkout, review, follow, and demo actions through PlannerXchange-owned handoffs.
 
 After I answer:
 
@@ -223,10 +226,11 @@ Before watching review feedback, the AI agent should ask the builder which goal 
 - `draft`: run inside PlannerXchange for internal testing only
 - `marketplace`: become listed and installable in the PlannerXchange marketplace
 - `demo_mode`: support a publicly available demo with synthetic/sample data
+- `landing_page`: support a public PlannerXchange-hosted landing page with public-safe copy, approved media, and PX-owned CTA handoffs
 - `private_label`: consume PlannerXchange firm branding, legal, and disclosure context
 - `data_persistence`: use approved PlannerXchange app-data and governed canonical data contracts
 
-Do not fix data-persistence, private-label, or demo findings unless the builder selected that capability or the finding also blocks the selected goal.
+Do not fix data-persistence, private-label, demo, or landing-page findings unless the builder selected that capability or the finding also blocks the selected goal.
 
 ```bash
 npm run build
@@ -328,6 +332,7 @@ when needed.
 - Do not add frontend provider keys such as `VITE_TAVILY_API_KEY`, `VITE_OPENAI_API_KEY`, `NEXT_PUBLIC_*_API_KEY`, or direct Tavily/OpenAI/Anthropic/Gemini calls for PX/client data. That path needs an accepted enterprise exception before publication.
 - Declare the correct `dataPortabilityMode` before linking the repo.
 - Do not add app-owned login flows.
+- For public landing pages, read `plannerxchange/landing-page.md`; use YouTube or Vimeo embeds only, keep all content public-safe, and route protected CTAs through PlannerXchange-owned handoffs.
 - Route app-owned record reads and writes through the PX gateway pattern (`src/lib/px-gateway.ts`). Do not use `localStorage` as a production persistence layer.
 - All mock data must use obviously synthetic names and `@example.test` email addresses. Never embed real personal data in source code.
 - Assume PlannerXchange owns auth, tenant resolution, branding, and disclosures.
@@ -373,6 +378,7 @@ Auth lifecycle reminder:
 - `plannerxchange/context.md`: platform constraints and design reminders
 - `plannerxchange/data-contract.md`: current PX canonical data, portability, and auth assumptions
 - `plannerxchange/email-api.md`: outbound transactional email contract
+- `plannerxchange/landing-page.md`: public landing-page CTA, media, auth, checkout, and data-safety rules
 - `plannerxchange/pii-and-security.md`: data-classification and restricted-PII handling rules
 - `plannerxchange/publish-notes.md`: publication and review expectations
 - `src/plugin.tsx`: PlannerXchange plugin entrypoint

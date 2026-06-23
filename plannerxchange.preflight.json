@@ -69,9 +69,9 @@
       "id": "manifest-no-inferred-capability-fields",
       "severity": "error",
       "title": "Manifest does not use inferred capability fields",
-      "description": "Detected capabilities are review output, not plannerxchange.app.json fields. Do not add capabilities, marketplace, portableData, demoMode, demoModeEnabled, or supportsDemoMode.",
+      "description": "Detected capabilities are review output, not plannerxchange.app.json fields. Do not add capabilities, marketplace, portableData, demoMode, demoModeEnabled, supportsDemoMode, landingPage, landing_page, publicLandingPage, landingPageEnabled, or supportsLandingPage.",
       "type": "manifest-unsupported-fields",
-      "fields": ["capabilities", "marketplace", "marketplaceDistribution", "portableData", "demoMode", "demoModeEnabled", "supportsDemoMode"]
+      "fields": ["capabilities", "marketplace", "marketplaceDistribution", "portableData", "demoMode", "demoModeEnabled", "supportsDemoMode", "landingPage", "landing_page", "publicLandingPage", "landingPageEnabled", "supportsLandingPage"]
     },
     {
       "id": "manifest-permissions",
@@ -181,6 +181,26 @@
       "type": "grep",
       "pattern": "fetch\\s*\\(\\s*[\"'](/api/(?!auth/user\\b|login\\b|logout\\b)|/(questions?|answers?|responses?|sessions?|profile|users/me|assessments?|scores?|results?|cashflows?|uploads?)(/|\\b|\\?))|axios(\\.[A-Za-z]+)?\\s*\\(\\s*[\"'](/api/|/(questions?|answers?|responses?|sessions?|profile|users/me|assessments?|scores?|results?|cashflows?|uploads?)(/|\\b|\\?))",
       "include": ["src/**/*.{ts,tsx,js,jsx}"],
+      "exclude": ["node_modules/**", "src/dev-context.ts"]
+    },
+    {
+      "id": "no-app-owned-auth-or-checkout-routes",
+      "severity": "error",
+      "title": "No app-owned auth, signup, or checkout routes",
+      "description": "Public landing-page CTAs for sign in, sign up, install, checkout, billing, reviews, follows, and demo must hand off to PlannerXchange-owned routes instead of app-owned routes.",
+      "type": "grep",
+      "pattern": "(href|to|action)\\s*=\\s*[\"']/(?:sign-?in|login|sign-?up|signup|register|create-account|reset-password|verify-email|invite|checkout|billing|subscribe)(?:/|\\?|#|[\"'])|(?:fetch|navigate|window\\.location\\.(?:assign|replace)|axios(?:\\.[A-Za-z]+)?)\\s*\\(\\s*[\"']/(?:sign-?in|login|sign-?up|signup|register|create-account|reset-password|verify-email|invite|checkout|billing|subscribe)(?:/|\\?|#|[\"'])",
+      "include": ["src/**/*.{ts,tsx,js,jsx}"],
+      "exclude": ["node_modules/**", "src/dev-context.ts"]
+    },
+    {
+      "id": "landing-page-external-form-or-checkout-provider",
+      "severity": "warning",
+      "title": "External form, calendar, or checkout provider flagged",
+      "description": "Public landing pages must not post Book demo, Contact us, Join waitlist, checkout, or billing flows to builder-owned form, calendar, CRM, webhook, or payment providers unless PlannerXchange later approves a specific contract.",
+      "type": "grep",
+      "pattern": "https?://[^\"'`\\s)]*(?:buy\\.stripe\\.com|checkout\\.stripe\\.com|stripe\\.com|typeform\\.com|forms\\.gle|formspree\\.io|tally\\.so|calendly\\.com|hubspot\\.com|hsforms\\.com|mailchimp\\.com|zapier\\.com|make\\.com|n8n\\.cloud)",
+      "include": ["src/**/*.{ts,tsx,js,jsx,json}"],
       "exclude": ["node_modules/**", "src/dev-context.ts"]
     },
     {

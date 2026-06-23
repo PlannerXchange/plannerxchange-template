@@ -29,11 +29,12 @@ Important:
 Manifest schema guardrail:
 
 - detected capabilities in PlannerXchange review output are not manifest field names
-- do not add `capabilities`, `marketplace`, `portableData`, `demoMode`, `demoModeEnabled`, or `supportsDemoMode` to `plannerxchange.app.json`
+- do not add `capabilities`, `marketplace`, `portableData`, `demoMode`, `demoModeEnabled`, `supportsDemoMode`, `landingPage`, `landing_page`, `publicLandingPage`, `landingPageEnabled`, or `supportsLandingPage` to `plannerxchange.app.json`
 - marketplace intent is expressed with `visibility: "marketplace_listed"`
 - portable-data intent is expressed with `dataPortabilityMode: "plannerxchange_portable"`
 - data/API access is expressed with exact scope strings in the `permissions` array
 - demo mode is enabled in Creator Studio after eligibility review; it is not currently a builder manifest field
+- public landing pages are enabled in PlannerXchange after eligibility review; they are not currently builder manifest fields
 
 Visibility management:
 
@@ -67,6 +68,7 @@ Review guidance:
 - apps built to PX canonical data contracts get stricter checks for PX data access patterns
 - nonportable apps do not get a self-serve right to store PX/client/subscriber data in builder-owned backends; app-managed storage for real PX data requires demo-only isolation or enterprise exception review
 - app-owned identity UX such as custom invite redemption, email verification, or password-setup flows will be treated as governance findings because PlannerXchange owns auth and onboarding
+- public landing pages may use YouTube or Vimeo embeds, but app-owned signup, sign-in, password, checkout, billing, lead-capture, provider-connect, upload, protected API, or token-handling behavior will be treated as landing-page findings or broader blockers
 - apps that save builder-owned work product inside PX should use the governed PX app-data contract
 - apps that mutate shared PX shell data should use governed canonical write APIs with matching `canonical.*.write` scopes, approved fields, explicit user action, optimistic concurrency, and shared-record UI copy
 - apps that parse CSV/files must declare `dataIngressDeclarations`; high-risk client/account/custodian CSVs must use `target: "px_import_session"` and `ctx.openDataImportSession({ declarationId })` rather than app-owned parsers or `/imports/*` calls
@@ -82,14 +84,14 @@ PX CLI feedback loop:
 
 - GitHub push remains the review trigger.
 - The CLI is read-only. It does not publish, deploy, mutate repo links, change pricing, manage billing, or access canonical client data.
-- Before watching review feedback, ask the builder which goal applies now: `draft`, `marketplace`, `demo_mode`, `private_label`, or `data_persistence`.
+- Before watching review feedback, ask the builder which goal applies now: `draft`, `marketplace`, `demo_mode`, `landing_page`, `private_label`, or `data_persistence`.
 - After pushing source plus generated `distRoot`, run `px review watch --env dev --goal <selected-goal> --commit HEAD --format markdown`. Use `--env prod` only when Creator Studio copies a prod-specific loop for this app.
 - Exit `0` means no required fixes remain for the selected goal on the watched commit.
 - Exit `1` means the CLI could not complete because of auth, access, configuration, API, timeout, or unexpected local/platform errors. Read the terminal error and do not guess manifest fields from this failure.
 - Exit `2` means PlannerXchange returned required fixes for the selected goal. Fix only the current fix group in the markdown export, rebuild, commit, push, and watch again.
 - Exit `3` means PlannerXchange review reached a terminal `failed_to_complete` state. Treat this as a platform retry/support state unless the markdown export clearly names an app-code finding.
 - Exit `130` usually means the user interrupted the command with Ctrl+C. Stop the loop until the builder asks you to continue.
-- Do not fix data-persistence, private-label, or demo findings unless the builder selected that capability or the finding also blocks the selected goal.
+- Do not fix data-persistence, private-label, demo, or landing-page findings unless the builder selected that capability or the finding also blocks the selected goal.
 
 White-label readiness signals:
 
@@ -239,6 +241,9 @@ The following issues are common causes of publication rejection. Check for them 
 20. **Builder-owned backend for PX/client data** - app code or dependencies include builder-owned database clients, ORM clients, service-role keys, database URL env vars, or similar app-managed subscriber-data storage.
 21. **Frontend external provider key** - app code references browser-exposed keys such as `VITE_TAVILY_API_KEY`, `VITE_OPENAI_API_KEY`, or `NEXT_PUBLIC_*_API_KEY`. Shell-published apps run in users' browsers, so provider keys cannot be shipped.
 22. **Undeclared or unsafe CSV/file ingress** - file inputs, `FileReader`, `FormData`, Papa Parse, csv/xlsx packages, drag/drop uploads, external upload hosts, direct `/imports/*` calls, or high-risk custodian/client CSV parsing without a declared `px_import_session` and `ctx.openDataImportSession({ declarationId })`.
+23. **Unsupported landing-page fields** - `landingPage`, `landing_page`, `publicLandingPage`, `landingPageEnabled`, and `supportsLandingPage` are not manifest fields. Use the `landing_page` review goal instead.
+24. **App-owned public landing-page conversion flow** - a public landing page implements its own signup, sign-in, password, checkout, billing, lead-capture, provider-connect, upload, protected API call, or token-handling path instead of PlannerXchange-owned handoff.
+25. **Unapproved landing-page trust or pricing claims** - landing-page copy claims `PX Approved`, `Portable Data`, install availability, ratings, reviews, pricing, security approval, or marketplace status without using PlannerXchange marketplace records.
 
 ## PX Approved badge direction
 
@@ -278,8 +283,8 @@ Current builder-facing scopes (request only what the app actually needs):
 | `canonical.position.read` | Positions |
 | `canonical.transaction.read` | Transactions |
 | `canonical.cost_basis.read` | Cost basis lots |
-| `canonical.security.read` | Security master with PX and firm classification summaries |
-| `canonical.security.firm_override` | Firm security overrides, allocations, and return expectation overrides |
+| `canonical.security.read` | Security master with PX defaults, firm-resolved classifications, and firm-resolved capital-market expectations |
+| `canonical.security.firm_override` | Firm security overrides, allocation blends, and capital-market expectation overrides |
 | `canonical.asset_class.write` | Firm asset-class hierarchy/reference writes |
 | `canonical.custom_field.write` | Custom field definition writes |
 | `canonical.model.read` | Models and holdings |

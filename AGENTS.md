@@ -20,11 +20,12 @@ Before changing app code, read:
 Core rules:
 
 - Use the exact `plannerxchange.app.json` schema already in this repo.
-- Do not invent manifest fields from review labels. Do not add `capabilities`, `marketplace`, `portableData`, `demoMode`, `demoModeEnabled`, or `supportsDemoMode`.
+- Do not invent manifest fields from review labels. Do not add `capabilities`, `marketplace`, `portableData`, `demoMode`, `demoModeEnabled`, `supportsDemoMode`, `landingPage`, `landing_page`, `publicLandingPage`, `landingPageEnabled`, or `supportsLandingPage`.
 - Use `visibility: "marketplace_listed"` for marketplace intent.
 - Use `dataPortabilityMode: "plannerxchange_portable"` for portable-data intent.
 - Use exact scope strings in `permissions` for PlannerXchange API access.
 - Demo mode is enabled from Creator Studio after review eligibility; it is not currently a builder manifest field.
+- Public landing pages are enabled from PlannerXchange after review eligibility; they are not currently builder manifest fields.
 - PlannerXchange owns auth, routing, shell context, disclosure, publication review, and app installation identity.
 - Use `ShellRuntimeContext.authenticatedFetch` for protected PlannerXchange API calls.
 - Do not call app-owned backend routes such as `/api/questions`, `/api/results`, `/questions`, or `/results`; shell-published apps are static frontend plugins.
@@ -36,6 +37,11 @@ Core rules:
 - After pushing to GitHub, use the PlannerXchange CLI when available:
   `px review watch --env dev --goal <selected-goal> --commit HEAD --format markdown`.
 - Before choosing the goal, ask the builder whether the current target is `draft`,
-  `marketplace`, `demo_mode`, `private_label`, or `data_persistence`.
+  `marketplace`, `demo_mode`, `landing_page`, `private_label`, or `data_persistence`.
 - Fix only the current required fix group returned for the selected goal,
   then rebuild, commit, push, and run the watch command again.
+- If the builder asks for a public landing page, read `plannerxchange/landing-page.md`.
+  Landing pages may use YouTube or Vimeo embeds, but sign in, sign up, install,
+  checkout, review, follow, and demo CTAs must hand off to PlannerXchange-owned
+  flows. Do not add app-owned auth, signup, password, checkout, lead-capture,
+  protected PlannerXchange API, or token-handling behavior to a public landing page.

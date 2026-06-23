@@ -243,8 +243,8 @@ If your app is calling the live backend today, use the current live platform pat
 | `canonical.position.read` | `/positions`, `/accounts/{id}/positions` | Firm-wide and account positions |
 | `canonical.transaction.read` | `/transactions`, `/accounts/{id}/transactions` | Firm-wide and account transactions |
 | `canonical.cost_basis.read` | `/cost-basis`, `/accounts/{id}/cost-basis` | Firm-wide and account cost basis tax lots |
-| `canonical.security.read` | `/securities`, `/securities/{id}` | Security master with PX and firm classification summaries |
-| `canonical.security.firm_override` | security firm-override and allocation routes | Manage firm security overrides, firm security allocations, and return expectation overrides |
+| `canonical.security.read` | `/securities`, `/securities/{id}` | Security master with PX defaults, firm-resolved classifications, and firm-resolved capital-market expectations |
+| `canonical.security.firm_override` | security firm-override and allocation routes | Manage firm security overrides, firm allocation blends, and capital-market expectation overrides |
 | `canonical.asset_class.write` | asset-class routes | Manage firm asset-class hierarchy/reference data |
 | `canonical.custom_field.write` | custom-field routes | Manage custom field definitions |
 | `canonical.model.read` | `/models`, `/models/{id}/holdings` | Models and holdings |

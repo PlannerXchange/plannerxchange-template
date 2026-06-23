@@ -29,6 +29,7 @@ Then read only the file needed for the current task.
 | Send workflow email | `plannerxchange/email-api.md` | `plannerxchange.app.json`, email call site |
 | Handle CSV or file uploads | `plannerxchange/app-data-api.md`, `plannerxchange/data-contract.md`, `plannerxchange/pii-and-security.md` | `plannerxchange.app.json`, upload flow |
 | Fix auth/session review findings | `plannerxchange/context.md`, `plannerxchange/api-reference.md` | remove app-owned auth code |
+| Add or fix public landing-page behavior | `plannerxchange/landing-page.md`, `plannerxchange/publish-notes.md`, this file | landing-page source/components, CTA definitions, public-safe media |
 | Fix build or publish artifact findings | `plannerxchange/publish-notes.md`, `vite.config.ts`, `scripts/preflight.mjs` | build config, committed `distRoot` |
 | Fetch PlannerXchange review feedback | `README.md`, `plannerxchange/publish-notes.md` | ask the builder for the current goal, then run `px review watch --env dev --goal <selected-goal> --commit HEAD --format markdown` |
 | Decide mock vs live behavior | `plannerxchange/context.md`, `src/plannerxchange.ts`, `src/dev-context.ts` | runtime branching |
@@ -69,6 +70,11 @@ Do not add these unsupported fields:
 - `demoMode`
 - `demoModeEnabled`
 - `supportsDemoMode`
+- `landingPage`
+- `landing_page`
+- `publicLandingPage`
+- `landingPageEnabled`
+- `supportsLandingPage`
 
 ## Review Labels To Manifest Fields
 
@@ -78,6 +84,7 @@ Do not add these unsupported fields:
 | Portable data | App declares or uses PlannerXchange portable/canonical data behavior | Use `dataPortabilityMode: "plannerxchange_portable"` and approved PX APIs |
 | Data approved | Eligibility outcome after review, not a manifest field | Fix data findings; request exact scopes in `permissions` |
 | Demo mode | Optional Creator Studio mode using synthetic data | Do not edit the manifest; enable demo mode in Creator Studio when eligible |
+| Landing page | Optional public marketplace nicety with public-safe copy, approved media, and PX-owned CTA handoffs | Read `landing-page.md`; do not edit the manifest unless another documented field also needs changes |
 | Private-label ready | Eligibility outcome for branding/legal behavior | Request `branding.read` or `legal.read` only when the UI consumes those contexts |
 | App-data write | App stores builder-owned work product through PX | Add `app_data.write` and use the app-data contract |
 | Canonical write | App mutates shared PX shell data | Add the narrowest matching `canonical.*.write` scope and use governed canonical APIs |
@@ -151,6 +158,21 @@ Request only the scopes the app actually uses.
 - Treat `egressDeclarations` as review evidence, not approval. There is no non-enterprise Day 1 self-serve exception for external PX/client data egress.
 - Do not manually attach bearer tokens.
 - Do not pass `appInstallationId` in query strings.
+
+## Public Landing Pages
+
+Landing pages are optional review modes. They are not manifest fields.
+
+Use `plannerxchange/landing-page.md` before building or fixing one.
+
+Rules:
+
+- Keep `/marketplace/apps/{slug}` as the canonical public app URL.
+- Use only public-safe copy, fixtures, screenshots, and videos.
+- YouTube and Vimeo iframe embeds are allowed for public demo or explainer videos.
+- Sign in, sign up, install, checkout, review, follow, and demo CTAs must hand off to PlannerXchange-owned flows.
+- Do not render app-owned auth, signup, password, invite, checkout, lead-capture, provider-connect, upload, protected API, or token-handling behavior on a public landing page.
+- Use `px review watch --env dev --goal landing_page --commit HEAD --format markdown` only when landing-page readiness is the current goal.
 
 ## Persistence Rules
 
