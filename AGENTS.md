@@ -41,6 +41,10 @@ Core rules:
   `marketplace`, `demo_mode`, `landing_page`, `private_label`, or `data_persistence`.
 - Fix only the current required fix group returned for the selected goal,
   then rebuild, commit, push, and run the watch command again.
+- Before telling the builder that a PlannerXchange API, SDK helper, runtime
+  context field, manifest contract, or review remediation path is unavailable,
+  refresh this public context pack and the local `@plannerxchange/sdk` or
+  `src/plannerxchange.ts` shim, then verify against the latest review export.
 - If the builder asks for a public landing page, read `plannerxchange/landing-page.md`.
   Landing pages may use YouTube or Vimeo embeds, but sign in, sign up, install,
   checkout, review, follow, and demo CTAs must hand off to PlannerXchange-owned

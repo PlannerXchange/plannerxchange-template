@@ -15,6 +15,13 @@ Read these first:
 
 Then read only the file needed for the current task.
 
+Before declaring that a PlannerXchange API, SDK helper, runtime context field,
+manifest contract, or review remediation path is unavailable, refresh this
+public context pack and the local `@plannerxchange/sdk` or
+`src/plannerxchange.ts` shim, then verify against the latest PlannerXchange
+review export. Do not describe a capability as future-state or missing when
+the current context pack, SDK, or review export documents it as available.
+
 ## Common Tasks
 
 | Task | Read | Edit |
@@ -253,4 +260,5 @@ Do not hand-edit generated publish or build-provenance files.
 - Prefer the existing template shape over new schema.
 - Search this `plannerxchange/` folder before inventing routes, fields, or scopes.
 - If review feedback names a capability, map it through this file before editing `plannerxchange.app.json`.
+- If local types or copied context disagree with review feedback, refresh this context pack and the local SDK or `src/plannerxchange.ts` shim before changing app architecture.
 - If the app needs a capability not documented here, leave a TODO and ask PlannerXchange support instead of guessing.
