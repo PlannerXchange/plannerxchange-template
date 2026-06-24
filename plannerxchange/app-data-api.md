@@ -66,7 +66,7 @@ Every app-data record has this shape:
 
 ## Source references
 
-The `sourceRefs` array tracks which data inputs were used to produce this work product. This enables provenance tracking, export, and future promotion to canonical data.
+The `sourceRefs` array tracks which data inputs were used to produce this work product. This enables provenance tracking, export, and PlannerXchange review of any later canonical-data promotion.
 
 Allowed source categories:
 
@@ -100,12 +100,13 @@ Each source ref should include:
 
 ## CSV-derived app-data
 
-Apps may parse CSV files in app code only when the result remains low-risk app-owned work product and is saved through this contract. High-risk client/account/custodian CSV files must be handled by a PX-owned import session, even when the user chooses one-time transient use.
+Apps may parse CSV files in app code only when the result remains low-risk app-owned work product and is saved through this contract. High-risk client/account/custodian CSV files must be handled by a PX-owned import session. Durable `canonical_store` handoff launches the PlannerXchange Core Data import wizard for upload, suggested field mapping, skipped fields, user confirmation, validation, audit, and canonical import.
 
 Rules:
 
 - declare CSV/file ingress in `plannerxchange.app.json` with `dataIngressDeclarations`
-- use `target: "px_import_session"` plus `ctx.openDataImportSession({ declarationId })` for high-risk client/account/position/transaction/cost-basis CSVs
+- use `target: "px_import_session"` plus `ctx.openDataImportSession({ declarationId, mode: "canonical_store" })` for high-risk client/account/position/transaction/cost-basis CSVs
+- if `openDataImportSession` is missing from the local `ShellRuntimeContext` type, update `src/plannerxchange.ts` from the current template
 - use `sourceRefs` to link app-owned category assignments or projections to canonical accounts/transactions when applicable
 - do not create or mutate canonical transactions, accounts, clients, households, positions, cost basis, restricted PII, account-owner links, or import jobs through app-data
 - canonical position, transaction, and cost-basis CSV imports must use PlannerXchange-owned import sessions, not app-owned CSV logic

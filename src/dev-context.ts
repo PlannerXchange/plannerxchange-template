@@ -24,20 +24,6 @@ export const mockRuntimeContext: ShellRuntimeContext = {
   },
   openDataImportSession: async (request) => {
     console.info("[PlannerXchange mock] openDataImportSession", request);
-    if (request.mode === "transient_session") {
-      return {
-        mode: "transient_session",
-        status: "cancelled",
-        mappingSummary: {
-          mappedColumnCount: 0,
-          skippedColumnCount: 0,
-          customFieldCount: 0,
-          rowCount: 0,
-          columns: []
-        }
-      };
-    }
-
     return {
       mode: "canonical_store",
       status: "cancelled",

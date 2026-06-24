@@ -14,7 +14,7 @@ export type AppDataIngressTarget =
   | "px_app_data_upload"
   | "browser_ephemeral_app_data"
   | "enterprise_external_exception";
-export type AppDataImportSessionMode = "canonical_store" | "transient_session";
+export type AppDataImportSessionMode = "canonical_store";
 export type AppDataImportCanonicalEntity =
   | "household"
   | "client"
@@ -67,16 +67,7 @@ export interface AppDataImportSessionCanonicalStoreResult {
   }>;
   mappingSummary?: AppDataImportSessionMappingSummary;
 }
-export interface AppDataImportSessionTransientResult {
-  mode: "transient_session";
-  status: "completed" | "cancelled";
-  expiresAt?: string;
-  rows?: Array<Record<string, unknown>>;
-  mappingSummary?: AppDataImportSessionMappingSummary;
-}
-export type AppDataImportSessionResult =
-  | AppDataImportSessionCanonicalStoreResult
-  | AppDataImportSessionTransientResult;
+export type AppDataImportSessionResult = AppDataImportSessionCanonicalStoreResult;
 export type PlannerXchangeOpenDataImportSession = (
   request: AppDataImportSessionRequest
 ) => Promise<AppDataImportSessionResult>;

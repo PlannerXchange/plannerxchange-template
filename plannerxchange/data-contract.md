@@ -69,12 +69,14 @@ CSV and file ingress:
 - declare CSV/file/API ingress with `dataIngressDeclarations` in `plannerxchange.app.json`
 - app-owned CSV outputs may become PX app-data records when they are builder-owned work product
 - high-risk client/account/custodian CSV imports must use a declared `px_import_session`; provider names in `sourceFormatHints` are CSV/source-format hints only, not API permissions
+- `canonical_store` import handoff launches the PlannerXchange Core Data import wizard for upload, suggested field mapping, skipped fields, user confirmation, validation, audit, and canonical import
 - canonical imports, including position, transaction, and cost-basis CSV imports, must use PlannerXchange-owned import-session handling
 - do not call provider OAuth `/integrations/*`, hard-delete/cleanup routes, platform-only import routes, or undocumented canonical write/import routes directly from app code
 - do not parse, map, normalize, auto-create, or mutate canonical households, clients, accounts, account-owner links, positions, transactions, cost basis, restricted PII, or import jobs from app-managed high-risk CSV logic outside the governed PX import-session and canonical write contracts
 - every canonical transaction import row must resolve to a canonical account, and every account must resolve to a household, through PX-owned matching and review
 - ambiguous or unmatched parent records stay staged for PX review, correction, skip, or accepted stub creation; app code should not write orphan canonical records
-- if an app supports its own low-risk CSV workflow, keep the result in app-data as derived work product; for high-risk imports call `ctx.openDataImportSession({ declarationId })` and do not persist raw PX client, account, custodian, transaction, or tax-lot CSV data in browser storage, logs, app-data payloads, or app-local storage
+- if an app supports its own low-risk CSV workflow, keep the result in app-data as derived work product; for high-risk imports call `ctx.openDataImportSession({ declarationId, mode: "canonical_store" })` and do not persist raw PX client, account, custodian, transaction, or tax-lot CSV data in browser storage, logs, app-data payloads, or app-local storage
+- if `openDataImportSession` is missing from the local `ShellRuntimeContext` type, update `src/plannerxchange.ts` from the current template rather than replacing the handoff with direct import-route calls
 
 Worked patterns:
 

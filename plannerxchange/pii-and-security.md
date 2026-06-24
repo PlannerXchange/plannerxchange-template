@@ -74,7 +74,7 @@ Apps that receive `restricted_pii` through PlannerXchange APIs must follow these
 
 - **Do not store PX/client/subscriber data in builder-owned backends** - builder-owned database clients, ORM clients, service-role keys, and database URL env vars are publish-review blockers for self-serve shell apps that touch PX/client data
 - **Do not upload real client CSVs to non-PX hosts** - canonical and high-risk transient file ingress must use a declared PX import session or enterprise exception review
-- **Do not call shell-only import routes** - `/imports/*`, mapping, validation, execute, rollback, and import-job routes are PlannerXchange-owned; use `ctx.openDataImportSession({ declarationId })`
+- **Do not call shell-only import routes** - `/imports/*`, mapping, validation, execute, rollback, and import-job routes are PlannerXchange-owned; use `ctx.openDataImportSession({ declarationId, mode: "canonical_store" })`
 - **Do not persist decrypted PII in browser storage** — no `localStorage`, `IndexedDB`, `sessionStorage`, or client-side databases
 - **Do not send PII to analytics, logging, or error-reporting services**
 - **Do not send PII to external AI/search providers or third-party APIs** — Day 1 external provider egress of PX client data is not allowed. This includes Tavily, OpenAI, Anthropic, Gemini, analytics, support, and vendor APIs unless PlannerXchange accepts an enterprise exception.

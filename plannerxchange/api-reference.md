@@ -81,7 +81,9 @@ CSV and import boundary:
 
 - platform-only `/imports/*` routes are Core Data shell routes, not builder-facing API routes
 - canonical or high-risk transient position, transaction, cost-basis, account, client, and household CSV imports must use a PlannerXchange-owned import session declared as `target: "px_import_session"`
-- launch the shell-owned modal with `ctx.openDataImportSession({ declarationId })`; do not call `/imports/*` yourself
+- launch the PlannerXchange Core Data import wizard with `ctx.openDataImportSession({ declarationId, mode: "canonical_store" })`; do not call `/imports/*` yourself
+- if TypeScript says `openDataImportSession` is not on `ShellRuntimeContext`, update this repo's `src/plannerxchange.ts` shim from the current template instead of replacing the handoff with direct `/imports/*` calls
+- `canonical_store` handoff launches the PlannerXchange Core Data import wizard for upload, suggested field mapping, skipped fields, user confirmation, validation, audit, and canonical import
 - builder apps may store app-owned CSV-derived work product through `/app-data`, but must not create canonical records, parent records, account-owner links, or import jobs outside governed canonical write and import-handoff contracts
 - builder apps must not call `/integrations/*` or shell-owned custodian import routes to fetch or apply source data; read reconciled canonical facts through approved canonical routes and scopes
 - apps that parse or upload CSV/files should declare `dataIngressDeclarations` in `plannerxchange.app.json`
@@ -228,7 +230,7 @@ If your app is calling the live backend today, use the current live platform pat
 | `tenant.read` | `/session`, `/shell/bootstrap` | Authenticated tenant context |
 | `user.read` | `/session`, `/shell/bootstrap` | Authenticated actor context |
 | `client.summary.read` | `/client-users`, `/client-users/{id}` | Summary-safe client records (no raw PII) |
-| `client.sensitive.read` | Reserved | Protected client subpaths (future) |
+| `client.sensitive.read` | Reserved | Not available to installed apps |
 | `canonical.household.read` | `/households`, `/households/{id}` | Firm-scoped households |
 | `canonical.household.write` | `/households` (POST), `/households/{id}` (PATCH/DELETE) | Create, update, and soft-delete households |
 | `canonical.client.summary.read` | `/clients`, `/households/{householdId}/clients` | Summary-safe canonical clients |

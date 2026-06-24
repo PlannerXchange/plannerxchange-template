@@ -25,6 +25,7 @@ Important:
 - the build must emit `<distRoot>/plannerxchange.build-provenance.json` so PlannerXchange can verify the source-input digest, lockfile digests, build command, and artifact digest before upload
 - published artifacts must use app-relative asset URLs; keep Vite `base: "./"` and do not ship root-relative `/assets/...`, `/logo.png`, `/images/...`, `/favicon.ico`, or localhost asset references in committed build output
 - PlannerXchange runs required CodeQL review for the exact linked commit after repo linking
+- standard shell-published apps do not run builder-authored Python, server-side functions, containers, scheduled jobs, or background workers at runtime; Python is local/build tooling only unless PlannerXchange explicitly approves a governed Python runtime or AI Connector path
 
 Manifest schema guardrail:
 
@@ -71,9 +72,10 @@ Review guidance:
 - public landing pages may use YouTube or Vimeo embeds, but app-owned signup, sign-in, password, checkout, billing, lead-capture, provider-connect, upload, protected API, or token-handling behavior will be treated as landing-page findings or broader blockers
 - apps that save builder-owned work product inside PX should use the governed PX app-data contract
 - apps that mutate shared PX shell data should use governed canonical write APIs with matching `canonical.*.write` scopes, approved fields, explicit user action, optimistic concurrency, and shared-record UI copy
-- apps that parse CSV/files must declare `dataIngressDeclarations`; high-risk client/account/custodian CSVs must use `target: "px_import_session"` and `ctx.openDataImportSession({ declarationId })` rather than app-owned parsers or `/imports/*` calls
+- apps that parse CSV/files must declare `dataIngressDeclarations`; high-risk client/account/custodian CSVs must use `target: "px_import_session"` and `ctx.openDataImportSession({ declarationId, mode: "canonical_store" })` rather than app-owned parsers or `/imports/*` calls
 - apps that touch client data, PII, or external egress paths should expect stricter review
 - Day 1 external AI/search-provider or third-party egress of PX client data is not allowed; this includes Tavily, OpenAI, Anthropic, Gemini, analytics, support, and vendor APIs unless PlannerXchange accepts an enterprise exception
+- runtime Python, Flask/FastAPI, notebooks, Celery/RQ workers, serverless functions, Docker containers, scheduled jobs, subprocess calls, and shell scripts are not supported in the normal shell app path; if live Python is required, ask PlannerXchange which governed product lane applies before coding it
 - new direct dependencies are checked for package reputation, typosquat risk, and non-registry sources before approval
 - direct KMS clients, decrypt commands, or app-side restricted-PII decrypt helpers are blockers
 - apps that pass the full PlannerXchange governance and client-data safety review may earn a `PX Approved` trust badge
@@ -240,10 +242,11 @@ The following issues are common causes of publication rejection. Check for them 
 
 20. **Builder-owned backend for PX/client data** - app code or dependencies include builder-owned database clients, ORM clients, service-role keys, database URL env vars, or similar app-managed subscriber-data storage.
 21. **Frontend external provider key** - app code references browser-exposed keys such as `VITE_TAVILY_API_KEY`, `VITE_OPENAI_API_KEY`, or `NEXT_PUBLIC_*_API_KEY`. Shell-published apps run in users' browsers, so provider keys cannot be shipped.
-22. **Undeclared or unsafe CSV/file ingress** - file inputs, `FileReader`, `FormData`, Papa Parse, csv/xlsx packages, drag/drop uploads, external upload hosts, direct `/imports/*` calls, or high-risk custodian/client CSV parsing without a declared `px_import_session` and `ctx.openDataImportSession({ declarationId })`.
+22. **Undeclared or unsafe CSV/file ingress** - file inputs, `FileReader`, `FormData`, Papa Parse, csv/xlsx packages, drag/drop uploads, external upload hosts, direct `/imports/*` calls, or high-risk custodian/client CSV parsing without a declared `px_import_session` and `ctx.openDataImportSession({ declarationId, mode: "canonical_store" })`.
 23. **Unsupported landing-page fields** - `landingPage`, `landing_page`, `publicLandingPage`, `landingPageEnabled`, and `supportsLandingPage` are not manifest fields. Use the `landing_page` review goal instead.
 24. **App-owned public landing-page conversion flow** - a public landing page implements its own signup, sign-in, password, checkout, billing, lead-capture, provider-connect, upload, protected API call, or token-handling path instead of PlannerXchange-owned handoff.
 25. **Unapproved landing-page trust or pricing claims** - landing-page copy claims `PX Approved`, `Portable Data`, install availability, ratings, reviews, pricing, security approval, or marketplace status without using PlannerXchange marketplace records.
+26. **Runtime Python or script execution** - the app requires PlannerXchange to run `.py` files, notebooks, Flask/FastAPI apps, Celery/RQ workers, serverless functions, Docker containers, scheduled jobs, shell scripts, or subprocess commands after publication. Shell-published apps are hosted web artifacts; use local/build-time Python only, or ask PlannerXchange about an approved governed runtime lane.
 
 ## PX Approved badge direction
 

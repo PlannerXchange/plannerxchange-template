@@ -62,8 +62,9 @@ Important:
 - `plannerxchange_portable` is an architecture declaration, not a statement about what the current builder account is allowed to enable in the shell
 - `plannerxchange_portable` does not mean every PlannerXchange-hosted record becomes canonical or cross-app portable by default
 - shell-published self-serve apps are default-deny for builder-owned subscriber-data backends and third-party API egress of PX/client data
+- shell-published apps do not run builder-authored Python, server-side functions, containers, scheduled jobs, or background workers at runtime; Python is local/build tooling only unless PlannerXchange explicitly approves a governed Python runtime or AI Connector path
 - external AI/search/provider calls such as Tavily, OpenAI, Anthropic, Gemini, analytics, support, or vendor APIs are not non-enterprise self-serve exceptions; `egressDeclarations` document the request but do not approve PX/client data leaving the shell
-- CSV/file imports must be declared; high-risk client/account/custodian CSVs must use declared PX import sessions (`px_import_session` + `ctx.openDataImportSession`), not app-owned parsers, import routes, or parent-matching logic
+- CSV/file imports must be declared; high-risk client/account/custodian CSVs must use declared PX import sessions (`px_import_session` + `ctx.openDataImportSession`), not app-owned parsers, import routes, or parent-matching logic. If TypeScript says `openDataImportSession` is missing, refresh `src/plannerxchange.ts` from the current template before changing the app architecture.
 - canonical creates, updates, and soft-deletes must use governed PlannerXchange canonical APIs with matching `canonical.*.write` scopes; app-data remains for app-owned work product
 - platform review and product entitlements are handled inside PlannerXchange, not in this repo
 
@@ -97,7 +98,7 @@ It includes a small local `src/plannerxchange.ts` contract shim so students can 
 without needing extra PlannerXchange packages before they understand the backend rules.
 
 The optional scaffold is npm-first and should keep `package-lock.json` committed so installs stay repeatable
-across workshop runs, AI-assisted coding sessions, and future CI checks.
+across workshop runs, AI-assisted coding sessions, and CI checks.
 
 The production build emits `<distRoot>/plannerxchange.publish.json` and `<distRoot>/plannerxchange.build-provenance.json`.
 
@@ -130,7 +131,7 @@ Use one of these patterns:
 
 Do not `git clone` this repo into `docs/` or another subfolder inside a separate app repo.
 
-That creates a nested git repository, confuses future coding agents about which repo is the real app,
+That creates a nested git repository, confuses coding agents about which repo is the real app,
 and turns the context pack into embedded reference material instead of clear governance context.
 
 ## Recommended Initial AI Prompt
@@ -153,13 +154,14 @@ Important setup rules:
 8. Use the shell runtime context to distinguish mock from live behavior. Prefer the starter's `isShellHosted(ctx)` helper and `ctx.authenticatedFetch`; do not gate published behavior on build-time env vars.
 9. Route all app-owned record reads and writes through the PX app-data API gateway pattern (see src/lib/px-gateway.ts). Do not use localStorage as a production persistence layer — it is mock-only.
 10. For client-, household-, or account-linked app-data records, set top-level `clientUserId`, `householdId`, `accountId`, or `sourceRefs`. A `clientId` inside `payload` is not enough for PlannerXchange governance, filtering, export, lifecycle, or support workflows.
-11. Use the current live API route paths documented in plannerxchange/api-reference.md (root-scoped like /households, /clients, /accounts), not the future /canonical/* namespace.
+11. Use the API route paths documented in plannerxchange/api-reference.md (root-scoped like /households, /clients, /accounts).
 12. Use the default Vite port (5173) for local development — PlannerXchange allows CORS and auth callbacks only from localhost:5173.
 13. Treat PlannerXchange CodeQL findings in review feedback as security blockers or remediation tasks. Fix the underlying code issue and push a new commit. PlannerXchange owns CodeQL execution.
 14. Do not add builder-owned databases, service-role keys, database URL env vars, or direct integration-provider API clients for PX/client/subscriber data. Use PX canonical APIs and PX app-data instead.
-15. If the app accepts CSV or file uploads, declare the ingress in plannerxchange.app.json. App-owned low-risk CSV work product may go to PX app-data; high-risk client/account/custodian CSV imports must use `target: "px_import_session"` and `ctx.openDataImportSession({ declarationId })` for either canonical storage or one-time transient mapped rows.
+15. If the app accepts CSV or file uploads, declare the ingress in plannerxchange.app.json. App-owned low-risk CSV work product may go to PX app-data; high-risk client/account/custodian CSV imports must use `target: "px_import_session"` and `ctx.openDataImportSession({ declarationId, mode: "canonical_store" })`. PlannerXchange handles upload, suggested field mapping, skipped fields, user confirmation, validation, audit, and canonical import.
 16. Before editing plannerxchange.app.json from review feedback, read plannerxchange/ai-index.md and map review capability labels to actual manifest fields. Do not add guessed fields like capabilities, portableData, marketplace, demoMode, demoModeEnabled, supportsDemoMode, landingPage, landing_page, publicLandingPage, landingPageEnabled, or supportsLandingPage.
 17. Before fetching review feedback, ask me which PlannerXchange goal I want right now: draft, marketplace, demo_mode, landing_page, private_label, or data_persistence. Then run px review watch --env dev --goal <selected-goal> --commit HEAD --format markdown. If it exits 2, fix only the current required fix group for that goal, rebuild, commit, push, and watch again. If it exits 0, no required fixes remain for that goal on the reviewed commit.
+18. Do not add runtime Python, Flask/FastAPI, notebooks, Celery/RQ workers, serverless functions, Docker containers, scheduled jobs, or subprocess calls for shell-published behavior. If the app needs live server-side Python, stop and ask PlannerXchange which governed product lane applies.
 
 Before writing code, ask me these questions and wait for my answers:
 
@@ -329,6 +331,7 @@ when needed.
 - Use `ShellRuntimeContext.authenticatedFetch` for protected PlannerXchange API calls. Do not manually attach bearer tokens or pass `appInstallationId` in query strings.
 - Do not call app-owned backend routes such as `/api/questions`, `/api/results`, `/questions`, or `/results` from shell-published code. Published apps are static frontend plugins; use bundled mock data for preview or documented PX APIs through `authenticatedFetch`.
 - Do not add `VITE_API_URL`, `VITE_BACKEND_URL`, `NEXT_PUBLIC_API_URL`, or similar frontend env vars for shell-published runtime behavior.
+- Do not add runtime Python scripts, Flask/FastAPI apps, notebooks, Celery/RQ workers, serverless functions, Docker containers, scheduled jobs, or subprocess expectations for shell-published behavior. Python can be local/build tooling only unless PlannerXchange explicitly approves a governed Python runtime or AI Connector path.
 - Do not add frontend provider keys such as `VITE_TAVILY_API_KEY`, `VITE_OPENAI_API_KEY`, `NEXT_PUBLIC_*_API_KEY`, or direct Tavily/OpenAI/Anthropic/Gemini calls for PX/client data. That path needs an accepted enterprise exception before publication.
 - Declare the correct `dataPortabilityMode` before linking the repo.
 - Do not add app-owned login flows.
@@ -359,7 +362,7 @@ when needed.
 
 Auth lifecycle reminder:
 
-- PlannerXchange owns founder onboarding, invited-advisor onboarding, and future invited-client onboarding.
+- PlannerXchange owns founder onboarding, invited-advisor onboarding, and client identity onboarding.
 - PlannerXchange may send private-labeled invitation emails on behalf of a firm, but those identity emails are platform-owned, not app-owned.
 - If a user reaches your plugin, assume the shell already handled sign-in, invite redemption, email verification policy, and initial password choice.
 

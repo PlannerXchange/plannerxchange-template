@@ -135,7 +135,7 @@ Outbound email:
 Auth lifecycle:
 
 - PlannerXchange owns the identity journey before your plugin mounts.
-- Founder self-onboarding, invited-advisor onboarding, and future invited-client onboarding are shell-managed platform flows.
+- Founder self-onboarding, invited-advisor onboarding, and client identity onboarding are shell-managed platform flows.
 - PlannerXchange may send private-labeled invitation emails on behalf of a firm, but builder apps should treat those identity emails as platform-owned, not app-owned.
 - Once your app renders, assume the shell has already resolved session, firm membership, invite state, and branding context.
 
@@ -430,3 +430,24 @@ Rules:
 - use bundled static/mock data for local preview
 - use `context.authenticatedFetch` for documented PlannerXchange APIs when running inside the shell
 - if a real external/backend service or AI/search provider is needed for subscriber data, treat that as an enterprise exception path before self-serve publication
+
+## Python and runtime script execution
+
+PlannerXchange does not run builder-authored Python at runtime for standard
+shell-published apps.
+
+Rules:
+
+- do not add `.py` files, notebooks, Flask/FastAPI apps, Celery/RQ workers,
+  scheduled jobs, serverless functions, Docker containers, subprocess calls, or
+  shell scripts that the installed app needs after publication
+- do not add manifest fields such as `pythonRuntime`, `backend`, `worker`,
+  `jobs`, `lambda`, or `container`
+- do not expect PlannerXchange to run app-specific AWS Lambda, ECS/Fargate,
+  Docker, Linux process, cron, or background worker resources for this app
+- Python may be used as local development, test, analysis, or build tooling only
+  when the published app remains a shell-compatible web artifact and does not
+  require Python after `distRoot` is built
+- if live server-side Python is essential, stop and ask PlannerXchange whether
+  the work belongs in an enterprise exception or an approved AI Connector path;
+  do not design a self-serve shell-published app around live server-side Python

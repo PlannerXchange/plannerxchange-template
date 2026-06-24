@@ -29,6 +29,7 @@ Then read only the file needed for the current task.
 | Send workflow email | `plannerxchange/email-api.md` | `plannerxchange.app.json`, email call site |
 | Handle CSV or file uploads | `plannerxchange/app-data-api.md`, `plannerxchange/data-contract.md`, `plannerxchange/pii-and-security.md` | `plannerxchange.app.json`, upload flow |
 | Fix auth/session review findings | `plannerxchange/context.md`, `plannerxchange/api-reference.md` | remove app-owned auth code |
+| App needs Python, backend scripts, server-side functions, containers, or jobs | `plannerxchange/context.md`, `plannerxchange/publish-notes.md`, this file | do not implement runtime Python for shell publication; ask PlannerXchange which governed product lane applies |
 | Add or fix public landing-page behavior | `plannerxchange/landing-page.md`, `plannerxchange/publish-notes.md`, this file | landing-page source/components, CTA definitions, public-safe media |
 | Fix build or publish artifact findings | `plannerxchange/publish-notes.md`, `vite.config.ts`, `scripts/preflight.mjs` | build config, committed `distRoot` |
 | Fetch PlannerXchange review feedback | `README.md`, `plannerxchange/publish-notes.md` | ask the builder for the current goal, then run `px review watch --env dev --goal <selected-goal> --commit HEAD --format markdown` |
@@ -154,6 +155,7 @@ Request only the scopes the app actually uses.
 - Do not use build-time env vars such as `VITE_PX_MODE` to choose live behavior in the published artifact.
 - Do not call app-owned backend routes such as `/api/questions`, `/api/results`, `/questions`, or `/results`; shell-published apps are static frontend plugins.
 - Do not use `VITE_API_URL`, `VITE_BACKEND_URL`, `NEXT_PUBLIC_API_URL`, or similar frontend env vars for shell-published runtime behavior.
+- Do not add runtime Python scripts, Flask/FastAPI apps, notebooks, Celery/RQ workers, serverless functions, Docker containers, scheduled jobs, or subprocess calls for shell-published behavior. Python can be local/build tooling only unless PlannerXchange explicitly approves a governed Python runtime or AI Connector path.
 - Do not use browser-exposed provider keys such as `VITE_TAVILY_API_KEY`, `VITE_OPENAI_API_KEY`, or `NEXT_PUBLIC_*_API_KEY`, and do not call Tavily/OpenAI/Anthropic/Gemini directly with PX/client data.
 - Treat `egressDeclarations` as review evidence, not approval. There is no non-enterprise Day 1 self-serve exception for external PX/client data egress.
 - Do not manually attach bearer tokens.
@@ -198,8 +200,14 @@ If the app accepts CSVs, spreadsheets, drag/drop files, browser `FileReader`, `F
 1. Add `dataIngressDeclarations`.
 2. Choose an approved target lane.
 3. Do not call provider OAuth `/integrations/*`, hard-delete/cleanup routes, or platform-only import routes directly.
-4. For high-risk client/account/custodian CSVs, declare `target: "px_import_session"` and call `ctx.openDataImportSession({ declarationId })`.
+4. For high-risk client/account/custodian CSVs, declare `target: "px_import_session"` and call `ctx.openDataImportSession({ declarationId, mode: "canonical_store" })`.
 5. Do not parse, map, normalize, or auto-create canonical households, clients, accounts, positions, transactions, cost basis, restricted PII, or import jobs from app-managed CSV logic outside the governed PX import-session and canonical write contracts.
+
+PlannerXchange import-session support:
+
+- `canonical_store` import handoff launches the PlannerXchange Core Data import wizard.
+- The wizard handles upload, suggested field mapping to canonical PlannerXchange fields, skipped fields, user mapping confirmation, validation, audit, and canonical import.
+- If `openDataImportSession` does not compile on `ShellRuntimeContext`, refresh `src/plannerxchange.ts` from this template before changing app code.
 
 Approved target lanes:
 
@@ -218,7 +226,7 @@ Minimal high-risk CSV declaration:
   "purpose": "Launch a PX-owned import session for custodian trade CSVs.",
   "dataClasses": ["transactions", "account_data"],
   "target": "px_import_session",
-  "supportedModes": ["canonical_store", "transient_session"],
+  "supportedModes": ["canonical_store"],
   "canonicalEntityHints": ["transaction", "account"],
   "sourceFormatHints": ["altruist", "schwab"],
   "canonicalMutation": true
