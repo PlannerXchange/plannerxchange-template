@@ -212,6 +212,8 @@ If the app accepts CSVs, spreadsheets, drag/drop files, browser `FileReader`, `F
 5. Treat `openDataImportSession` as launch-only. The current result is `{ mode: "canonical_store", status: "launched" }`; do not wait for `completed`, `completed_with_errors`, `cancelled`, `importJobId`, `canonicalRefs`, or `mappingSummary`.
 6. Do not parse, map, normalize, or auto-create canonical households, clients, accounts, positions, transactions, cost basis, restricted PII, or import jobs from app-managed CSV logic outside the governed PX import-session and canonical write contracts.
 7. If the PX import wizard route opens but renders blank, do not invent a mapping-template setup step. Treat the blank wizard as a PX shell/runtime issue or stale deployed shell; capture the URL and console logs, refresh CLI/context, and report the platform issue.
+8. If Creator Studio says canonical CSV import or hosted data storage is not allowed on the builder workspace's plan, treat it as a publish eligibility issue, not an app-code issue. The builder must upgrade the builder workspace or remove the paid capability before publication.
+9. If the PX import wizard says CSV import or hosted data storage is not available in the current workspace, do not tell an installed app user to upgrade. Report it as a publisher/workspace-admin configuration issue and send the builder to the Creator Studio publish checklist, workspace billing, or a platform admin for dev-tier enablement.
 
 PlannerXchange import-session support:
 

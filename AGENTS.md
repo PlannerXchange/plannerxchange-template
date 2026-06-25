@@ -41,6 +41,16 @@ Core rules:
   as a PlannerXchange shell/runtime issue or stale deployed shell, capture the
   URL and console logs, refresh the current PX CLI/context, and report the PX
   platform issue.
+- If the PX import wizard says the current workspace plan does not support CSV
+  import or hosted data storage, do not tell an installed app user to upgrade.
+  Treat it as a publisher/workspace-admin configuration issue and direct the
+  builder to the Creator Studio publish checklist, workspace billing, or a
+  platform admin for dev-tier enablement.
+- If Creator Studio says a paid platform capability is not available on the
+  builder workspace's plan, do not redesign correct `px_import_session` app
+  code unless the builder chooses to remove the capability. The builder must
+  either upgrade the builder workspace or remove the paid feature before
+  publication.
 - Before review, run `npm run build`, then `npm run preflight`, and commit the generated `distRoot` output.
 - Before using PX CLI review feedback, update the CLI with `px --update dev`
   for the dev shell or `px --update` for production. If that command is not
