@@ -37,8 +37,12 @@ Core rules:
 - For high-risk CSV import sessions, `ctx.openDataImportSession({ declarationId, mode: "canonical_store" })` is a launch-only handoff and returns `{ mode: "canonical_store", status: "launched" }`. Do not wait for `completed`, `completed_with_errors`, `cancelled`, `importJobId`, `canonicalRefs`, or `mappingSummary`; after the user returns to the app, refresh approved canonical read APIs.
 - Do not invent a Creator Studio column-mapping-template prerequisite for `px_import_session`. The PlannerXchange import wizard owns upload, suggested field mapping, skipped fields, user confirmation, validation, audit, and canonical import.
 - Before review, run `npm run build`, then `npm run preflight`, and commit the generated `distRoot` output.
+- Before using PX CLI review feedback, update the CLI with `px --update dev`
+  for the dev shell or `px --update` for production. If that command is not
+  recognized, use the install block copied from Creator Studio.
 - After pushing to GitHub, use the PlannerXchange CLI when available:
-  `px review watch --env dev --goal <selected-goal> --commit HEAD --format markdown`.
+  `px feedback --env dev --goal <selected-goal> --commit HEAD --format markdown`.
+  Treat `px feedback` as the canonical builder-agent review loop command.
 - Before choosing the goal, ask the builder whether the current target is `draft`,
   `marketplace`, `demo_mode`, `landing_page`, `private_label`, or `data_persistence`.
 - Fix only the current required fix group returned for the selected goal,

@@ -36,7 +36,7 @@ Do not add any of these fields to `plannerxchange.app.json`:
 If the builder wants landing-page review, use the review goal:
 
 ```bash
-px review watch --env dev --goal landing_page --commit HEAD --format markdown
+px feedback --env dev --goal landing_page --commit HEAD --format markdown
 ```
 
 Fix landing-page findings only when the builder selected `landing_page`, unless
@@ -209,7 +209,7 @@ npm run preflight
 git add .
 git commit -m "Add PlannerXchange landing page"
 git push
-px review watch --env dev --goal landing_page --commit HEAD --format markdown
+px feedback --env dev --goal landing_page --commit HEAD --format markdown
 ```
 
 Local preflight catches only obvious issues. PlannerXchange review still owns

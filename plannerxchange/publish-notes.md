@@ -88,8 +88,9 @@ PX CLI feedback loop:
 
 - GitHub push remains the review trigger.
 - The CLI is read-only. It does not publish, deploy, mutate repo links, change pricing, manage billing, or access canonical client data.
+- Before fetching feedback, update the CLI with `px --update dev` for the dev shell or `px --update` for production. If that command is not recognized, use the Creator Studio install block once.
 - Before watching review feedback, ask the builder which goal applies now: `draft`, `marketplace`, `demo_mode`, `landing_page`, `private_label`, or `data_persistence`.
-- After pushing source plus generated `distRoot`, run `px review watch --env dev --goal <selected-goal> --commit HEAD --format markdown`. Use `--env prod` only when Creator Studio copies a prod-specific loop for this app.
+- After pushing source plus generated `distRoot`, run `px feedback --env dev --goal <selected-goal> --commit HEAD --format markdown`. Use `--env prod` only when Creator Studio copies a prod-specific loop for this app.
 - Exit `0` means no required fixes remain for the selected goal on the watched commit.
 - Exit `1` means the CLI could not complete because of auth, access, configuration, API, timeout, or unexpected local/platform errors. Read the terminal error and do not guess manifest fields from this failure.
 - Exit `2` means PlannerXchange returned required fixes for the selected goal. Fix only the current fix group in the markdown export, rebuild, commit, push, and watch again.

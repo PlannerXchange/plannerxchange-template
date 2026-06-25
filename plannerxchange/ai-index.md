@@ -39,7 +39,8 @@ the current context pack, SDK, or review export documents it as available.
 | App needs Python, backend scripts, server-side functions, containers, or jobs | `plannerxchange/context.md`, `plannerxchange/publish-notes.md`, this file | do not implement runtime Python for shell publication; ask PlannerXchange which governed product lane applies |
 | Add or fix public landing-page behavior | `plannerxchange/landing-page.md`, `plannerxchange/publish-notes.md`, this file | landing-page source/components, CTA definitions, public-safe media |
 | Fix build or publish artifact findings | `plannerxchange/publish-notes.md`, `vite.config.ts`, `scripts/preflight.mjs` | build config, committed `distRoot` |
-| Fetch PlannerXchange review feedback | `README.md`, `plannerxchange/publish-notes.md` | ask the builder for the current goal, then run `px review watch --env dev --goal <selected-goal> --commit HEAD --format markdown` |
+| Update PX CLI | `README.md` | run `px --update dev` for dev or `px --update` for production; if not recognized, use the Creator Studio install block once |
+| Fetch PlannerXchange review feedback | `README.md`, `plannerxchange/publish-notes.md` | ask the builder for the current goal, then run `px feedback --env dev --goal <selected-goal> --commit HEAD --format markdown` |
 | Decide mock vs live behavior | `plannerxchange/context.md`, `src/plannerxchange.ts`, `src/dev-context.ts` | runtime branching |
 
 ## Manifest Schema
@@ -181,7 +182,7 @@ Rules:
 - YouTube and Vimeo iframe embeds are allowed for public demo or explainer videos.
 - Sign in, sign up, install, checkout, review, follow, and demo CTAs must hand off to PlannerXchange-owned flows.
 - Do not render app-owned auth, signup, password, invite, checkout, lead-capture, provider-connect, upload, protected API, or token-handling behavior on a public landing page.
-- Use `px review watch --env dev --goal landing_page --commit HEAD --format markdown` only when landing-page readiness is the current goal.
+- Use `px feedback --env dev --goal landing_page --commit HEAD --format markdown` only when landing-page readiness is the current goal.
 
 ## Persistence Rules
 
@@ -253,7 +254,7 @@ Before publication:
 4. Run `npm run preflight`.
 5. Commit source, lockfiles, manifest, and generated `distRoot` output from the same code version.
 6. Push to GitHub so PlannerXchange review can run for that commit.
-7. Ask the builder which goal applies now, then run `px review watch --env dev --goal <selected-goal> --commit HEAD --format markdown`.
+7. Ask the builder which goal applies now, then run `px feedback --env dev --goal <selected-goal> --commit HEAD --format markdown`.
 8. If required fixes return, fix only the current fix group, rebuild, commit, push, and watch again.
 
 Do not hand-edit generated publish or build-provenance files.
