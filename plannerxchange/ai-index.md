@@ -211,6 +211,7 @@ If the app accepts CSVs, spreadsheets, drag/drop files, browser `FileReader`, `F
 4. For high-risk client/account/custodian CSVs, declare `target: "px_import_session"` and call `ctx.openDataImportSession({ declarationId, mode: "canonical_store" })`.
 5. Treat `openDataImportSession` as launch-only. The current result is `{ mode: "canonical_store", status: "launched" }`; do not wait for `completed`, `completed_with_errors`, `cancelled`, `importJobId`, `canonicalRefs`, or `mappingSummary`.
 6. Do not parse, map, normalize, or auto-create canonical households, clients, accounts, positions, transactions, cost basis, restricted PII, or import jobs from app-managed CSV logic outside the governed PX import-session and canonical write contracts.
+7. If the PX import wizard route opens but renders blank, do not invent a mapping-template setup step. Treat the blank wizard as a PX shell/runtime issue or stale deployed shell; capture the URL and console logs, refresh CLI/context, and report the platform issue.
 
 PlannerXchange import-session support:
 

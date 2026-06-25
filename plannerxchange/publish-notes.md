@@ -45,7 +45,7 @@ Visibility management:
 - visibility changes in Creator Studio take effect immediately without re-publishing
 - `private` apps are only visible to the builder's own firm
 - `shared_with_specific_users` apps can be shared with specific users or firms
-- `marketplace_listed` apps appear in the public marketplace catalog for all authenticated users
+- `marketplace_listed` apps appear in the public marketplace catalog; users sign in only for protected actions such as install, checkout, follow, or review writes
 
 Student checklist before linking the repo:
 
@@ -75,6 +75,7 @@ Review guidance:
 - apps that parse CSV/files must declare `dataIngressDeclarations`; high-risk client/account/custodian CSVs must use `target: "px_import_session"` and `ctx.openDataImportSession({ declarationId, mode: "canonical_store" })` rather than app-owned parsers or `/imports/*` calls
 - `openDataImportSession` is a launch-only handoff that returns `{ mode: "canonical_store", status: "launched" }`; do not wait for `completed`, `completed_with_errors`, `cancelled`, `importJobId`, `canonicalRefs`, or `mappingSummary`
 - do not invent a Creator Studio mapping-template prerequisite for `px_import_session`; the PlannerXchange import wizard owns upload, suggested field mapping, skipped fields, user confirmation, validation, audit, and canonical import
+- if the PX import wizard URL opens but the wizard screen is blank, treat that as a PlannerXchange shell/runtime issue or stale deployed shell; do not tell the builder to configure a mapping template or redesign app CSV code
 - apps that touch client data, PII, or external egress paths should expect stricter review
 - Day 1 external AI/search-provider or third-party egress of PX client data is not allowed; this includes Tavily, OpenAI, Anthropic, Gemini, analytics, support, and vendor APIs unless PlannerXchange accepts an enterprise exception
 - runtime Python, Flask/FastAPI, notebooks, Celery/RQ workers, serverless functions, Docker containers, scheduled jobs, subprocess calls, and shell scripts are not supported in the normal shell app path; if live Python is required, ask PlannerXchange which governed product lane applies before coding it
