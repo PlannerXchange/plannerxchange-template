@@ -43,29 +43,14 @@ export interface AppDataImportSessionRequest {
   returnToApp?: boolean;
   metadata?: Record<string, unknown>;
 }
-export interface AppDataImportSessionMappedColumn {
-  csvColumnName: string;
-  targetField?: string;
-  customFieldId?: string;
-  status: "mapped" | "custom_field" | "skipped" | "unmapped";
-}
-export interface AppDataImportSessionMappingSummary {
-  entityType?: AppDataImportCanonicalEntity;
-  rowCount: number;
-  columns: AppDataImportSessionMappedColumn[];
-  mappedColumnCount: number;
-  skippedColumnCount: number;
-  customFieldCount: number;
-}
 export interface AppDataImportSessionCanonicalStoreResult {
   mode: "canonical_store";
-  status: "launched" | "completed" | "completed_with_errors" | "cancelled";
-  importJobId?: string;
-  canonicalRefs?: Array<{
-    entityType: AppDataImportCanonicalEntity;
-    sourceId: string;
-  }>;
-  mappingSummary?: AppDataImportSessionMappingSummary;
+  /**
+   * Current hosted behavior is launch-only. The shell opens the
+   * PlannerXchange-owned import wizard and returns after the handoff starts.
+   * Apps should refresh approved canonical reads after the user returns.
+   */
+  status: "launched";
 }
 export type AppDataImportSessionResult = AppDataImportSessionCanonicalStoreResult;
 export type PlannerXchangeOpenDataImportSession = (
@@ -226,6 +211,8 @@ export interface ShellRuntimeContext {
    * Builder apps declare the matching dataIngressDeclarations entry and pass
    * its id as declarationId. The shell owns upload, parsing, mapping,
    * validation, audit, raw-file expiry, and canonical write decisions.
+   * This is a launch-only handoff and returns status "launched"; do not wait
+   * for completed import statuses, importJobId, canonicalRefs, or mappingSummary.
    */
   openDataImportSession?: PlannerXchangeOpenDataImportSession;
   /**

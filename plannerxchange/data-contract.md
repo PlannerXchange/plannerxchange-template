@@ -76,6 +76,9 @@ CSV and file ingress:
 - every canonical transaction import row must resolve to a canonical account, and every account must resolve to a household, through PX-owned matching and review
 - ambiguous or unmatched parent records stay staged for PX review, correction, skip, or accepted stub creation; app code should not write orphan canonical records
 - if an app supports its own low-risk CSV workflow, keep the result in app-data as derived work product; for high-risk imports call `ctx.openDataImportSession({ declarationId, mode: "canonical_store" })` and do not persist raw PX client, account, custodian, transaction, or tax-lot CSV data in browser storage, logs, app-data payloads, or app-local storage
+- `openDataImportSession` is launch-only and returns `{ mode: "canonical_store", status: "launched" }`; do not wait for `completed`, `completed_with_errors`, `cancelled`, `importJobId`, `canonicalRefs`, or `mappingSummary`
+- after the user returns to the app, refresh imported canonical data through approved canonical read APIs
+- do not invent a Creator Studio mapping-template prerequisite for `px_import_session`; the PlannerXchange import wizard owns mapping and confirmation
 - if `openDataImportSession` is missing from the local `ShellRuntimeContext` type, update `src/plannerxchange.ts` from the current template rather than replacing the handoff with direct import-route calls
 
 Worked patterns:

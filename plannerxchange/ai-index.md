@@ -208,13 +208,16 @@ If the app accepts CSVs, spreadsheets, drag/drop files, browser `FileReader`, `F
 2. Choose an approved target lane.
 3. Do not call provider OAuth `/integrations/*`, hard-delete/cleanup routes, or platform-only import routes directly.
 4. For high-risk client/account/custodian CSVs, declare `target: "px_import_session"` and call `ctx.openDataImportSession({ declarationId, mode: "canonical_store" })`.
-5. Do not parse, map, normalize, or auto-create canonical households, clients, accounts, positions, transactions, cost basis, restricted PII, or import jobs from app-managed CSV logic outside the governed PX import-session and canonical write contracts.
+5. Treat `openDataImportSession` as launch-only. The current result is `{ mode: "canonical_store", status: "launched" }`; do not wait for `completed`, `completed_with_errors`, `cancelled`, `importJobId`, `canonicalRefs`, or `mappingSummary`.
+6. Do not parse, map, normalize, or auto-create canonical households, clients, accounts, positions, transactions, cost basis, restricted PII, or import jobs from app-managed CSV logic outside the governed PX import-session and canonical write contracts.
 
 PlannerXchange import-session support:
 
 - `canonical_store` import handoff launches the PlannerXchange Core Data import wizard.
 - The wizard handles upload, suggested field mapping to canonical PlannerXchange fields, skipped fields, user mapping confirmation, validation, audit, and canonical import.
 - If `openDataImportSession` does not compile on `ShellRuntimeContext`, refresh `src/plannerxchange.ts` from this template before changing app code.
+- Do not invent a Creator Studio mapping-template prerequisite for `px_import_session`; the PlannerXchange import wizard owns the mapping flow.
+- After the user returns to the app, refresh imported canonical data through approved canonical read APIs.
 
 Approved target lanes:
 

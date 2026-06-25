@@ -106,6 +106,9 @@ Rules:
 
 - declare CSV/file ingress in `plannerxchange.app.json` with `dataIngressDeclarations`
 - use `target: "px_import_session"` plus `ctx.openDataImportSession({ declarationId, mode: "canonical_store" })` for high-risk client/account/position/transaction/cost-basis CSVs
+- treat `openDataImportSession` as launch-only: it returns `{ mode: "canonical_store", status: "launched" }`, not completed import statuses, `importJobId`, `canonicalRefs`, or `mappingSummary`
+- after the user returns to the app, refresh imported canonical data through approved canonical read APIs
+- do not invent a Creator Studio mapping-template prerequisite for `px_import_session`
 - if `openDataImportSession` is missing from the local `ShellRuntimeContext` type, update `src/plannerxchange.ts` from the current template
 - use `sourceRefs` to link app-owned category assignments or projections to canonical accounts/transactions when applicable
 - do not create or mutate canonical transactions, accounts, clients, households, positions, cost basis, restricted PII, account-owner links, or import jobs through app-data

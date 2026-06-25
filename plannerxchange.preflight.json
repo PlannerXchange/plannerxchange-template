@@ -254,6 +254,16 @@
       "exclude": ["node_modules/**", "src/dev-context.ts"]
     },
     {
+      "id": "no-completed-import-session-result",
+      "severity": "error",
+      "title": "No completed import-session result handling",
+      "description": "openDataImportSession is launch-only and returns { mode: \"canonical_store\", status: \"launched\" }. Do not wait for completed_with_errors, importJobId, canonicalRefs, or mappingSummary.",
+      "type": "grep",
+      "pattern": "\\b(completed_with_errors|importJobId|canonicalRefs|mappingSummary)\\b",
+      "include": ["src/**/*.{ts,tsx,js,jsx}"],
+      "exclude": ["node_modules/**", "src/plannerxchange.ts", "src/dev-context.ts"]
+    },
+    {
       "id": "no-external-file-upload-hosts",
       "severity": "error",
       "title": "No external CSV/file upload hosts",
