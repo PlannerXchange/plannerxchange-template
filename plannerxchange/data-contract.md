@@ -71,6 +71,7 @@ CSV and file ingress:
 - high-risk client/account/custodian CSV imports must use a declared `px_import_session`; provider names in `sourceFormatHints` are CSV/source-format hints only, not API permissions
 - `canonical_store` import handoff launches the PlannerXchange Core Data import wizard for upload, suggested field mapping, skipped fields, user confirmation, validation, audit, and canonical import
 - canonical imports, including position, transaction, and cost-basis CSV imports, must use PlannerXchange-owned import-session handling
+- mixed-custodian account CSVs do not need separate uploads when the CSV maps a custodian column or the advisor supplies per-account custodians during PX review
 - do not call provider OAuth `/integrations/*`, hard-delete/cleanup routes, platform-only import routes, or undocumented canonical write/import routes directly from app code
 - do not parse, map, normalize, auto-create, or mutate canonical households, clients, accounts, account-owner links, positions, transactions, cost basis, restricted PII, or import jobs from app-managed high-risk CSV logic outside the governed PX import-session and canonical write contracts
 - every canonical transaction import row must resolve to a canonical account, and every account must resolve to a household, through PX-owned matching and review

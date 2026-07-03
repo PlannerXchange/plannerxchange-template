@@ -36,6 +36,7 @@ Core rules:
 - Do not add app-owned login, direct database clients, service-role keys, direct provider API access, direct `/imports/*` calls, or external AI/search/provider egress for PlannerXchange client data. `egressDeclarations` are review evidence, not approval; non-enterprise Day 1 self-serve egress is blocked.
 - For high-risk CSV import sessions, `ctx.openDataImportSession({ declarationId, mode: "canonical_store" })` is a launch-only handoff and returns `{ mode: "canonical_store", status: "launched" }`. Do not wait for `completed`, `completed_with_errors`, `cancelled`, `importJobId`, `canonicalRefs`, or `mappingSummary`; after the user returns to the app, refresh approved canonical read APIs.
 - Do not invent a Creator Studio column-mapping-template prerequisite for `px_import_session`. The PlannerXchange import wizard owns upload, suggested field mapping, skipped fields, user confirmation, validation, audit, and canonical import.
+- Do not tell builders to split a valid account CSV only because it contains multiple custodians. PX import sessions support mixed-custodian account files when a custodian column is mapped or the advisor supplies per-account custodians during review.
 - If the PX import wizard URL opens but the wizard screen is blank, do not tell
   the builder to configure a mapping template or redesign app CSV code. Treat it
   as a PlannerXchange shell/runtime issue or stale deployed shell, capture the

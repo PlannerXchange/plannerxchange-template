@@ -84,6 +84,7 @@ CSV and import boundary:
 - launch the PlannerXchange Core Data import wizard with `ctx.openDataImportSession({ declarationId, mode: "canonical_store" })`; do not call `/imports/*` yourself
 - `openDataImportSession` is a launch-only handoff and returns `{ mode: "canonical_store", status: "launched" }`; do not wait for `completed`, `completed_with_errors`, `cancelled`, `importJobId`, `canonicalRefs`, or `mappingSummary`
 - do not invent a Creator Studio mapping-template prerequisite for `px_import_session`; the PlannerXchange import wizard owns upload, suggested mapping, skipped fields, confirmation, validation, audit, and canonical import
+- mixed-custodian account CSVs do not need separate uploads when the CSV maps a custodian column or the advisor supplies per-account custodians during PX review
 - if TypeScript says `openDataImportSession` is not on `ShellRuntimeContext`, update this repo's `src/plannerxchange.ts` shim from the current template instead of replacing the handoff with direct `/imports/*` calls
 - `canonical_store` handoff launches the PlannerXchange Core Data import wizard for upload, suggested field mapping, skipped fields, user confirmation, validation, audit, and canonical import
 - builder apps may store app-owned CSV-derived work product through `/app-data`, but must not create canonical records, parent records, account-owner links, or import jobs outside governed canonical write and import-handoff contracts
