@@ -19,6 +19,7 @@ Before changing app code, read:
 
 Core rules:
 
+- If you create or follow a plan/spec/checklist and execution changes materially, update that artifact before finishing. Record what actually happened, why the path changed, current status, and any verification or blocker evidence. If you cannot safely update it, name the exact path as a follow-up.
 - Use the exact `plannerxchange.app.json` schema already in this repo.
 - Do not invent manifest fields from review labels. Do not add `capabilities`, `marketplace`, `portableData`, `demoMode`, `demoModeEnabled`, `supportsDemoMode`, `landingPage`, `landing_page`, `publicLandingPage`, `landingPageEnabled`, or `supportsLandingPage`.
 - Use `visibility: "marketplace_listed"` for marketplace intent.
