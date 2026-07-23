@@ -97,6 +97,8 @@ Public demo exception:
 - demo context has `runtimeMode: "public_demo"`, `isDemoMode: true`, `demoDataMode: "synthetic"`, no protected `authenticatedFetch`, and `idToken: ""`
 - demo mode must not call protected PlannerXchange APIs or expect canonical/client/app-data access
 - use bundled sample data or clearly synthetic records in demo mode
+- enter with the synthetic scenario already loaded; do not collect end-client identity or files first
+- keep optional non-identifying visitor changes in component memory only; do not use browser or API persistence
 
 ## HTTP conventions
 

@@ -14,6 +14,7 @@
  */
 
 import {
+  isPublicDemo,
   isShellHosted,
   type PlannerXchangeApiRequestInit,
   type ShellRuntimeContext
@@ -213,16 +214,42 @@ export interface PxGateway {
 export function createPxGateway(ctx: ShellRuntimeContext): PxGateway {
   // Detect live mode at runtime from the context itself.
   // When running locally with `vite dev`, main.tsx injects the synthetic
-  // mock context. When running inside the PlannerXchange shell (dev or prod),
-  // the context has a real installation ID and shell-managed API fetch.
+  // mock context. Authenticated dev/prod shell contexts have a real installation
+  // ID and shell-managed API fetch. Public demo is shell-rendered but branches
+  // to synthetic, non-persistent behavior first.
   //
   // Do NOT use `publicationEnvironment` or build-time env vars for this check.
   // `publicationEnvironment: "dev"` means the real PlannerXchange dev tier,
   // not "offline / mock mode".
+  if (isPublicDemo(ctx)) {
+    return publicDemoGateway();
+  }
   if (!isShellHosted(ctx)) {
     return mockGateway();
   }
   return liveGateway(ctx);
+}
+
+function publicDemoGateway(): PxGateway {
+  const gateway = mockGateway();
+  const rejectWrite = async (): Promise<never> => {
+    throw new Error(
+      "Public demo mode is synthetic and non-persistent. Keep visitor changes in component memory only."
+    );
+  };
+
+  return {
+    ...gateway,
+    createHousehold: rejectWrite,
+    updateHousehold: rejectWrite,
+    softDeleteHousehold: rejectWrite,
+    createClient: rejectWrite,
+    updateClient: rejectWrite,
+    softDeleteClient: rejectWrite,
+    createAppData: rejectWrite,
+    updateAppData: rejectWrite,
+    softDeleteAppData: rejectWrite
+  };
 }
 
 // ---------------------------------------------------------------------------

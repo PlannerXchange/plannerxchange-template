@@ -269,8 +269,13 @@ export interface PlannerXchangePluginModule {
  * Do NOT use `publicationEnvironment` for this purpose — `"dev"` is a real
  * shell environment, not a synonym for "offline / mock mode".
  */
+export function isPublicDemo(ctx: ShellRuntimeContext): boolean {
+  return ctx.runtimeMode === "public_demo" || ctx.isDemoMode === true;
+}
+
 export function isShellHosted(ctx: ShellRuntimeContext): boolean {
   return (
+    !isPublicDemo(ctx) &&
     ctx.appInstallationId !== "synthetic-installation-context" &&
     typeof ctx.authenticatedFetch === "function"
   );

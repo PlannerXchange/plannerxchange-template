@@ -232,12 +232,14 @@ Important:
 
 ## Detecting mock vs live mode
 
-Use the `isShellHosted()` helper from `plannerxchange.ts` to decide whether to call real PlannerXchange APIs or fall back to offline mock data:
+Check `isPublicDemo()` before `isShellHosted()`. Public demo is rendered by PlannerXchange, but it is deliberately unauthenticated and must use its synthetic branch:
 
 ```typescript
-import { isShellHosted } from "./plannerxchange";
+import { isPublicDemo, isShellHosted } from "./plannerxchange";
 
-if (isShellHosted(ctx)) {
+if (isPublicDemo(ctx)) {
+  // Public visitor - preload synthetic data; no protected fetch or persistence
+} else if (isShellHosted(ctx)) {
   // Real PlannerXchange shell - use ctx.authenticatedFetch for API calls
 } else {
   // Local dev with synthetic mock context - use offline stubs
@@ -250,10 +252,11 @@ if (isShellHosted(ctx)) {
 
 The `isShellHosted()` helper detects real shell context by checking:
 
+- the context is not public demo mode
 - `appInstallationId !== "synthetic-installation-context"` - the mock context uses this explicit marker
 - `authenticatedFetch` is present
 
-The `px-gateway.ts` helper in `src/lib/` already uses this pattern.
+The `px-gateway.ts` helper in `src/lib/` already uses this pattern. Its public-demo gateway exposes synthetic reads and rejects writes; demo UI should normally initialize from its synthetic scenario and keep optional non-identifying changes in component memory.
 
 ### API base URL ownership
 

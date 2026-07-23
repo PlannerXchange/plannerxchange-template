@@ -42,6 +42,7 @@ the current context pack, SDK, or review export documents it as available.
 | Update PX CLI | `README.md` | run `px --update dev` for dev or `px --update` for production; if not recognized, use the Creator Studio install block once |
 | Fetch PlannerXchange review feedback | `README.md`, `plannerxchange/publish-notes.md` | ask the builder for the current goal, then run `px feedback --env dev --goal <selected-goal> --commit HEAD --format markdown` |
 | Decide mock vs live behavior | `plannerxchange/context.md`, `src/plannerxchange.ts`, `src/dev-context.ts` | runtime branching |
+| Add or fix public demo mode | `plannerxchange/demo-mode.md`, `plannerxchange/context.md`, `plannerxchange/publish-notes.md` | public-demo branch, synthetic scenario, committed artifact |
 
 ## Manifest Schema
 
@@ -160,6 +161,7 @@ Request only the scopes the app actually uses.
 - Use `ctx.apiBaseUrl`; do not hardcode PlannerXchange API URLs.
 - Use `ctx.appBasename`, `ctx.initialPath`, and `ctx.navigate` for app routing.
 - Use `isShellHosted(ctx)` to distinguish real shell runtime from local mock mode.
+- Use `isPublicDemo(ctx)` first for public demo behavior. Public demo is shell-rendered but unauthenticated and must never enter the protected API path.
 - Do not use build-time env vars such as `VITE_PX_MODE` to choose live behavior in the published artifact.
 - Do not call app-owned backend routes such as `/api/questions`, `/api/results`, `/questions`, or `/results`; shell-published apps are static frontend plugins.
 - Do not use `VITE_API_URL`, `VITE_BACKEND_URL`, `NEXT_PUBLIC_API_URL`, or similar frontend env vars for shell-published runtime behavior.

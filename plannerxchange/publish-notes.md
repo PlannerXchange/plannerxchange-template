@@ -67,7 +67,7 @@ Review guidance:
 - PlannerXchange runs CodeQL for the exact linked commit and fails closed when PX CodeQL finds blocking issues or PX-owned evidence cannot be produced
 - CodeQL findings copied from PlannerXchange review feedback should be fixed in source code before requesting another review
 - apps built to PX canonical data contracts get stricter checks for PX data access patterns
-- nonportable apps do not get a self-serve right to store PX/client/subscriber data in builder-owned backends; app-managed storage for real PX data requires demo-only isolation or enterprise exception review
+- nonportable apps do not get a self-serve right to store PX/client/subscriber data in builder-owned backends; PX-governed public demo mode is synthetic and non-persistent, while app-managed storage for real PX data requires enterprise exception review
 - app-owned identity UX such as custom invite redemption, email verification, or password-setup flows will be treated as governance findings because PlannerXchange owns auth and onboarding
 - public landing pages may use YouTube or Vimeo embeds, but app-owned signup, sign-in, password, checkout, billing, lead-capture, provider-connect, upload, protected API, or token-handling behavior will be treated as landing-page findings or broader blockers
 - apps that save builder-owned work product inside PX should use the governed PX app-data contract
@@ -228,7 +228,7 @@ See `pii-and-security.md` for the scope-to-classification mapping.
 The following issues are common causes of publication rejection. Check for them before submitting:
 
 1. **Real personal data in source code** — any real email addresses, names, phone numbers, or SSNs in source files, mock data, or config. All mock data must use obviously synthetic names and `@example.test` addresses. Real firm or client PII belongs only in governed PlannerXchange imports and APIs, not committed examples.
-2. **localStorage as production persistence** — using `localStorage` or `sessionStorage` as the primary data store instead of the PX app-data API. Browser-local storage is acceptable for mock/demo mode only.
+2. **Browser storage as hosted persistence** — using `localStorage`, `sessionStorage`, IndexedDB, Cache Storage, or cookies as a hosted app data store. Local browser storage is acceptable only for local mock preview. PX-governed public demo mode is non-persistent and must keep optional non-identifying changes in component memory only.
 3. **Hardcoded API base URLs** — embedding `https://api.plannerxchange.ai` or AWS execute-api URLs directly in source. Use `ctx.apiBaseUrl` from `ShellRuntimeContext` so the app works across dev/staging/prod environments.
 4. **Missing or incorrect manifest fields** — `slug`, `name`, `summary`, `entryPoint`, or `permissions` missing or inconsistent with the actual app behavior.
 5. **Undeclared permission scopes** — app code calls APIs that require scopes not listed in `plannerxchange.app.json` permissions.

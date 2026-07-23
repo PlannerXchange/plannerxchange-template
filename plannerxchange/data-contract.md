@@ -8,7 +8,7 @@ Use these rules while building:
 - do not treat firm creation, user creation, invitation acceptance, membership assignment, invite-link handling, email verification, or initial password setup as app-owned builder responsibilities
 - assume PX canonical data contracts and governed APIs are stricter than standalone frontend code
 - decide early whether the app is `plannerxchange_portable` or `app_managed_nonportable`
-- if the app supports public demo mode, keep demo data synthetic and branch on `context.isDemoMode === true`
+- if the app supports public demo mode, read `plannerxchange/demo-mode.md`, keep demo data synthetic, and branch on `context.runtimeMode === "public_demo"` or `context.isDemoMode === true` before authenticated initialization
 
 Current practical reality:
 
@@ -31,7 +31,7 @@ If the app is `plannerxchange_portable`:
 
 If the app is `app_managed_nonportable`:
 
-- you may use app-owned storage only for public demos, external-showcase behavior, app-owned non-PX data, or a separately approved enterprise exception
+- PX-governed public demos are non-persistent; app-owned storage is limited to external-showcase behavior, app-owned non-PX data, or a separately approved enterprise exception
 - you may also use approved PX app-data APIs for builder-owned work product when PX-hosted persistence is preferred
 - you may still read approved PX runtime, branding, legal, and other allowed APIs through PX interfaces
 - you should not request PX canonical client/account/transaction scopes unless the app truly needs them and can pass elevated review
@@ -127,7 +127,7 @@ Brand asset standards:
 
 Cross-browser and persistence warning:
 
-- `localStorage` and `sessionStorage` are acceptable for mock/demo mode but must never be the production persistence layer
+- `localStorage` and `sessionStorage` are acceptable for local mock preview only; PX-governed public demo mode must not use browser storage
 - in production, the PlannerXchange shell may be accessed from different browsers, devices, or by different firm members â€” browser-local state is invisible to other sessions
 - any data that should survive across sessions or be visible to other firm users must be persisted through the PX app-data API (`app_data.read` / `app_data.write` scopes)
 - shareable links, saved reports, and workflow state all require server-side persistence via PX app-data

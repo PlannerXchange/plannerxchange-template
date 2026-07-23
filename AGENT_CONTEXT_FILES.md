@@ -24,6 +24,7 @@ It should contain exactly this maintained set:
 - `plannerxchange/branding-and-legal-api.md`
 - `plannerxchange/context.md`
 - `plannerxchange/data-contract.md`
+- `plannerxchange/demo-mode.md`
 - `plannerxchange/email-api.md`
 - `plannerxchange/landing-page.md`
 - `plannerxchange/pii-and-security.md`
