@@ -42,6 +42,8 @@ Use:
 px feedback --env dev --goal demo_mode --commit HEAD --format markdown
 ```
 
+The Markdown output includes a `Selected Goal Contract` section even when no required fixes remain. JSON output exposes the same rules under `goalScope.guidance`, so builder agents can verify the reviewed demo contract without inferring it from an empty findings list.
+
 Fix the current required demo group, rebuild and commit `distRoot`, push, and wait for review before enabling demo mode in Creator Studio.
 
-The current artifact check verifies the committed runtime contract. PlannerXchange may add an isolated browser-execution smoke gate; builders should already exercise `/apps/{slug}/demo` as a signed-out visitor before requesting availability.
+PlannerXchange decides Demo eligibility through programmatic and AI/agentic code review of the exact source and committed artifact. Private-browser execution and manual end-user testing are not approval gates. If review cannot distinguish missing demo behavior from an analyzer limitation, Demo mode remains unavailable while PlannerXchange resolves the verification issue; builders should not be directed through repeated generic code changes.

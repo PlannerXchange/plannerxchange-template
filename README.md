@@ -238,7 +238,7 @@ Before watching review feedback, the AI agent should ask the builder which goal 
 
 - `draft`: run inside PlannerXchange for internal testing only
 - `marketplace`: become listed and installable in the PlannerXchange marketplace
-- `demo_mode`: support a publicly available demo with synthetic/sample data
+- `demo_mode`: support an auth-free public demo with preloaded synthetic data and no client-data collection or persistence
 - `landing_page`: support a public PlannerXchange-hosted landing page with public-safe copy, approved media, and PX-owned CTA handoffs
 - `private_label`: consume PlannerXchange firm branding, legal, and disclosure context
 - `data_persistence`: use approved PlannerXchange app-data and governed canonical data contracts
