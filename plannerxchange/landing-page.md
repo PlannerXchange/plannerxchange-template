@@ -213,7 +213,10 @@ px feedback --env dev --goal landing_page --commit HEAD --format markdown
 ```
 
 Local preflight catches only obvious issues. PlannerXchange review still owns
-the final landing-page eligibility decision.
+the final landing-page eligibility decision. Run `npm run preflight` only when
+the app repo defines that script; otherwise run `npm run check` when defined.
 
 If review returns required fixes for `landing_page`, fix that current group,
-rebuild, rerun preflight, commit, push, and run the same watch command again.
+rebuild, run the available validation, commit, push, and run the same watch command again.
+The `landing_page` goal filters findings from the latest full review; it does
+not start a landing-page-only review or rerun pipeline stages.

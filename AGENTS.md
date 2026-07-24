@@ -54,15 +54,30 @@ Core rules:
   code unless the builder chooses to remove the capability. The builder must
   either upgrade the builder workspace or remove the paid feature before
   publication.
-- Before review, run `npm run build`, then `npm run preflight`, and commit the generated `distRoot` output.
+- Before review, run `npm run build`. Run `npm run preflight` only when the app repo defines that script; otherwise run `npm run check` when defined. If neither exists, use the successful production build as the available local validation. Do not invent a missing script or ask the builder to choose between nonexistent commands. Commit the generated `distRoot` output.
 - Before using PX CLI review feedback, update the CLI with `px --update dev`
   for the dev shell or `px --update` for production. If that command is not
   recognized, use the install block copied from Creator Studio.
 - After pushing to GitHub, use the PlannerXchange CLI when available:
   `px feedback --env dev --goal <selected-goal> --commit HEAD --format markdown`.
-  Treat `px feedback` as the canonical builder-agent review loop command.
-- Before choosing the goal, ask the builder whether the current target is `draft`,
-  `marketplace`, `demo_mode`, `landing_page`, `private_label`, or `data_persistence`.
+  Treat `px feedback` as the canonical builder-agent feedback loop command. The
+  `--goal` value only filters findings from the latest full review; it does not
+  start a review, rerun a goal-specific review, or select individual review
+  steps. The CLI is read-only.
+- If the builder already stated what they want the app to do, map that outcome
+  to the internal goal without asking again. Otherwise ask with plain choices:
+  try it privately; list it for other advisors; let anyone try a sample using
+  made-up information; show a public information page; match each firm's
+  branding; use PlannerXchange information; or check every app outcome. Do not
+  show internal goal IDs or platform implementation jargon unless the builder
+  asks. Internally map the answer to `draft`, `marketplace`, `demo_mode`,
+  `landing_page`, `private_label`, `data_persistence`, or `all`.
+- A pushed commit queues the full review pipeline. Creator Studio's `Run fresh
+  review` action can queue the full pipeline for the current commit. PX CLI
+  cannot queue review work.
+- If feedback reports an automatic processing attempt count, it applies only to
+  PlannerXchange retrying that one review job. It is not a limit on builder code
+  changes, commits, or future full-review requests.
 - Fix only the current required fix group returned for the selected goal,
   then rebuild, commit, push, and run the watch command again.
 - Before telling the builder that a PlannerXchange API, SDK helper, runtime

@@ -93,14 +93,17 @@ PX CLI feedback loop:
 - GitHub push remains the review trigger.
 - The CLI is read-only. It does not publish, deploy, mutate repo links, change pricing, manage billing, or access canonical client data.
 - Before fetching feedback, update the CLI with `px --update dev` for the dev shell or `px --update` for production. If that command is not recognized, use the Creator Studio install block once.
-- Before watching review feedback, ask the builder which goal applies now: `draft`, `marketplace`, `demo_mode`, `landing_page`, `private_label`, or `data_persistence`.
-- After pushing source plus generated `distRoot`, run `px feedback --env dev --goal <selected-goal> --commit HEAD --format markdown`. Use `--env prod` only when Creator Studio copies a prod-specific loop for this app.
+- If the builder already stated what they want the app to do, map that outcome to the internal goal without asking again. Otherwise ask with plain choices: try it privately; list it for other advisors; let anyone try a sample using made-up information; show a public information page; match each firm's branding; use PlannerXchange information; or check every app outcome. Do not show internal goal IDs or platform jargon unless the builder asks.
+- Internally map the outcome to `draft`, `marketplace`, `demo_mode`, `landing_page`, `private_label`, `data_persistence`, or `all`.
+- After pushing source plus generated `distRoot`, run `px feedback --env dev --goal <selected-goal> --commit HEAD --format markdown`. Use `--env prod` only when Creator Studio copies a prod-specific loop for this app. The goal only filters findings from the latest full review; it does not start review, rerun a goal-specific review, or select pipeline stages.
+- A pushed commit queues the full review pipeline. Creator Studio's `Run fresh review` action can queue the full pipeline for the current commit. PX CLI cannot queue review work.
+- If feedback reports an automatic processing attempt count, it applies only to PlannerXchange retrying that one review job. It is not a limit on code changes, commits, or future full-review requests.
 - Exit `0` means no required fixes remain for the selected goal on the watched commit.
 - Exit `1` means the CLI could not complete because of auth, access, configuration, API, timeout, or unexpected local/platform errors. Read the terminal error and do not guess manifest fields from this failure.
 - Exit `2` means PlannerXchange returned required fixes for the selected goal. Fix only the current fix group in the markdown export, rebuild, commit, push, and watch again.
 - Exit `3` means PlannerXchange review reached a terminal `failed_to_complete` state. Treat this as a platform retry/support state unless the markdown export clearly names an app-code finding.
 - Exit `130` usually means the user interrupted the command with Ctrl+C. Stop the loop until the builder asks you to continue.
-- Do not fix data-persistence, private-label, demo, or landing-page findings unless the builder selected that capability or the finding also blocks the selected goal.
+- Do not fix PlannerXchange-data, firm-branding, public-sample, or public-page findings unless the builder selected that outcome or the finding also blocks the selected outcome.
 
 White-label readiness signals:
 

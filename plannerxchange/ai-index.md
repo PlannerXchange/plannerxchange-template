@@ -40,7 +40,7 @@ the current context pack, SDK, or review export documents it as available.
 | Add or fix public landing-page behavior | `plannerxchange/landing-page.md`, `plannerxchange/publish-notes.md`, this file | landing-page source/components, CTA definitions, public-safe media |
 | Fix build or publish artifact findings | `plannerxchange/publish-notes.md`, `vite.config.ts`, `scripts/preflight.mjs` | build config, committed `distRoot` |
 | Update PX CLI | `README.md` | run `px --update dev` for dev or `px --update` for production; if not recognized, use the Creator Studio install block once |
-| Fetch PlannerXchange review feedback | `README.md`, `plannerxchange/publish-notes.md` | ask the builder for the current goal, then run `px feedback --env dev --goal <selected-goal> --commit HEAD --format markdown` |
+| Fetch PlannerXchange review feedback | `README.md`, `plannerxchange/publish-notes.md` | use an already-stated app outcome or ask with plain choices, map it to an internal goal, then run `px feedback --env dev --goal <selected-goal> --commit HEAD --format markdown`; the goal filters the latest full review |
 | Decide mock vs live behavior | `plannerxchange/context.md`, `src/plannerxchange.ts`, `src/dev-context.ts` | runtime branching |
 | Add or fix public demo mode | `plannerxchange/demo-mode.md`, `plannerxchange/context.md`, `plannerxchange/publish-notes.md` | public-demo branch, synthetic scenario, committed artifact |
 
@@ -258,10 +258,10 @@ Before publication:
 1. Run `npm run build`.
 2. Confirm `<distRoot>/plannerxchange.publish.json` exists.
 3. Confirm `<distRoot>/plannerxchange.build-provenance.json` exists.
-4. Run `npm run preflight`.
+4. Run `npm run preflight` when that script exists; otherwise run `npm run check` when defined. If neither exists, do not invent a validation command.
 5. Commit source, lockfiles, manifest, and generated `distRoot` output from the same code version.
 6. Push to GitHub so PlannerXchange review can run for that commit.
-7. Ask the builder which goal applies now, then run `px feedback --env dev --goal <selected-goal> --commit HEAD --format markdown`.
+7. Use an app outcome the builder already stated. If it is unclear, ask with the plain choices in `README.md`, map the answer to an internal goal, then run `px feedback --env dev --goal <selected-goal> --commit HEAD --format markdown`. This filters the latest full-review feedback and does not start or rerun review.
 8. If required fixes return, fix only the current fix group, rebuild, commit, push, and watch again.
 
 Do not hand-edit generated publish or build-provenance files.
