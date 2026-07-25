@@ -51,6 +51,13 @@ CodeQL review rule:
 - `PX CodeQL is still running` means no builder action; `PX CodeQL infrastructure failed` means retry/support, not repo settings
 - local `npm run preflight` does not replace PlannerXchange CodeQL
 
+Review recovery rule:
+
+- PlannerXchange automatically retries temporary review-processing problems; human-facing output says no action is needed and does not expose an attempt counter
+- if a globally required check still cannot complete, treat it as a PlannerXchange problem and do not invent an app-code change
+- if only Demo verification cannot complete, the review still completes, Demo stays off, and all other app options keep their own results
+- direct Demo violations remain Demo-only fixes; verification uncertainty by itself is not a builder-code finding
+
 Common frontend values:
 
 - `react`

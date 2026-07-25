@@ -48,4 +48,8 @@ The `demo_mode` goal only filters Demo-related findings from the latest full rev
 
 Fix the current required demo group, rebuild and commit `distRoot`, push, and wait for review before enabling demo mode in Creator Studio.
 
-PlannerXchange decides Demo eligibility through programmatic and AI/agentic code review of the exact source and committed artifact. Private-browser execution and manual end-user testing are not approval gates. If review cannot distinguish missing demo behavior from an analyzer limitation, Demo mode remains unavailable while PlannerXchange resolves the verification issue; builders should not be directed through repeated generic code changes.
+PlannerXchange decides Demo eligibility through programmatic and AI/agentic code review of the exact source and committed artifact. Private-browser execution and manual end-user testing are not approval gates.
+
+If PlannerXchange cannot verify Demo mode after its automatic retries, the full review still completes and only Demo remains off. Other app options are unaffected. Human-facing feedback says that PlannerXchange could not verify Demo mode and does not request an app-code change. Do not direct the builder through repeated generic code changes or treat the app as blocked.
+
+Direct, specific Demo findings are different. If the review proves that the public Demo path performs a protected request, accesses app data, saves information, requires identity entry, or lacks loaded synthetic data, fix that Demo-only finding before enabling Demo.

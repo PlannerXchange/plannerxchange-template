@@ -75,9 +75,14 @@ Core rules:
 - A pushed commit queues the full review pipeline. Creator Studio's `Run fresh
   review` action can queue the full pipeline for the current commit. PX CLI
   cannot queue review work.
-- If feedback reports an automatic processing attempt count, it applies only to
-  PlannerXchange retrying that one review job. It is not a limit on builder code
-  changes, commits, or future full-review requests.
+- Human-facing retry feedback says that PlannerXchange is retrying
+  automatically and that no action is needed. Internal attempt counts may
+  appear only in machine-readable JSON for agents or support; they are not a
+  limit on builder code changes, commits, or future full-review requests.
+- If PlannerXchange cannot verify only Demo mode after its automatic retries,
+  Demo stays off and the rest of the review completes. Do not change app code
+  unless the review also returns a direct Demo violation or another required
+  finding. Do not treat Demo verification uncertainty as an app-wide blocker.
 - Fix only the current required fix group returned for the selected goal,
   then rebuild, commit, push, and run the watch command again.
 - Before telling the builder that a PlannerXchange API, SDK helper, runtime

@@ -43,6 +43,7 @@ the current context pack, SDK, or review export documents it as available.
 | Fetch PlannerXchange review feedback | `README.md`, `plannerxchange/publish-notes.md` | use an already-stated app outcome or ask with plain choices, map it to an internal goal, then run `px feedback --env dev --goal <selected-goal> --commit HEAD --format markdown`; the goal filters the latest full review |
 | Decide mock vs live behavior | `plannerxchange/context.md`, `src/plannerxchange.ts`, `src/dev-context.ts` | runtime branching |
 | Add or fix public demo mode | `plannerxchange/demo-mode.md`, `plannerxchange/context.md`, `plannerxchange/publish-notes.md` | public-demo branch, synthetic scenario, committed artifact |
+| PlannerXchange could not verify Demo mode | `plannerxchange/demo-mode.md`, `plannerxchange/publish-notes.md` | do not invent a code fix; Demo remains off while other app options are unaffected |
 
 ## Manifest Schema
 

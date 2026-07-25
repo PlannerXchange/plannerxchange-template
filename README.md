@@ -263,14 +263,14 @@ This scaffold defines `preflight`. In another app repo, run `npm run preflight` 
 
 `px feedback` is the canonical builder-agent command for reading PlannerXchange review feedback. Use it when the builder asks to check PX feedback, review results, approval blockers, publish status, or remaining fixes.
 
-If feedback shows an automatic processing attempt count, it applies only to PlannerXchange retrying that one review job. It is not a limit on code changes, commits, or future full-review requests.
+During an automatic retry, human-facing feedback says that PlannerXchange is retrying the check and no action is needed. Internal attempt details may appear in JSON for agents or support, but they are not a limit on code changes, commits, or future full-review requests. If only Demo verification remains unavailable, the review completes, Demo stays off, and other app options are unaffected; do not invent an app-code fix.
 
 Exit codes:
 
 - `0`: review completed and no required fixes remain for the selected goal on the watched commit
 - `1`: auth, access, configuration, API, timeout, or unexpected local/platform error; read the terminal error and stop instead of guessing manifest fields
 - `2`: PlannerXchange returned required fixes for the selected goal; fix only the current fix group, rebuild, commit, push, and watch again
-- `3`: PlannerXchange review reached `failed_to_complete`; treat it as platform retry/support unless the markdown clearly names an app-code finding
+- `3`: PlannerXchange could not finish a globally required review check after automatic retries; follow the platform support guidance and do not invent an app-code change
 - `130`: the user interrupted the command; stop the loop until the builder asks you to continue
 
 Primary command:
