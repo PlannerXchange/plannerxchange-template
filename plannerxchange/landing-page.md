@@ -110,6 +110,13 @@ Approved examples:
 | `Leave review` | `leave_review` | Hand off to PX auth and installed-user review rules. |
 | `View pricing` | `view_pricing` | Show PX marketplace pricing data. |
 
+PlannerXchange preserves the public marketplace, app-detail, or builder-profile
+page where an install action began and returns the visitor there with a
+PlannerXchange-owned result callout. The installed app and Dashboard remain
+explicit user choices. Landing-page code must not read the result URL as proof
+of installation or entitlement; only the authenticated shell/runtime context
+can establish that state.
+
 Do not hardcode app-owned destinations for protected actions. For example, do
 not implement `/signup`, `/login`, `/checkout`, or `/billing` routes inside the
 app and do not point landing-page buttons to builder-owned equivalents.
