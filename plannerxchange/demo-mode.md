@@ -32,6 +32,12 @@ The public context has `runtimeMode: "public_demo"`, `isDemoMode: true`, and `de
 - Do not request sign-in or treat an empty token as an authenticated session.
 - Keep all people, firms, accounts, and emails obviously synthetic; use `@example.test` where an email must appear in the scenario.
 
+For the best public Demo experience, give every functional or data-workflow
+page reachable from Demo navigation enough deterministic synthetic content to
+show its intended UX. A record, chart, table, card, or representative scenario
+is sufficient. About, Help, Settings, and purely instructional pages do not
+need artificial data.
+
 ## Review and enablement
 
 PlannerXchange reviews the source revision and committed artifact for the demo branch, synthetic fixtures, absent protected access, absent identity intake, and absent persistence. Demo enablement is fail-closed and is bound to the reviewed source SHA and current review policy. A new commit, stale policy, missing committed artifact evidence, or required demo finding disables public demo availability until review passes again.
@@ -53,3 +59,10 @@ PlannerXchange decides Demo eligibility through programmatic and AI/agentic code
 If PlannerXchange cannot verify Demo mode after its automatic retries, the full review still completes and only Demo remains off. Other app options are unaffected. Human-facing feedback says that PlannerXchange could not verify Demo mode and does not request an app-code change. Do not direct the builder through repeated generic code changes or treat the app as blocked.
 
 Direct, specific Demo findings are different. If the review proves that the public Demo path performs a protected request, accesses app data, saves information, requires identity entry, or lacks loaded synthetic data, fix that Demo-only finding before enabling Demo.
+
+PlannerXchange may also return the recommended Demo-only suggestion
+`demo-page-synthetic-coverage` when code-review evidence clearly shows a
+functional page with no meaningful synthetic content. This suggestion does not
+block Demo eligibility or another app goal. Add a small fixture-backed scenario
+when it would help visitors understand the page; do not add data to About, Help,
+Settings, or instructional-only pages merely to silence the suggestion.
