@@ -219,6 +219,8 @@ Marketplace billing boundary:
 - published app code should not own payment checkout, payout-account setup, coupon creation, refund issuance, or payout-ledger accounting
 - PlannerXchange shell owns app pricing-plan configuration, entitlements, coupon and refund authorization, and commercial access decisions
 - payment-processor-hosted surfaces launched from PlannerXchange handle payout-account-native operations such as connected-account onboarding, bank details, and tax profile management
+- free app pricing remains available without a payout account, but Creator Studio requires the builder firm's payout account to be active before any paid app pricing model can be selected or saved
+- when paid pricing is locked, use the PlannerXchange-owned link to Billing -> Creator payouts; app code and landing pages must not create their own payout-onboarding or checkout workaround
 - app code should rely on PlannerXchange app access and entitlements rather than direct payment-processor state to decide whether a paid feature is available
 - quantity-based app pricing such as `per_account_monthly` and `per_client_monthly` only makes sense when PlannerXchange can govern those counts from canonical data
 

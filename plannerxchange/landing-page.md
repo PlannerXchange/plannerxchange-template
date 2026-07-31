@@ -111,8 +111,9 @@ Approved examples:
 | `View pricing` | `view_pricing` | Show PX marketplace pricing data. |
 
 PlannerXchange preserves the public marketplace, app-detail, or builder-profile
-page where an install action began and returns the visitor there with a
-PlannerXchange-owned result callout. The installed app and Dashboard remain
+page where an install action began and returns the visitor there with a fixed,
+PlannerXchange-owned result notification. Safe paid-app readiness failures may
+explain that pricing or builder payout setup is incomplete. The installed app and Dashboard remain
 explicit user choices. Landing-page code must not read the result URL as proof
 of installation or entitlement; only the authenticated shell/runtime context
 can establish that state.
