@@ -42,6 +42,31 @@ export interface ClientSummary {
   updatedAt?: string;
 }
 
+export interface AccountSummary {
+  id: string;
+  householdId: string;
+  accountName: string;
+  accountType?: string;
+  taxTreatment?: string;
+  accountStatus?: string;
+  accountBalance?: number;
+  updatedAt?: string;
+}
+
+export interface CanonicalEntityListQuery {
+  search?: string;
+  limit?: number;
+  cursor?: string;
+}
+
+export interface CanonicalClientListQuery extends CanonicalEntityListQuery {
+  householdId?: string;
+}
+
+export interface CanonicalAccountListQuery extends CanonicalEntityListQuery {
+  householdId?: string;
+}
+
 export interface CanonicalHouseholdCreateInput {
   name: string;
 }
@@ -59,6 +84,20 @@ export interface CanonicalClientCreateInput {
 }
 
 export type CanonicalClientUpdateInput = Partial<CanonicalClientCreateInput>;
+
+export interface CanonicalAccountCreateInput {
+  accountNumber: string;
+  accountName: string;
+  custodianName?: string;
+  accountType?: string;
+  taxType?: string;
+  taxTreatment?: string;
+  ownerClientIds: string[];
+}
+
+export type CanonicalAccountUpdateInput = Partial<
+  Omit<CanonicalAccountCreateInput, "accountNumber">
+> & { accountStatus?: string };
 
 export interface CanonicalWriteOptions {
   /**
@@ -164,6 +203,7 @@ const mockHouseholdStore = new Map<string, HouseholdSummary>(
 );
 const mockAppDataStore = new Map<string, AppDataRecord>();
 const mockClientStore = new Map<string, ClientSummary>();
+const mockAccountStore = new Map<string, AccountSummary>();
 
 // ---------------------------------------------------------------------------
 // Gateway factory
@@ -174,8 +214,9 @@ export interface PxGateway {
   isLive: boolean;
 
   // Canonical reads
-  getHouseholds(): Promise<HouseholdSummary[]>;
-  getClients(householdId: string): Promise<ClientSummary[]>;
+  getHouseholds(query?: CanonicalEntityListQuery): Promise<HouseholdSummary[]>;
+  getClients(query?: CanonicalClientListQuery): Promise<ClientSummary[]>;
+  getAccounts(query?: CanonicalAccountListQuery): Promise<AccountSummary[]>;
 
   // Governed canonical writes. These mutate shared PX shell data in live mode.
   createHousehold(input: CanonicalHouseholdCreateInput): Promise<HouseholdSummary>;
@@ -201,6 +242,21 @@ export interface PxGateway {
   softDeleteClient(
     householdId: string,
     clientId: string,
+    options: CanonicalWriteOptions
+  ): Promise<CanonicalSoftDeleteResult>;
+  createAccount(
+    householdId: string,
+    input: CanonicalAccountCreateInput
+  ): Promise<AccountSummary>;
+  updateAccount(
+    householdId: string,
+    accountId: string,
+    input: CanonicalAccountUpdateInput,
+    options?: CanonicalWriteOptions
+  ): Promise<AccountSummary>;
+  softDeleteAccount(
+    householdId: string,
+    accountId: string,
     options: CanonicalWriteOptions
   ): Promise<CanonicalSoftDeleteResult>;
 
@@ -246,6 +302,9 @@ function publicDemoGateway(): PxGateway {
     createClient: rejectWrite,
     updateClient: rejectWrite,
     softDeleteClient: rejectWrite,
+    createAccount: rejectWrite,
+    updateAccount: rejectWrite,
+    softDeleteAccount: rejectWrite,
     createAppData: rejectWrite,
     updateAppData: rejectWrite,
     softDeleteAppData: rejectWrite
@@ -260,14 +319,30 @@ function mockGateway(): PxGateway {
   return {
     isLive: false,
 
-    async getHouseholds() {
-      return [...mockHouseholdStore.values()];
+    async getHouseholds(query: CanonicalEntityListQuery = {}) {
+      const search = query.search?.trim().toLowerCase();
+      return [...mockHouseholdStore.values()]
+        .filter((household) => !search || household.name.toLowerCase().includes(search))
+        .slice(0, query.limit ?? Number.MAX_SAFE_INTEGER);
     },
 
-    async getClients(householdId: string): Promise<ClientSummary[]> {
-      return [...mockClientStore.values()].filter(
-        (client) => client.householdId === householdId
-      );
+    async getClients(query: CanonicalClientListQuery = {}): Promise<ClientSummary[]> {
+      const search = query.search?.trim().toLowerCase();
+      return [...mockClientStore.values()]
+        .filter((client) => !query.householdId || client.householdId === query.householdId)
+        .filter((client) => {
+          const label = client.displayName ?? `${client.firstName ?? ""} ${client.lastName ?? ""}`;
+          return !search || label.toLowerCase().includes(search);
+        })
+        .slice(0, query.limit ?? Number.MAX_SAFE_INTEGER);
+    },
+
+    async getAccounts(query: CanonicalAccountListQuery = {}): Promise<AccountSummary[]> {
+      const search = query.search?.trim().toLowerCase();
+      return [...mockAccountStore.values()]
+        .filter((account) => !query.householdId || account.householdId === query.householdId)
+        .filter((account) => !search || account.accountName.toLowerCase().includes(search))
+        .slice(0, query.limit ?? Number.MAX_SAFE_INTEGER);
     },
 
     async createHousehold(input: CanonicalHouseholdCreateInput): Promise<HouseholdSummary> {
@@ -380,6 +455,67 @@ function mockGateway(): PxGateway {
       return {
         entityType: "client",
         id: clientId,
+        isDeleted: true,
+        deletedAt,
+        updatedAt: deletedAt,
+        updatedBy: "synthetic-user-context",
+      };
+    },
+
+    async createAccount(
+      householdId: string,
+      input: CanonicalAccountCreateInput
+    ): Promise<AccountSummary> {
+      if (!mockHouseholdStore.has(householdId)) {
+        throw new Error(`Mock household not found: ${householdId}`);
+      }
+      const account: AccountSummary = {
+        id:
+          typeof crypto !== "undefined" && "randomUUID" in crypto
+            ? crypto.randomUUID()
+            : `account-mock-${Date.now()}`,
+        householdId,
+        accountName: input.accountName,
+        accountType: input.accountType,
+        taxTreatment: input.taxTreatment,
+        accountStatus: "active",
+        updatedAt: new Date().toISOString(),
+      };
+      mockAccountStore.set(account.id, account);
+      return account;
+    },
+
+    async updateAccount(
+      householdId: string,
+      accountId: string,
+      input: CanonicalAccountUpdateInput
+    ): Promise<AccountSummary> {
+      const existing = mockAccountStore.get(accountId);
+      if (!existing || existing.householdId !== householdId) {
+        throw new Error(`Mock account not found: ${accountId}`);
+      }
+      const updated = {
+        ...existing,
+        ...input,
+        updatedAt: new Date().toISOString(),
+      } satisfies AccountSummary;
+      mockAccountStore.set(accountId, updated);
+      return updated;
+    },
+
+    async softDeleteAccount(
+      householdId: string,
+      accountId: string
+    ): Promise<CanonicalSoftDeleteResult> {
+      const existing = mockAccountStore.get(accountId);
+      if (!existing || existing.householdId !== householdId) {
+        throw new Error(`Mock account not found: ${accountId}`);
+      }
+      mockAccountStore.delete(accountId);
+      const deletedAt = new Date().toISOString();
+      return {
+        entityType: "account",
+        id: accountId,
         isDeleted: true,
         deletedAt,
         updatedAt: deletedAt,
@@ -513,17 +649,41 @@ function liveGateway(ctx: ShellRuntimeContext): PxGateway {
     return Array.isArray(payload) ? payload : payload.items ?? [];
   }
 
+  function toQueryString(query: CanonicalEntityListQuery): string {
+    const params = new URLSearchParams();
+    if (query.search?.trim()) params.set("search", query.search.trim());
+    if (query.limit) params.set("limit", String(query.limit));
+    if (query.cursor?.trim()) params.set("cursor", query.cursor.trim());
+    const value = params.toString();
+    return value ? `?${value}` : "";
+  }
+
   return {
     isLive: true,
 
-    async getHouseholds() {
-      const payload = await pxFetch<HouseholdSummary[] | ListResponse<HouseholdSummary>>("/households");
+    async getHouseholds(query: CanonicalEntityListQuery = {}) {
+      const payload = await pxFetch<HouseholdSummary[] | ListResponse<HouseholdSummary>>(
+        `/households${toQueryString(query)}`
+      );
       return listItems(payload);
     },
 
-    async getClients(householdId: string): Promise<ClientSummary[]> {
+    async getClients(query: CanonicalClientListQuery = {}): Promise<ClientSummary[]> {
+      const path = query.householdId
+        ? `/households/${encodeURIComponent(query.householdId)}/clients`
+        : "/clients";
       const payload = await pxFetch<ClientSummary[] | ListResponse<ClientSummary>>(
-        `/households/${encodeURIComponent(householdId)}/clients`
+        `${path}${toQueryString(query)}`
+      );
+      return listItems(payload);
+    },
+
+    async getAccounts(query: CanonicalAccountListQuery = {}): Promise<AccountSummary[]> {
+      const path = query.householdId
+        ? `/households/${encodeURIComponent(query.householdId)}/accounts`
+        : "/accounts";
+      const payload = await pxFetch<AccountSummary[] | ListResponse<AccountSummary>>(
+        `${path}${toQueryString(query)}`
       );
       return listItems(payload);
     },
@@ -582,6 +742,39 @@ function liveGateway(ctx: ShellRuntimeContext): PxGateway {
     ): Promise<CanonicalSoftDeleteResult> {
       return pxFetch<CanonicalSoftDeleteResult>(
         `/households/${encodeURIComponent(householdId)}/clients/${encodeURIComponent(clientId)}`,
+        deleteInit(options)
+      );
+    },
+
+    async createAccount(
+      householdId: string,
+      input: CanonicalAccountCreateInput
+    ): Promise<AccountSummary> {
+      return pxFetch<AccountSummary>(
+        `/households/${encodeURIComponent(householdId)}/accounts`,
+        jsonInit("POST", input)
+      );
+    },
+
+    async updateAccount(
+      householdId: string,
+      accountId: string,
+      input: CanonicalAccountUpdateInput,
+      options?: CanonicalWriteOptions
+    ): Promise<AccountSummary> {
+      return pxFetch<AccountSummary>(
+        `/households/${encodeURIComponent(householdId)}/accounts/${encodeURIComponent(accountId)}`,
+        jsonInit("PATCH", input, options)
+      );
+    },
+
+    async softDeleteAccount(
+      householdId: string,
+      accountId: string,
+      options: CanonicalWriteOptions
+    ): Promise<CanonicalSoftDeleteResult> {
+      return pxFetch<CanonicalSoftDeleteResult>(
+        `/households/${encodeURIComponent(householdId)}/accounts/${encodeURIComponent(accountId)}`,
         deleteInit(options)
       );
     },

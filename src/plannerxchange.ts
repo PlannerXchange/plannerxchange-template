@@ -8,8 +8,28 @@ export type AppVisibility =
 export type AppDataPortabilityMode =
   | "plannerxchange_portable"
   | "app_managed_nonportable";
+export type AppDataIngressSource =
+  | "csv_upload"
+  | "file_upload"
+  | "third_party_api"
+  | "manual_paste"
+  | "browser_file_parse"
+  | "other";
+export type AppDataClass =
+  | "public"
+  | "internal"
+  | "confidential"
+  | "restricted_pii"
+  | "firm_data"
+  | "client_summary"
+  | "client_sensitive"
+  | "crm_activity"
+  | "account_data"
+  | "portfolio_positions"
+  | "transactions"
+  | "cost_basis"
+  | "app_work_product";
 export type AppDataIngressTarget =
-  | "px_core_import_handoff"
   | "px_import_session"
   | "px_app_data_upload"
   | "browser_ephemeral_app_data"
@@ -25,9 +45,9 @@ export type AppDataImportCanonicalEntity =
   | "security";
 export interface AppDataIngressDeclaration {
   id?: string;
-  source: string;
+  source: AppDataIngressSource;
   purpose: string;
-  dataClasses: string[];
+  dataClasses: AppDataClass[];
   target: AppDataIngressTarget;
   supportedModes?: AppDataImportSessionMode[];
   canonicalEntityHints?: AppDataImportCanonicalEntity[];
@@ -40,8 +60,6 @@ export interface AppDataImportSessionRequest {
   declarationId: string;
   mode?: AppDataImportSessionMode;
   entityType?: AppDataImportCanonicalEntity;
-  returnToApp?: boolean;
-  metadata?: Record<string, unknown>;
 }
 export interface AppDataImportSessionCanonicalStoreResult {
   mode: "canonical_store";

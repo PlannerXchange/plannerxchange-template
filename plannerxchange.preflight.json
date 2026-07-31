@@ -83,6 +83,20 @@
       "check": "non-empty-array"
     },
     {
+      "id": "manifest-canonical-data-access",
+      "severity": "error",
+      "title": "Canonical declarations match exact permissions",
+      "description": "Every canonical permission must have a matching category and read/write declaration, and every declaration scope must have a matching exact permission.",
+      "type": "manifest-canonical-data-access"
+    },
+    {
+      "id": "import-session-contract",
+      "severity": "error",
+      "title": "Import entry points launch the PX wizard",
+      "description": "Ingress enums must be exact, every px_import_session declaration must match source and committed build calls, and import-facing UI may not end in app-authored informational copy.",
+      "type": "import-session-contract"
+    },
+    {
       "id": "build-output-exists",
       "severity": "error",
       "title": "Build output exists",

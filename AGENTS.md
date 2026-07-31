@@ -25,6 +25,7 @@ Core rules:
 - Use `visibility: "marketplace_listed"` for marketplace intent.
 - Use `dataPortabilityMode: "plannerxchange_portable"` for portable-data intent.
 - Use exact scope strings in `permissions` for PlannerXchange API access.
+- Before adding a field named Client, Household, or Account, read `plannerxchange/canonical-entity-controls.md`. Canonical entities use PX-backed search/selection, stable PX IDs, and governed creation; app-local freeform concepts must use distinct labels and models.
 - Demo mode is enabled from Creator Studio after review eligibility; it is not currently a builder manifest field.
 - Public landing pages are enabled from PlannerXchange after review eligibility; they are not currently builder manifest fields.
 - PlannerXchange owns auth, routing, shell context, disclosure, publication review, and app installation identity.
@@ -54,6 +55,11 @@ Core rules:
   code unless the builder chooses to remove the capability. The builder must
   either upgrade the builder workspace or remove the paid feature before
   publication.
+- Any import-specific route, navigation item, page, or primary action must call
+  `ctx.openDataImportSession` with the matching stable declaration ID. Launch
+  immediately on navigation or from the page's primary action. App UI may show
+  only a transient launching state or a recoverable error; an informational-only
+  import page is a blocking contract violation.
 - Before review, run `npm run build`. Run `npm run preflight` only when the app repo defines that script; otherwise run `npm run check` when defined. If neither exists, use the successful production build as the available local validation. Do not invent a missing script or ask the builder to choose between nonexistent commands. Commit the generated `distRoot` output.
 - Before using PX CLI review feedback, update the CLI with `px --update dev`
   for the dev shell or `px --update` for production. If that command is not

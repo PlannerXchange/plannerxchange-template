@@ -11,6 +11,7 @@
 
 import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
 import { resolve, join } from "node:path";
+import { analyzeImportSessionContract } from "./import-session-contract.mjs";
 
 // Try to load a glob implementation. Node 22+ has globSync in node:fs,
 // but older versions need the "glob" npm package or a manual walk.
@@ -346,6 +347,106 @@ function runManifestUnsupportedFieldsCheck(check) {
   );
 }
 
+const CANONICAL_PERMISSION_CONTRACT = {
+  "canonical.household.read": ["households", "read"],
+  "canonical.household.write": ["households", "write"],
+  "canonical.client.summary.read": ["clients", "read"],
+  "canonical.client.sensitive.read": ["clients", "read"],
+  "canonical.client.write": ["clients", "write"],
+  "canonical.account.read": ["accounts", "read"],
+  "canonical.account.write": ["accounts", "write"],
+  "canonical.position.read": ["positions", "read"],
+  "canonical.transaction.read": ["transactions", "read"],
+  "canonical.cost_basis.read": ["cost_basis", "read"]
+};
+
+function runManifestCanonicalDataAccessCheck(check) {
+  if (!existsSync(MANIFEST_PATH)) {
+    report(check, false, "plannerxchange.app.json not found");
+    return;
+  }
+
+  const manifest = readManifest() ?? {};
+  const permissions = Array.isArray(manifest.permissions) ? manifest.permissions : [];
+  const declarations = Array.isArray(manifest.canonicalDataAccessDeclarations)
+    ? manifest.canonicalDataAccessDeclarations
+    : [];
+  const issues = [];
+
+  for (const permission of permissions) {
+    const contract = CANONICAL_PERMISSION_CONTRACT[permission];
+    if (!contract) continue;
+    const [category, operation] = contract;
+    const declaration = declarations.find((entry) => entry?.category === category);
+    if (!declaration || !Array.isArray(declaration.scopes) || !declaration.scopes.includes(operation)) {
+      issues.push(`${permission} requires ${category}:${operation} in canonicalDataAccessDeclarations`);
+    }
+  }
+
+  for (const declaration of declarations) {
+    if (!declaration || typeof declaration.category !== "string" || !Array.isArray(declaration.scopes)) {
+      issues.push("canonicalDataAccessDeclarations contains an incomplete item");
+      continue;
+    }
+    for (const operation of declaration.scopes) {
+      const matchingPermission = permissions.some((permission) => {
+        const contract = CANONICAL_PERMISSION_CONTRACT[permission];
+        return contract?.[0] === declaration.category && contract?.[1] === operation;
+      });
+      if (!matchingPermission) {
+        issues.push(`${declaration.category}:${operation} has no matching canonical permission`);
+      }
+    }
+  }
+
+  report(
+    check,
+    issues.length === 0,
+    issues.length > 0 ? issues.slice(0, 6).join("; ") : undefined
+  );
+}
+
+function runImportSessionContractCheck(check) {
+  if (!existsSync(MANIFEST_PATH)) {
+    report(check, false, "plannerxchange.app.json not found");
+    return;
+  }
+
+  const boundary = getAppBoundary();
+  const sourcePrefix = boundary.appRoot === "." ? "src/" : `${boundary.appRoot}/src/`;
+  const distPrefix = `${boundary.distRoot}/`;
+  const reviewedFiles = walkDir(ROOT, { includeDist: true })
+    .map((filePath) => ({ filePath, path: toRelativePath(filePath) }))
+    .filter(
+      (file) =>
+        (file.path.startsWith(sourcePrefix) && /\.(?:[cm]?[jt]sx?|html)$/.test(file.path)) ||
+        (file.path.startsWith(distPrefix) && /\.(?:js|mjs|cjs|html)$/.test(file.path))
+    )
+    .map((file) => ({
+      path: file.path,
+      content: readFileSync(file.filePath, "utf-8")
+    }));
+  const sourceFiles = reviewedFiles.filter(
+    (file) => file.path.startsWith(sourcePrefix) && /\.(?:[cm]?[jt]sx?|html)$/.test(file.path)
+  );
+  const distFiles = reviewedFiles.filter(
+    (file) => file.path.startsWith(distPrefix) && /\.(?:js|mjs|cjs|html)$/.test(file.path)
+  );
+  const issues = analyzeImportSessionContract({
+    manifest: readManifest() ?? {},
+    sourceFiles,
+    distFiles
+  });
+
+  report(
+    check,
+    issues.length === 0,
+    issues.length > 0
+      ? issues.slice(0, 8).map((entry) => `${entry.code}: ${entry.message}`).join("; ")
+      : undefined
+  );
+}
+
 function runBuildProvenanceBoundaryCheck(check) {
   const boundary = getAppBoundary();
   const provenancePath = join(ROOT, boundary.buildProvenancePath);
@@ -407,6 +508,12 @@ for (const check of checks) {
       break;
     case "manifest-unsupported-fields":
       runManifestUnsupportedFieldsCheck(check);
+      break;
+    case "manifest-canonical-data-access":
+      runManifestCanonicalDataAccessCheck(check);
+      break;
+    case "import-session-contract":
+      runImportSessionContractCheck(check);
       break;
     case "build-provenance-boundary":
       runBuildProvenanceBoundaryCheck(check);

@@ -6,6 +6,8 @@ This document defines the HTTP conventions, error handling, request transport, a
 
 Apps integrate through approved PlannerXchange APIs. Published apps do not receive direct database access, even though PlannerXchange owns canonical data storage. The API contract is the integration boundary.
 
+For any Client, Household, or Account field, read `canonical-entity-controls.md` before choosing routes. The field must use PX-backed selection and stable canonical IDs, or be renamed and modeled as an app-local concept. `Add new` requires the matching canonical write permission and declaration.
+
 ## API base URL
 
 The API base URL is environment-specific. Do not hardcode `https://api.plannerxchange.ai` or any AWS execute-api URL.
@@ -81,7 +83,9 @@ CSV and import boundary:
 
 - platform-only `/imports/*` routes are Core Data shell routes, not builder-facing API routes
 - canonical or high-risk transient position, transaction, cost-basis, account, client, and household CSV imports must use a PlannerXchange-owned import session declared as `target: "px_import_session"`
+- use exact documented ingress source, target, and `dataClasses` values; aliases and legacy target names are invalid
 - launch the PlannerXchange Core Data import wizard with `ctx.openDataImportSession({ declarationId, mode: "canonical_store" })`; do not call `/imports/*` yourself
+- every import-facing route, navigation item, page, or primary action must reach that matching declaration ID in source and committed build output; informational-only terminal pages are prohibited
 - `openDataImportSession` is a launch-only handoff and returns `{ mode: "canonical_store", status: "launched" }`; do not wait for `completed`, `completed_with_errors`, `cancelled`, `importJobId`, `canonicalRefs`, or `mappingSummary`
 - do not invent a Creator Studio mapping-template prerequisite for `px_import_session`; the PlannerXchange import wizard owns upload, suggested mapping, skipped fields, confirmation, validation, audit, and canonical import
 - mixed-custodian account CSVs do not need separate uploads when the CSV maps a custodian column or the advisor supplies per-account custodians during PX review

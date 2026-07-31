@@ -28,6 +28,8 @@ If the app is `plannerxchange_portable`:
 - do not assume app-owned direct database access for PX canonical data
 - do not add raw KMS clients, decrypt commands, or app-side restricted-PII decrypt helpers
 - do not persist decrypted PX client data in local storage, IndexedDB, analytics beacons, or client-side logs
+- when a UI field represents a household, client, or account, follow `canonical-entity-controls.md`: select through PX, retain the canonical ID, and use governed creation only with matching write intent
+- keep app-local freeform people or records visibly distinct from PX canonical entities; `Scenario participant` is app-local, while `Client` implies the PX client contract
 
 If the app is `app_managed_nonportable`:
 
@@ -67,8 +69,10 @@ Reference facts versus work product:
 CSV and file ingress:
 
 - declare CSV/file/API ingress with `dataIngressDeclarations` in `plannerxchange.app.json`
+- use only exact documented ingress source, target, and `dataClasses` values; enum-like aliases are not normalized
 - app-owned CSV outputs may become PX app-data records when they are builder-owned work product
 - high-risk client/account/custodian CSV imports must use a declared `px_import_session`; provider names in `sourceFormatHints` are CSV/source-format hints only, not API permissions
+- each `px_import_session` declaration needs a stable ID with a matching `openDataImportSession` call in source and committed build output; every import-facing UI entry point must reach that handoff instead of ending in explanatory copy
 - `canonical_store` import handoff launches the PlannerXchange Core Data import wizard for upload, suggested field mapping, skipped fields, user confirmation, validation, audit, and canonical import
 - canonical imports, including position, transaction, and cost-basis CSV imports, must use PlannerXchange-owned import-session handling
 - mixed-custodian account CSVs do not need separate uploads when the CSV maps a custodian column or the advisor supplies per-account custodians during PX review

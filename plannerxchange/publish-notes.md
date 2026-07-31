@@ -72,7 +72,8 @@ Review guidance:
 - public landing pages may use YouTube or Vimeo embeds, but app-owned signup, sign-in, password, checkout, billing, lead-capture, provider-connect, upload, protected API, or token-handling behavior will be treated as landing-page findings or broader blockers
 - apps that save builder-owned work product inside PX should use the governed PX app-data contract
 - apps that mutate shared PX shell data should use governed canonical write APIs with matching `canonical.*.write` scopes, approved fields, explicit user action, optimistic concurrency, and shared-record UI copy
-- apps that parse CSV/files must declare `dataIngressDeclarations`; high-risk client/account/custodian CSVs must use `target: "px_import_session"` and `ctx.openDataImportSession({ declarationId, mode: "canonical_store" })` rather than app-owned parsers or `/imports/*` calls
+- apps that parse CSV/files must declare exact supported ingress enums; high-risk client/account/custodian CSVs must use `target: "px_import_session"`, a stable declaration ID, and `ctx.openDataImportSession({ declarationId, mode: "canonical_store" })` with that same ID rather than app-owned parsers or `/imports/*` calls
+- every import-facing route, navigation item, page, or primary action must reach the matching helper in source and committed build output; informational-only terminal import pages are blocking findings
 - `openDataImportSession` is a launch-only handoff that returns `{ mode: "canonical_store", status: "launched" }`; do not wait for `completed`, `completed_with_errors`, `cancelled`, `importJobId`, `canonicalRefs`, or `mappingSummary`
 - do not invent a Creator Studio mapping-template prerequisite for `px_import_session`; the PlannerXchange import wizard owns upload, suggested field mapping, skipped fields, user confirmation, validation, audit, and canonical import
 - mixed-custodian account CSVs do not need separate uploads when the CSV maps a custodian column or the advisor supplies per-account custodians during PX review
@@ -187,6 +188,8 @@ Checks (everything in low review, plus):
 
 - portability-mode validation
 - canonical-data scope review
+- category-and-operation matching between canonical declarations, exact permissions, and reviewed source usage
+- advisory semantic review for household, client, and account controls that appear canonical but use freeform or app-local identity
 - policy and entitlement review
 - tenant/firm access-path review
 - external-egress review when non-PlannerXchange hosts are referenced
@@ -258,6 +261,8 @@ The following issues are common causes of publication rejection. Check for them 
 24. **App-owned public landing-page conversion flow** - a public landing page implements its own signup, sign-in, password, checkout, billing, lead-capture, provider-connect, upload, protected API call, or token-handling path instead of PlannerXchange-owned handoff.
 25. **Unapproved landing-page trust or pricing claims** - landing-page copy claims `PX Approved`, `Portable Data`, install availability, ratings, reviews, pricing, security approval, or marketplace status without using PlannerXchange marketplace records.
 26. **Runtime Python or script execution** - the app requires PlannerXchange to run `.py` files, notebooks, Flask/FastAPI apps, Celery/RQ workers, serverless functions, Docker containers, scheduled jobs, shell scripts, or subprocess commands after publication. Shell-published apps are hosted web artifacts; use local/build-time Python only, or ask PlannerXchange about an approved governed runtime lane.
+27. **Declared canonical access without usage** - `canonicalDataAccessDeclarations` requests a category/operation that reviewed source does not use through the matching PX route, SDK, or gateway method. Use the declared access or remove the declaration and permission. This blocks only the data-persistence goal.
+28. **Canonical-looking freeform field** - a Client, Household, or Account control accepts app-local text without PX-backed selection or governed creation. Integrate it through PX or rename it as an app-local concept. This is a nonblocking recommendation.
 
 ## PX Approved badge direction
 

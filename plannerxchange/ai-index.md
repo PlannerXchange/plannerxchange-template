@@ -30,6 +30,7 @@ the current context pack, SDK, or review export documents it as available.
 | Add or change API access | `plannerxchange/api-reference.md`, `plannerxchange/data-contract.md` | `plannerxchange.app.json`, app API calls |
 | Save app-owned work product | `plannerxchange/app-data-api.md` | `src/lib/px-gateway.ts`, app data models |
 | Read clients, households, accounts, positions, transactions, CRM, or tax data | `plannerxchange/api-reference.md`, `plannerxchange/data-contract.md`, `plannerxchange/pii-and-security.md` | `plannerxchange.app.json`, app API calls |
+| Add or fix a Client, Household, or Account field | `plannerxchange/canonical-entity-controls.md`, `plannerxchange/api-reference.md`, `plannerxchange/data-contract.md` | field UI/model, `plannerxchange.app.json`, `src/lib/px-gateway.ts` |
 | Create, update, or soft-delete PX canonical records | `plannerxchange/api-reference.md`, `plannerxchange/data-contract.md`, `plannerxchange/pii-and-security.md` | `plannerxchange.app.json`, `src/lib/px-gateway.ts`, app API calls |
 | Add white-label branding or disclosures | `plannerxchange/branding-and-legal-api.md` | UI components, `plannerxchange.app.json` scopes |
 | Check access grants or feature entitlements | `plannerxchange/app-access.md` | runtime access checks |
@@ -210,14 +211,16 @@ If the app accepts CSVs, spreadsheets, drag/drop files, browser `FileReader`, `F
 
 1. Add `dataIngressDeclarations`.
 2. Choose an approved target lane.
-3. Do not call provider OAuth `/integrations/*`, hard-delete/cleanup routes, or platform-only import routes directly.
-4. For high-risk client/account/custodian CSVs, declare `target: "px_import_session"` and call `ctx.openDataImportSession({ declarationId, mode: "canonical_store" })`.
-5. Treat `openDataImportSession` as launch-only. The current result is `{ mode: "canonical_store", status: "launched" }`; do not wait for `completed`, `completed_with_errors`, `cancelled`, `importJobId`, `canonicalRefs`, or `mappingSummary`.
-6. Do not parse, map, normalize, or auto-create canonical households, clients, accounts, positions, transactions, cost basis, restricted PII, or import jobs from app-managed CSV logic outside the governed PX import-session and canonical write contracts.
-7. Do not ask the builder to split a valid account CSV only because it contains multiple custodians. PX import sessions support mixed-custodian account files when a custodian column is mapped or the advisor supplies per-account custodians during review.
-8. If the PX import wizard route opens but renders blank, do not invent a mapping-template setup step. Treat the blank wizard as a PX shell/runtime issue or stale deployed shell; capture the URL and console logs, refresh CLI/context, and report the platform issue.
-9. If Creator Studio says canonical CSV import or hosted data storage is not allowed on the builder workspace's plan, treat it as a publish eligibility issue, not an app-code issue. The builder must upgrade the builder workspace or remove the paid capability before publication.
-10. If the PX import wizard says CSV import or hosted data storage is not available in the current workspace, do not tell an installed app user to upgrade. Report it as a publisher/workspace-admin configuration issue and send the builder to the Creator Studio publish checklist, workspace billing, or a platform admin for dev-tier enablement.
+3. Use only exact documented source, target, and `dataClasses` enum values; aliases such as `financial_transactions` are invalid.
+4. Do not call provider OAuth `/integrations/*`, hard-delete/cleanup routes, or platform-only import routes directly.
+5. For high-risk client/account/custodian CSVs, declare `target: "px_import_session"` with a stable ID and call `ctx.openDataImportSession({ declarationId, mode: "canonical_store" })` using that exact ID.
+6. Every Import Data route, navigation item, page, or primary action must launch the matching PX session immediately or through its primary action. Only a transient launching state or recoverable error may remain; informational-only terminal pages are prohibited.
+7. Treat `openDataImportSession` as launch-only. The current result is `{ mode: "canonical_store", status: "launched" }`; do not wait for `completed`, `completed_with_errors`, `cancelled`, `importJobId`, `canonicalRefs`, or `mappingSummary`.
+8. Do not parse, map, normalize, or auto-create canonical households, clients, accounts, positions, transactions, cost basis, restricted PII, or import jobs from app-managed CSV logic outside the governed PX import-session and canonical write contracts.
+9. Do not ask the builder to split a valid account CSV only because it contains multiple custodians. PX import sessions support mixed-custodian account files when a custodian column is mapped or the advisor supplies per-account custodians during review.
+10. If the PX import wizard route opens but renders blank, do not invent a mapping-template setup step. Treat the blank wizard as a PX shell/runtime issue or stale deployed shell; capture the URL and console logs, refresh CLI/context, and report the platform issue.
+11. If Creator Studio says canonical CSV import or hosted data storage is not allowed on the builder workspace's plan, treat it as a publish eligibility issue, not an app-code issue. The builder must upgrade the builder workspace or remove the paid capability before publication.
+12. If the PX import wizard says CSV import or hosted data storage is not available in the current workspace, do not tell an installed app user to upgrade. Report it as a publisher/workspace-admin configuration issue and send the builder to the Creator Studio publish checklist, workspace billing, or a platform admin for dev-tier enablement.
 
 PlannerXchange import-session support:
 
@@ -230,7 +233,6 @@ PlannerXchange import-session support:
 
 Approved target lanes:
 
-- `px_core_import_handoff`
 - `px_import_session`
 - `px_app_data_upload`
 - `browser_ephemeral_app_data`
