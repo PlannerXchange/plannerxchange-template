@@ -61,9 +61,10 @@ Core rules:
   only a transient launching state or a recoverable error; an informational-only
   import page is a blocking contract violation.
 - A local wrapper is supported when review can statically trace relative imports,
-  parameter forwarding, assignments, and aliases from that user action to the
-  matching runtime helper and declaration ID. Prefer a direct call when a wrapper
-  adds no application value.
+  configured local `tsconfig`/`jsconfig` path aliases, parameter forwarding,
+  assignments, and aliases from that user action to the matching runtime helper
+  and declaration ID. Prefer a direct call when a wrapper adds no application
+  value. Ambiguous or unresolved local aliases cannot prove integration.
 - Before review, run `npm run build`. Run `npm run preflight` only when the app repo defines that script; otherwise run `npm run check` when defined. If neither exists, use the successful production build as the available local validation. Do not invent a missing script or ask the builder to choose between nonexistent commands. Commit the generated `distRoot` output.
 - Before using PX CLI review feedback, update the CLI with `px --update dev`
   for the dev shell or `px --update` for production. If that command is not

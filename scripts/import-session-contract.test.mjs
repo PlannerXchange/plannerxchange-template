@@ -14,9 +14,10 @@ const declaration = {
   canonicalEntityHints: ["transaction", "account"]
 };
 
-function analyze({ manifest = {}, source = {}, dist = {} } = {}) {
+function analyze({ manifest = {}, publishManifest, source = {}, dist = {} } = {}) {
   return analyzeImportSessionContract({
     manifest,
+    publishManifest,
     sourceFiles: Object.entries(source).map(([path, content]) => ({ path, content })),
     distFiles: Object.entries(dist).map(([path, content]) => ({ path, content }))
   });
@@ -229,4 +230,137 @@ test("distinguishes spreadsheet export from actual spreadsheet ingress", () => {
     ingressIssues.some((entry) => entry.code === "undeclared-file-ingress"),
     true
   );
+});
+
+test("ignores language imports, helper names, comments, and non-rendered import strings", () => {
+  const issues = analyze({
+    source: {
+      "src/App.tsx": `import ImportPage from "./ImportPage"; export { ImportPage } from "./ImportPage";`,
+      "src/helpers.ts": `// Import Transactions\nexport function importTransactions() { throw new Error("Import transactions failed"); }`,
+      "src/report.ts": `const message = "Import Accounts when the report is ready";`
+    }
+  });
+  assert.deepEqual(issues, []);
+});
+
+test("accepts FlowState-style configured aliases through relative tsconfig extends", () => {
+  const issues = analyze({
+    manifest: { dataIngressDeclarations: [declaration] },
+    source: {
+      "tsconfig.base.json": `{ "compilerOptions": { "baseUrl": ".", "paths": { "@/*": ["src/*"] } } }`,
+      "tsconfig.json": `{ "extends": "./tsconfig.base.json", "compilerOptions": { /* JSONC */ } }`,
+      "src/plugin.tsx": `import App from "@/App"; import { initPxImport } from "@/lib/px-import"; export function mount(context) { initPxImport(context?.openDataImportSession); return <App />; }`,
+      "src/App.tsx": `import ImportPage from "@/pages/import"; export default function App() { return <Route path="/import" element={<ImportPage />} />; }`,
+      "src/navigation.tsx": `export const nav = { label: "Import Data", to: "/import" };`,
+      "src/pages/import.tsx": `import { launchImport } from "@/lib/px-import"; export default function ImportPage() { return <button onClick={launchImport}>Import Transactions</button>; }`,
+      "src/lib/px-import.ts": `const IMPORT_ID = "transactions-import"; let launch; export function initPxImport(openDataImportSession) { launch = openDataImportSession; } export function launchImport() { return launch({ declarationId: IMPORT_ID, mode: "canonical_store" }); }`
+    },
+    dist: {
+      "dist/assets/plugin.js": `const i="transactions-import";e.openDataImportSession({declarationId:i,mode:"canonical_store"})`
+    }
+  });
+  assert.deepEqual(issues, []);
+});
+
+test("links parameterized navigation destinations to import routes", () => {
+  const issues = analyze({
+    manifest: { dataIngressDeclarations: [declaration] },
+    source: {
+      "src/Nav.tsx": "export function Nav({ navigate, id }) { return <button onClick={() => navigate(`/clients/${id}/import`)}>Import Transactions</button>; }",
+      "src/App.tsx": `import ImportPage from "./ImportPage"; export function App() { return <Route path="/clients/:clientId/import" element={<ImportPage />} />; }`,
+      "src/ImportPage.tsx": `export default function ImportPage({ ctx }) { return <button onClick={() => ctx.openDataImportSession({ declarationId: "transactions-import", mode: "canonical_store" })}>Import Data</button>; }`
+    },
+    dist: { "dist/plugin.js": `ctx.openDataImportSession({declarationId:"transactions-import",mode:"canonical_store"})` }
+  });
+  assert.deepEqual(issues, []);
+});
+
+test("traces literal lazy imports and require bindings", () => {
+  for (const appSource of [
+    `const ImportPage = lazy(() => import("./ImportPage")); export function App() { return <Route path="/import" element={<ImportPage />} />; }`,
+    `const ImportPage = require("./ImportPage"); export function App() { return <Route path="/import" element={<ImportPage />} />; }`
+  ]) {
+    const issues = analyze({
+      manifest: { dataIngressDeclarations: [declaration] },
+      source: {
+        "src/App.tsx": appSource,
+        "src/ImportPage.tsx": `export default function ImportPage({ ctx }) { return <button onClick={() => ctx.openDataImportSession({ declarationId: "transactions-import", mode: "canonical_store" })}>Import Data</button>; }`
+      },
+      dist: { "dist/plugin.js": `ctx.openDataImportSession({declarationId:"transactions-import",mode:"canonical_store"})` }
+    });
+    assert.deepEqual(issues, [], appSource);
+  }
+});
+
+test("does not let an unrelated helper in the same file satisfy rendered import UI", () => {
+  const issues = analyze({
+    manifest: { dataIngressDeclarations: [declaration] },
+    source: {
+      "src/ImportPage.tsx": `export function ImportPage() { return <button>Import Data</button>; } export function unused(ctx) { return ctx.openDataImportSession({ declarationId: "transactions-import", mode: "canonical_store" }); }`
+    },
+    dist: { "dist/plugin.js": `ctx.openDataImportSession({declarationId:"transactions-import",mode:"canonical_store"})` }
+  });
+  assert.equal(issues.some((entry) => entry.code === "import-entrypoint-not-integrated"), true);
+});
+
+test("reports ambiguous configured aliases as indeterminate instead of a false app gap", () => {
+  const issues = analyze({
+    manifest: { dataIngressDeclarations: [declaration] },
+    source: {
+      "tsconfig.json": `{ "compilerOptions": { "baseUrl": ".", "paths": { "@/*": ["src/a/*", "src/b/*"] } } }`,
+      "src/App.tsx": `import { launchImport } from "@/import"; export function App() { return <button onClick={launchImport}>Import Data</button>; }`,
+      "src/a/import.ts": `export const launchImport = (ctx) => ctx.openDataImportSession({ declarationId: "transactions-import", mode: "canonical_store" });`,
+      "src/b/import.ts": `export const launchImport = (ctx) => ctx.openDataImportSession({ declarationId: "transactions-import", mode: "canonical_store" });`
+    },
+    dist: { "dist/plugin.js": `ctx.openDataImportSession({declarationId:"transactions-import",mode:"canonical_store"})` }
+  });
+  assert.equal(issues.some((entry) => entry.code === "import-entrypoint-not-integrated"), false);
+  assert.equal(issues.some((entry) => entry.code === "import-contract-analysis-indeterminate"), true);
+});
+
+test("treats bounded graph traversal as indeterminate", () => {
+  const source = {
+    "src/ImportPage.tsx": `import { step1 } from "./step1"; export function ImportPage() { return <button onClick={step1}>Import Data</button>; }`
+  };
+  for (let index = 1; index <= 9; index += 1) {
+    source[`src/step${index}.ts`] = index === 9
+      ? `export function step9(ctx) { return ctx.openDataImportSession({ declarationId: "transactions-import", mode: "canonical_store" }); }`
+      : `import { step${index + 1} } from "./step${index + 1}"; export function step${index}() { return step${index + 1}(); }`;
+  }
+  const issues = analyze({
+    manifest: { dataIngressDeclarations: [declaration] },
+    source,
+    dist: { "dist/plugin.js": `ctx.openDataImportSession({declarationId:"transactions-import",mode:"canonical_store"})` }
+  });
+  assert.equal(issues.some((entry) => entry.code === "import-entrypoint-not-integrated"), false);
+  assert.equal(issues.some((entry) => entry.code === "import-contract-analysis-indeterminate"), true);
+});
+
+test("follows committed entry chunks transitively and keeps artifact evidence declaration-specific", () => {
+  const publishManifest = { entryPoints: { "src/plugin.tsx": { file: "assets/plugin.js" } } };
+  const passing = analyze({
+    manifest: { dataIngressDeclarations: [declaration] },
+    publishManifest,
+    source: {
+      "src/ImportPage.tsx": `export const ImportPage = ({ ctx }) => <button onClick={() => ctx.openDataImportSession({ declarationId: "transactions-import", mode: "canonical_store" })}>Import Data</button>;`
+    },
+    dist: {
+      "dist/assets/plugin.js": `import{a}from"./import-chunk.js";export{a as mount};`,
+      "dist/assets/import-chunk.js": `${"const genericImportLabel='import';".repeat(500)}ctx.openDataImportSession({declarationId:"transactions-import",mode:"canonical_store"})`,
+      "dist/assets/unreachable.js": `ctx.openDataImportSession({declarationId:"other-import",mode:"canonical_store"})`
+    }
+  });
+  assert.deepEqual(passing, []);
+
+  const contaminated = analyze({
+    manifest: { dataIngressDeclarations: [declaration] },
+    publishManifest,
+    source: {
+      "src/ImportPage.tsx": `export const ImportPage = ({ ctx }) => <button onClick={() => ctx.openDataImportSession({ declarationId: "transactions-import", mode: "canonical_store" })}>Import Data</button>;`
+    },
+    dist: {
+      "dist/assets/plugin.js": `const marker="transactions-import";ctx.openDataImportSession({declarationId:"different-import",mode:"canonical_store"})`
+    }
+  });
+  assert.equal(contaminated.some((entry) => entry.code === "import-session-build-artifact-missing"), true);
 });

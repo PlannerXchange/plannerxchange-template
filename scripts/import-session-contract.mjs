@@ -56,13 +56,45 @@ const IMPORT_ENTRYPOINT_PATTERN = new RegExp(
 const TERMINAL_IMPORT_COPY_PATTERN =
   /(?:import(?:s|ing)?\s+(?:is|are)\s+managed\s+by\s+PlannerXchange|once\s+PlannerXchange\s+imports?|will\s+appear\s+automatically)/i;
 const IMPORT_CALL_PATTERN = /\b([A-Za-z_$][\w$]*)\s*!?\s*(?:\?\.)?\s*\(\s*\{([\s\S]{0,1800}?)\}\s*\)/g;
-const RELATIVE_IMPORT_PATTERN =
-  /\b(?:from\s+["'`](\.{1,2}\/[^"'`]+)["'`]|import\(\s*["'`](\.{1,2}\/[^"'`]+)["'`]\s*\)|require\(\s*["'`](\.{1,2}\/[^"'`]+)["'`]\s*\))/g;
+const MODULE_IMPORT_PATTERN =
+  /\b(?:from\s*["'`]([^"'`]+)["'`]|import\(\s*["'`]([^"'`]+)["'`]\s*\)|require\(\s*["'`]([^"'`]+)["'`]\s*\))/g;
+const CODE_FILE_PATTERN = /\.(?:[cm]?[jt]sx?|html)$/i;
 const ACTUAL_FILE_INGRESS_PATTERN =
   /(?:<input\b[^>]*\btype\s*=\s*["']file["']|\bFileReader\b|\bXLSX\s*\.\s*read\s*\(|\breadFile\s*\(|\bsheet_to_json\s*\(|\bPapa\s*\.\s*parse\s*\(|\b(?:onDrop|dropzone|DataTransfer\.files)\b)/i;
 
 function normalizePath(value) {
-  return value.replace(/\\/g, "/").replace(/^\.\//, "");
+  const normalized = value.replace(/\\/g, "/").replace(/^\.\//, "");
+  const parts = [];
+  for (const part of normalized.split("/")) {
+    if (!part || part === ".") continue;
+    if (part === "..") parts.pop();
+    else parts.push(part);
+  }
+  return parts.join("/");
+}
+
+function maskCodeComments(content) {
+  const mask = (value) => value.replace(/[^\r\n]/g, " ");
+  return content
+    .replace(/\/\*[\s\S]*?\*\//g, mask)
+    .replace(/(^|\s)\/\/[^\r\n]*/gm, (value) => mask(value));
+}
+
+function isFixturePath(path) {
+  return /(?:^|\/)(?:__tests__|test|tests|fixtures?|mocks?)(?:\/|$)|\.(?:test|spec)\.[cm]?[jt]sx?$/i.test(normalizePath(path));
+}
+
+function stableEntrypointId(value) {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `import-entry-${(hash >>> 0).toString(16).padStart(8, "0")}`;
+}
+
+function lineNumber(content, offset) {
+  return content.slice(0, Math.max(0, offset)).split(/\r?\n/).length;
 }
 
 function resolveStaticStrings(content) {
@@ -119,9 +151,11 @@ function resolveImportHelperSymbols(content) {
 function extractCalls(files, source) {
   const calls = [];
   for (const file of files) {
-    const staticStrings = resolveStaticStrings(file.content);
-    const helperSymbols = resolveImportHelperSymbols(file.content);
-    for (const match of file.content.matchAll(IMPORT_CALL_PATTERN)) {
+    if (!CODE_FILE_PATTERN.test(file.path) || isFixturePath(file.path)) continue;
+    const content = maskCodeComments(file.content);
+    const staticStrings = resolveStaticStrings(content);
+    const helperSymbols = resolveImportHelperSymbols(content);
+    for (const match of content.matchAll(IMPORT_CALL_PATTERN)) {
       if (!helperSymbols.has(match[1])) continue;
       const body = match[2];
       const literal = body.match(/\bdeclarationId\s*:\s*(["'`])([^"'`\r\n]+)\1/);
@@ -133,6 +167,8 @@ function extractCalls(files, source) {
         declarationId,
         unresolved: !declarationId,
         invocationKind: match[1] === "openDataImportSession" ? "direct_call" : "alias_call",
+        offset: match.index ?? 0,
+        line: lineNumber(content, match.index ?? 0),
         usesRemovedProperties:
           new RegExp(`\\b(?:${"returnTo" + "App"}|${"meta" + "data"})\\s*:`).test(body)
       });
@@ -141,27 +177,21 @@ function extractCalls(files, source) {
   return calls;
 }
 
-function extractArtifactCalls(files, declarationIds) {
-  const calls = [];
-  for (const file of files) {
-    for (const declarationId of declarationIds) {
-      if (
-        file.content.includes(declarationId) &&
-        /\bopenDataImportSession\b/.test(file.content) &&
-        /\bcanonical_store\b/.test(file.content)
-      ) {
-        calls.push({
-          source: "dist",
-          file: file.path,
-          declarationId,
-          unresolved: false,
-          invocationKind: "artifact_marker",
-          usesRemovedProperties: false
-        });
-      }
-    }
-  }
-  return calls;
+function resolveFileCandidate(base, availablePaths) {
+  const normalizedBase = normalizePath(base);
+  return [
+    normalizedBase,
+    `${normalizedBase}.ts`,
+    `${normalizedBase}.tsx`,
+    `${normalizedBase}.js`,
+    `${normalizedBase}.jsx`,
+    `${normalizedBase}.mjs`,
+    `${normalizedBase}.cjs`,
+    `${normalizedBase}/index.ts`,
+    `${normalizedBase}/index.tsx`,
+    `${normalizedBase}/index.js`,
+    `${normalizedBase}/index.jsx`
+  ].find((candidate) => availablePaths.has(candidate));
 }
 
 function resolveRelativeImport(importerPath, specifier, availablePaths) {
@@ -172,83 +202,450 @@ function resolveRelativeImport(importerPath, specifier, availablePaths) {
     if (part === "..") importerParts.pop();
     else importerParts.push(part);
   }
-  const base = importerParts.join("/");
-  return [
-    base,
-    `${base}.ts`,
-    `${base}.tsx`,
-    `${base}.js`,
-    `${base}.jsx`,
-    `${base}.mjs`,
-    `${base}.cjs`,
-    `${base}/index.ts`,
-    `${base}/index.tsx`,
-    `${base}/index.js`,
-    `${base}/index.jsx`
-  ].find((candidate) => availablePaths.has(candidate));
+  return resolveFileCandidate(importerParts.join("/"), availablePaths);
 }
 
-function buildSourceDependencyGraph(files) {
-  const paths = new Set(files.map((file) => normalizePath(file.path)));
-  const graph = new Map();
-  for (const file of files) {
-    const dependencies = new Set();
-    for (const match of file.content.matchAll(RELATIVE_IMPORT_PATTERN)) {
-      const resolved = resolveRelativeImport(
-        file.path,
-        match[1] ?? match[2] ?? match[3],
-        paths
+function parseJsonConfig(content) {
+  try {
+    return JSON.parse(content
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/(^|[^:\\])\/\/.*$/gm, "$1")
+      .replace(/,\s*([}\]])/g, "$1"));
+  } catch {
+    return undefined;
+  }
+}
+
+function buildImportAliasRules(files) {
+  const rules = [];
+  const configFiles = new Map(files
+    .filter((file) => /(?:^|\/)(?:tsconfig|jsconfig)(?:\.[^/]+)?\.json$/i.test(normalizePath(file.path)))
+    .map((file) => [normalizePath(file.path), file]));
+  const visited = new Set();
+  const visit = (file) => {
+    const configPath = normalizePath(file.path);
+    if (visited.has(configPath)) return;
+    visited.add(configPath);
+    const parsed = parseJsonConfig(file.content);
+    const configDirectory = configPath.split("/").slice(0, -1).join("/");
+    if (typeof parsed?.extends === "string" && parsed.extends.startsWith(".")) {
+      const parentBase = normalizePath(`${configDirectory}/${parsed.extends}`);
+      const parent = configFiles.get(parentBase) ?? configFiles.get(`${parentBase}.json`);
+      if (parent) visit(parent);
+    }
+    const options = parsed?.compilerOptions;
+    if (!options || typeof options !== "object") return;
+    const baseUrl = typeof options.baseUrl === "string" ? options.baseUrl : ".";
+    if (options.paths && typeof options.paths === "object") {
+      for (const [pattern, targets] of Object.entries(options.paths)) {
+        if (Array.isArray(targets) && targets.every((target) => typeof target === "string")) {
+          rules.push({ pattern, targets, configDirectory, baseUrl, fallback: false });
+        }
+      }
+    }
+    rules.push({ pattern: "*", targets: ["*"], configDirectory, baseUrl, fallback: true });
+  };
+  for (const file of configFiles.values()) visit(file);
+  return rules;
+}
+
+function resolveAliasImport(specifier, availablePaths, rules) {
+  const matches = new Set();
+  let matchedRule = false;
+  let matchedExplicitRule = false;
+  for (const rule of rules) {
+    if (rule.fallback && matchedExplicitRule) continue;
+    const wildcardIndex = rule.pattern.indexOf("*");
+    const prefix = wildcardIndex >= 0 ? rule.pattern.slice(0, wildcardIndex) : rule.pattern;
+    const suffix = wildcardIndex >= 0 ? rule.pattern.slice(wildcardIndex + 1) : "";
+    const matchesPattern = wildcardIndex >= 0
+      ? specifier.startsWith(prefix) && specifier.endsWith(suffix)
+      : specifier === rule.pattern;
+    if (!matchesPattern) continue;
+    if (!rule.fallback) {
+      matchedRule = true;
+      matchedExplicitRule = true;
+    }
+    const wildcard = wildcardIndex >= 0
+      ? specifier.slice(prefix.length, specifier.length - suffix.length)
+      : "";
+    for (const target of rule.targets) {
+      const mapped = target.replace("*", wildcard);
+      const resolved = resolveFileCandidate(
+        [rule.configDirectory, rule.baseUrl, mapped].filter(Boolean).join("/"),
+        availablePaths
       );
-      if (resolved) dependencies.add(resolved);
+      if (resolved) {
+        matches.add(resolved);
+        matchedRule = true;
+      }
     }
-    graph.set(normalizePath(file.path), dependencies);
   }
-  return graph;
+  if (!matchedRule && /^(?:@|~)\//.test(specifier)) {
+    const suffix = specifier.slice(2);
+    const candidates = [
+      `src/${suffix}.ts`, `src/${suffix}.tsx`, `src/${suffix}.js`, `src/${suffix}.jsx`,
+      `src/${suffix}/index.ts`, `src/${suffix}/index.tsx`, `src/${suffix}/index.js`, `src/${suffix}/index.jsx`
+    ];
+    for (const path of availablePaths) {
+      if (candidates.some((candidate) => path === candidate || path.endsWith(`/${candidate}`))) matches.add(path);
+    }
+    matchedRule = true;
+  }
+  if (matches.size === 1) return { resolved: [...matches][0], potentialLocal: true, kind: "path_alias" };
+  if (matchedRule) {
+    return {
+      potentialLocal: true,
+      diagnostic: matches.size > 1
+        ? `Ambiguous local import alias: ${specifier}`
+        : `Unresolved local import alias: ${specifier}`
+    };
+  }
+  return { potentialLocal: false };
 }
 
-function getReachableFiles(graph, start) {
-  const reached = new Set();
-  const queue = [{ path: normalizePath(start), depth: 0 }];
-  while (queue.length > 0 && reached.size < 64) {
-    const current = queue.shift();
-    if (!current || reached.has(current.path) || current.depth > 8) continue;
-    reached.add(current.path);
-    for (const dependency of graph.get(current.path) ?? []) {
-      queue.push({ path: dependency, depth: current.depth + 1 });
+function normalizeImportDestination(value) {
+  if (!value) return undefined;
+  const normalized = value
+    .replace(/\$\{[^}]+\}/g, ":param")
+    .replace(/[?#].*$/, "")
+    .replace(/\/+$/g, "")
+    .replace(/\/+/g, "/");
+  return normalized || "/";
+}
+
+function importDestinationsCompatible(left, right) {
+  if (!left || !right) return false;
+  const leftParts = left.split("/").filter(Boolean);
+  const rightParts = right.split("/").filter(Boolean);
+  if (leftParts.length !== rightParts.length) {
+    const shorter = leftParts.length < rightParts.length ? leftParts : rightParts;
+    const longer = leftParts.length < rightParts.length ? rightParts : leftParts;
+    return shorter.length > 0 && shorter.every((part, index) => {
+      const candidate = longer[longer.length - shorter.length + index];
+      return part === candidate || part.startsWith(":") || candidate?.startsWith(":");
+    });
+  }
+  return leftParts.every((part, index) => {
+    const candidate = rightParts[index];
+    return part === candidate || part.startsWith(":") || candidate?.startsWith(":");
+  });
+}
+
+function detectEntrypointEntities(text) {
+  const matches = [];
+  for (const [entityType, , aliases] of CANONICAL_IMPORT_ENTITY_CATALOG) {
+    for (const alias of aliases) {
+      const escaped = alias.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const match = new RegExp(`\\b(?:import|upload)\\s+${escaped}\\b`, "i").exec(text);
+      if (match) matches.push({ entityType, index: match.index, length: match[0].length });
     }
   }
-  return reached;
+  return [...new Set(matches
+    .filter((candidate) => !matches.some((other) => other.index === candidate.index && other.length > candidate.length))
+    .map((candidate) => candidate.entityType))];
 }
 
 function findImportEntrypoints(files) {
   const entrypoints = [];
+  const routePattern = /\b(path|route|to|href)\s*[:=]\s*(?:\{\s*)?["'`]([^"'`]*(?:\/import\b|import-data\b|data-import\b)[^"'`]*)["'`]/i;
+  const routerCallPattern = /\b(?:navigate|setLocation|router\.(?:push|replace)|history\.(?:push|replace))\s*\(\s*["'`]([^"'`]*(?:\/import\b|import-data\b|data-import\b)[^"'`]*)["'`]/i;
+  const renderedCopyPattern = /(?:<[^>]+>[^<]*|\b(?:label|title|text|name|aria-label|children)\s*[:=]\s*(?:\{\s*)?["'`])[^\n]{0,240}/i;
+
   for (const file of files) {
-    for (const line of file.content.split(/\r?\n/)) {
-      if (!IMPORT_ENTRYPOINT_PATTERN.test(line)) continue;
-      const matches = [];
-      for (const [entityType, , aliases] of CANONICAL_IMPORT_ENTITY_CATALOG) {
-        for (const alias of aliases) {
-          const match = new RegExp(`\\b(?:import|upload)\\s+${alias.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").exec(line);
-          if (match) matches.push({ entityType, index: match.index, length: match[0].length });
-        }
+    if (!CODE_FILE_PATTERN.test(file.path) || isFixturePath(file.path)) continue;
+    const normalizedFile = normalizePath(file.path);
+    const isRenderedFile = /\.(?:tsx|jsx|html)$/i.test(normalizedFile);
+    const content = maskCodeComments(file.content);
+    content.split(/\r?\n/).forEach((line, index) => {
+      const routeMatch = routePattern.exec(line);
+      const routerCallMatch = routerCallPattern.exec(line);
+      const copyMatch = IMPORT_ENTRYPOINT_PATTERN.exec(line);
+      const entityTypes = detectEntrypointEntities(line);
+      if (routeMatch || routerCallMatch) {
+        const navigation = Boolean(routerCallMatch || /^(?:to|href)$/i.test(routeMatch?.[1] ?? ""));
+        const destination = normalizeImportDestination(routerCallMatch?.[1] ?? routeMatch?.[2]);
+        const text = (routerCallMatch ?? routeMatch)[0];
+        entrypoints.push({
+          entrypointId: stableEntrypointId(`${normalizedFile}:${destination}:${entityTypes.join(",") || "generic"}`),
+          file: normalizedFile,
+          signal: navigation ? "navigation" : "route",
+          text,
+          line: index + 1,
+          entityTypes,
+          destination
+        });
+      } else if (copyMatch && isRenderedFile && renderedCopyPattern.test(line)) {
+        const text = copyMatch[0];
+        entrypoints.push({
+          entrypointId: stableEntrypointId(`${normalizedFile}:${text.toLowerCase().replace(/\s+/g, " ").trim()}:${entityTypes.join(",") || "generic"}`),
+          file: normalizedFile,
+          signal: "user_copy",
+          text,
+          line: index + 1,
+          entityTypes
+        });
       }
-      entrypoints.push({
-        ...file,
-        entrypointText: line,
-        entityTypes: [...new Set(matches
-          .filter((candidate) => !matches.some((other) => other.index === candidate.index && other.length > candidate.length))
-          .map((candidate) => candidate.entityType))]
+    });
+  }
+  return entrypoints.filter((entrypoint, index) =>
+    entrypoints.findIndex((candidate) => candidate.entrypointId === entrypoint.entrypointId) === index
+  );
+}
+
+function findClosingBrace(content, opening) {
+  let depth = 0;
+  for (let index = opening; index < content.length; index += 1) {
+    if (content[index] === "{") depth += 1;
+    if (content[index] === "}" && --depth === 0) return index + 1;
+  }
+  return content.length;
+}
+
+function extractSourceExecutionRanges(content) {
+  const ranges = [];
+  const blockPattern = /\b(export\s+default\s+)?(?:export\s+)?(?:async\s+)?function\s+([A-Za-z_$][\w$]*)?\s*\([^)]{0,600}\)\s*(?::[^\{]{0,300})?\{|\b(export\s+default\s+)?(?:export\s+)?const\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*(?::[^=]{0,200})?=>\s*\{/g;
+  for (const match of content.matchAll(blockPattern)) {
+    const opening = (match.index ?? 0) + match[0].lastIndexOf("{");
+    ranges.push({ name: match[2] ?? match[4], isDefault: Boolean(match[1] ?? match[3]), start: match.index ?? 0, end: findClosingBrace(content, opening) });
+  }
+  const expressionPattern = /\b(export\s+default\s+)(?:async\s*)?(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>(?!\s*\{)\s*|\b(?:export\s+)?const\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>(?!\s*\{)\s*/g;
+  for (const match of content.matchAll(expressionPattern)) {
+    const start = match.index ?? 0;
+    const newline = content.indexOf("\n", start);
+    ranges.push({ name: match[2], isDefault: Boolean(match[1]), start, end: newline < 0 ? content.length : newline });
+  }
+  return ranges;
+}
+
+function offsetForLine(content, line) {
+  if (!line || line <= 1) return 0;
+  let offset = 0;
+  for (let current = 1; current < line; current += 1) {
+    const next = content.indexOf("\n", offset);
+    if (next < 0) return content.length;
+    offset = next + 1;
+  }
+  return offset;
+}
+
+function lineRange(content, offset) {
+  const start = content.lastIndexOf("\n", Math.max(0, offset - 1)) + 1;
+  const next = content.indexOf("\n", offset);
+  return { start, end: next < 0 ? content.length : next };
+}
+
+function buildActiveSourceRanges(file, candidateLine, seedSymbols = []) {
+  const content = maskCodeComments(file.content);
+  const functionRanges = extractSourceExecutionRanges(content);
+  const active = [];
+  const add = (range) => {
+    if (range && !active.some((value) => value.start === range.start && value.end === range.end)) active.push(range);
+  };
+  if (candidateLine) {
+    const offset = offsetForLine(content, candidateLine);
+    add(functionRanges.find((range) => offset >= range.start && offset < range.end) ?? lineRange(content, offset));
+  }
+  for (const symbol of seedSymbols) {
+    add(symbol === "default"
+      ? functionRanges.find((range) => range.isDefault)
+      : functionRanges.find((range) => range.name === symbol));
+  }
+  let changed = true;
+  while (changed) {
+    changed = false;
+    const activeText = active.map((range) => content.slice(range.start, range.end)).join("\n");
+    for (const range of functionRanges) {
+      if (!range.name || active.includes(range)) continue;
+      if (new RegExp(`\\b${range.name.replace(/[$]/g, "\\$")}\\s*\\(`).test(activeText)) {
+        active.push(range);
+        changed = true;
+      }
+    }
+  }
+  return active;
+}
+
+function extractModuleBinding(content, specifier, kind, offset) {
+  const escaped = specifier.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const window = content.slice(Math.max(0, offset - 400), offset + specifier.length + 200);
+  if (kind === "dynamic_import") {
+    const assigned = new RegExp(`(?:const|let|var)\\s+([A-Za-z_$][\\w$]*)[\\s\\S]{0,180}import\\(\\s*["'\`]${escaped}["'\`]`).exec(window);
+    return { localSymbols: assigned?.[1] ? [assigned[1]] : [], targetSymbols: ["default"] };
+  }
+  if (kind === "require") {
+    const assigned = new RegExp(`(?:const|let|var)\\s+([A-Za-z_$][\\w$]*)\\s*=\\s*require\\(\\s*["'\`]${escaped}["'\`]`).exec(window);
+    return { localSymbols: assigned?.[1] ? [assigned[1]] : [], targetSymbols: ["default"] };
+  }
+  const statement = new RegExp(`import\\s*([\\s\\S]{1,300}?)\\s+from\\s*["'\`]${escaped}["'\`]`).exec(window)?.[1]?.trim();
+  if (!statement) return { localSymbols: [], targetSymbols: [] };
+  const localSymbols = [];
+  const targetSymbols = [];
+  const defaultBinding = statement.match(/^([A-Za-z_$][\w$]*)/);
+  if (defaultBinding) {
+    localSymbols.push(defaultBinding[1]);
+    targetSymbols.push("default");
+  }
+  const named = statement.match(/\{([\s\S]*?)\}/)?.[1];
+  for (const item of named?.split(",") ?? []) {
+    const parts = item.trim().split(/\s+as\s+/);
+    if (!parts[0]) continue;
+    targetSymbols.push(parts[0].trim());
+    localSymbols.push((parts[1] ?? parts[0]).trim());
+  }
+  return { localSymbols, targetSymbols };
+}
+
+function buildSourceDependencyGraph(files) {
+  const codeFiles = files.filter((file) => CODE_FILE_PATTERN.test(file.path) && !isFixturePath(file.path));
+  const paths = new Set(codeFiles.map((file) => normalizePath(file.path)));
+  const aliasRules = buildImportAliasRules(files);
+  const internalEdges = [];
+  const diagnosticsByFile = new Map();
+  for (const file of codeFiles) {
+    const path = normalizePath(file.path);
+    const content = maskCodeComments(file.content);
+    for (const match of content.matchAll(MODULE_IMPORT_PATTERN)) {
+      const specifier = match[1] ?? match[2] ?? match[3];
+      const relative = specifier.startsWith("./") || specifier.startsWith("../");
+      const alias = relative ? undefined : resolveAliasImport(specifier, paths, aliasRules);
+      const resolved = relative ? resolveRelativeImport(path, specifier, paths) : alias?.resolved;
+      if (resolved) {
+        const kind = relative ? (match[2] ? "dynamic_import" : match[3] ? "require" : "relative_import") : "path_alias";
+        internalEdges.push({ from: path, to: resolved, kind, offset: match.index ?? 0, ...extractModuleBinding(content, specifier, kind, match.index ?? 0) });
+      } else if (relative || alias?.potentialLocal) {
+        const diagnostics = diagnosticsByFile.get(path) ?? [];
+        diagnostics.push(alias?.diagnostic ?? `Unresolved local import: ${specifier}`);
+        diagnosticsByFile.set(path, diagnostics);
+      }
+    }
+  }
+  const routeCandidates = findImportEntrypoints(codeFiles).filter((candidate) => candidate.destination);
+  for (const navigation of routeCandidates) {
+    for (const route of routeCandidates) {
+      if (navigation.file === route.file || !importDestinationsCompatible(navigation.destination, route.destination)) continue;
+      internalEdges.push({
+        from: navigation.file,
+        to: route.file,
+        kind: "navigation_route",
+        offset: offsetForLine(codeFiles.find((file) => normalizePath(file.path) === navigation.file)?.content ?? "", navigation.line),
+        localSymbols: [],
+        targetSymbols: [],
+        targetLine: route.line
       });
     }
   }
-  return entrypoints;
+  return { internalEdges, diagnosticsByFile, filesByPath: new Map(codeFiles.map((file) => [normalizePath(file.path), file])) };
+}
+
+function getReachableSource(graph, candidate) {
+  const reached = new Set();
+  const activeRanges = new Map();
+  const queue = [{ path: normalizePath(candidate.file), depth: 0, candidateLine: candidate.line, seedSymbols: [] }];
+  let bounded = false;
+  while (queue.length > 0 && reached.size < 64) {
+    const current = queue.shift();
+    if (!current || reached.has(current.path)) continue;
+    if (current.depth > 8) {
+      bounded = true;
+      continue;
+    }
+    reached.add(current.path);
+    const file = graph.filesByPath.get(current.path);
+    if (!file) continue;
+    const ranges = buildActiveSourceRanges(file, current.candidateLine, current.seedSymbols);
+    activeRanges.set(current.path, ranges);
+    const activeText = ranges.map((range) => file.content.slice(range.start, range.end)).join("\n");
+    for (const edge of graph.internalEdges.filter((value) => value.from === current.path)) {
+      const offsetReachable = ranges.some((range) => edge.offset >= range.start && edge.offset < range.end);
+      const symbolReachable = edge.localSymbols.some((symbol) => new RegExp(`\\b${symbol.replace(/[$]/g, "\\$")}\\b`).test(activeText));
+      if (edge.kind !== "navigation_route" && !offsetReachable && !symbolReachable) continue;
+      queue.push({ path: edge.to, depth: current.depth + 1, candidateLine: edge.targetLine, seedSymbols: edge.targetSymbols });
+    }
+  }
+  if (queue.length > 0) bounded = true;
+  const diagnostics = [...reached].flatMap((path) => graph.diagnosticsByFile.get(path) ?? []);
+  if (bounded) diagnostics.push("Import source graph exceeded its bounded traversal limit.");
+  return { files: [...reached], activeRanges, diagnostics: [...new Set(diagnostics)], bounded };
+}
+
+export function buildImportReviewGraph({ sourceFiles }) {
+  const entrypoints = findImportEntrypoints(sourceFiles);
+  const graph = buildSourceDependencyGraph(sourceFiles);
+  return entrypoints.map((entrypoint) => {
+    const reachability = getReachableSource(graph, entrypoint);
+    return {
+      entrypoint,
+      sourceFiles: reachability.files,
+      resolverDiagnostics: reachability.diagnostics,
+      bounded: reachability.bounded,
+      activeRanges: Object.fromEntries([...reachability.activeRanges].map(([path, ranges]) => [path, ranges]))
+    };
+  });
+}
+
+function getPublishEntryDistFiles(publishManifest, distFiles) {
+  const available = new Set(distFiles.map((file) => normalizePath(file.path)));
+  const entries = Object.values(publishManifest?.entryPoints ?? {})
+    .map((entry) => typeof entry?.file === "string" ? normalizePath(entry.file) : undefined)
+    .filter(Boolean);
+  const resolved = new Set();
+  for (const entry of entries) {
+    for (const path of available) {
+      if (path === entry || path.endsWith(`/${entry}`)) resolved.add(path);
+    }
+  }
+  return resolved;
+}
+
+function getReachableDistFiles(files, starts) {
+  const available = new Set(files.map((file) => normalizePath(file.path)));
+  const dependencies = new Map();
+  for (const file of files) {
+    const path = normalizePath(file.path);
+    const fileDependencies = new Set();
+    for (const match of maskCodeComments(file.content).matchAll(MODULE_IMPORT_PATTERN)) {
+      const specifier = match[1] ?? match[2] ?? match[3];
+      if (!specifier.startsWith("./") && !specifier.startsWith("../")) continue;
+      const resolved = resolveRelativeImport(path, specifier, available);
+      if (resolved) fileDependencies.add(resolved);
+    }
+    dependencies.set(path, fileDependencies);
+  }
+  const reached = new Set();
+  const queue = [...starts];
+  while (queue.length > 0 && reached.size < 128) {
+    const current = queue.shift();
+    if (!current || reached.has(current)) continue;
+    reached.add(current);
+    queue.push(...(dependencies.get(current) ?? []));
+  }
+  return reached;
+}
+
+function extractArtifactCalls(files, declarationIds, publishManifest) {
+  const entryFiles = getPublishEntryDistFiles(publishManifest, files);
+  const reachableFiles = entryFiles.size > 0 ? getReachableDistFiles(files, entryFiles) : new Set(files.map((file) => normalizePath(file.path)));
+  const calls = [];
+  for (const file of files) {
+    if (!reachableFiles.has(normalizePath(file.path))) continue;
+    const resolvedCalls = extractCalls([file], "dist");
+    for (const declarationId of declarationIds) {
+      const call = resolvedCalls.find((candidate) => candidate.declarationId === declarationId);
+      if (!call || !/\bcanonical_store\b/.test(file.content)) continue;
+      calls.push({ ...call, invocationKind: "artifact_marker" });
+    }
+  }
+  return calls;
 }
 
 function findRemovedTypeShimProperties(files) {
   const findings = [];
   for (const file of files) {
+    if (!CODE_FILE_PATTERN.test(file.path) || isFixturePath(file.path)) continue;
+    const content = maskCodeComments(file.content);
     const pattern = /\b(?:interface|type)\s+[A-Za-z_$][\w$]*(?:ImportSessionRequest|OpenDataImportSession)[A-Za-z0-9_$]*[\s\S]{0,120}?\{([\s\S]{0,1800}?)\}/g;
-    for (const match of file.content.matchAll(pattern)) {
+    for (const match of content.matchAll(pattern)) {
       const removed = match[1].match(/\b(returnToApp|metadata)\s*[?:]/);
       if (removed) findings.push({ file: file.path, field: removed[1] });
     }
@@ -260,7 +657,7 @@ function issue(code, message, file) {
   return { code, message, file };
 }
 
-export function analyzeImportSessionContract({ manifest, sourceFiles, distFiles }) {
+export function analyzeImportSessionContract({ manifest, publishManifest, sourceFiles, distFiles }) {
   const issues = [];
   const declarations = Array.isArray(manifest?.dataIngressDeclarations)
     ? manifest.dataIngressDeclarations
@@ -318,7 +715,7 @@ export function analyzeImportSessionContract({ manifest, sourceFiles, distFiles 
   }
 
   const sourceCalls = extractCalls(sourceFiles, "source");
-  const distCalls = extractArtifactCalls(distFiles, [...ids]);
+  const distCalls = extractArtifactCalls(distFiles, [...ids], publishManifest);
   for (const call of sourceCalls) {
     if (call.unresolved || !ids.has(call.declarationId)) {
       issues.push(issue("import-session-request-contract-invalid", call.unresolved ? "openDataImportSession must use a literal or file-local static declarationId." : `openDataImportSession references undeclared id '${call.declarationId}'.`, call.file));
@@ -348,22 +745,35 @@ export function analyzeImportSessionContract({ manifest, sourceFiles, distFiles 
 
   const importEntrypoints = findImportEntrypoints(sourceFiles);
   const sourceGraph = buildSourceDependencyGraph(sourceFiles);
-  for (const file of importEntrypoints) {
-    const reachableFiles = getReachableFiles(sourceGraph, file.path);
+  for (const entrypoint of importEntrypoints) {
+    const reachability = getReachableSource(sourceGraph, entrypoint);
+    const reachableFiles = new Set(reachability.files);
     const matchingReachableCall = sourceCalls.find((call) => {
       if (!call.declarationId || !ids.has(call.declarationId) || !reachableFiles.has(normalizePath(call.file))) return false;
-      if (file.entityTypes.length === 0) return true;
+      const ranges = reachability.activeRanges.get(normalizePath(call.file)) ?? [];
+      if (call.offset === undefined || !ranges.some((range) => call.offset >= range.start && call.offset < range.end)) return false;
+      if (entrypoint.entityTypes.length === 0) return true;
       const declaredEntities = declarationEntities.get(call.declarationId) ?? new Set();
-      return file.entityTypes.some((entityType) => declaredEntities.has(entityType));
+      return entrypoint.entityTypes.some((entityType) => declaredEntities.has(entityType));
     });
     if (!matchingReachableCall) {
+      if (reachability.diagnostics.length > 0 || reachability.bounded) {
+        issues.push(
+          issue(
+            "import-contract-analysis-indeterminate",
+            `The import UI graph could not be resolved deterministically: ${reachability.diagnostics.join("; ")}`,
+            entrypoint.file
+          )
+        );
+        continue;
+      }
       issues.push(
         issue(
           "import-entrypoint-not-integrated",
-          TERMINAL_IMPORT_COPY_PATTERN.test(file.content)
+          TERMINAL_IMPORT_COPY_PATTERN.test(sourceFiles.find((file) => normalizePath(file.path) === entrypoint.file)?.content ?? "")
             ? "Import-facing UI ends in app-authored informational copy instead of launching the PX wizard."
             : "An import-facing route or control does not reach a matching openDataImportSession declaration.",
-          file.path
+          entrypoint.file
         )
       );
     }

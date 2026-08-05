@@ -415,25 +415,34 @@ function runImportSessionContractCheck(check) {
   const boundary = getAppBoundary();
   const sourcePrefix = boundary.appRoot === "." ? "src/" : `${boundary.appRoot}/src/`;
   const distPrefix = `${boundary.distRoot}/`;
+  const configPrefix = boundary.appRoot === "." ? "" : `${boundary.appRoot}/`;
+  const isResolverConfig = (path) =>
+    path.startsWith(configPrefix) && /(?:^|\/)(?:tsconfig|jsconfig)(?:\.[^/]+)?\.json$/i.test(path);
   const reviewedFiles = walkDir(ROOT, { includeDist: true })
     .map((filePath) => ({ filePath, path: toRelativePath(filePath) }))
     .filter(
       (file) =>
         (file.path.startsWith(sourcePrefix) && /\.(?:[cm]?[jt]sx?|html)$/.test(file.path)) ||
-        (file.path.startsWith(distPrefix) && /\.(?:js|mjs|cjs|html)$/.test(file.path))
+        (file.path.startsWith(distPrefix) && /\.(?:js|mjs|cjs|html)$/.test(file.path)) ||
+        isResolverConfig(file.path)
     )
     .map((file) => ({
       path: file.path,
       content: readFileSync(file.filePath, "utf-8")
     }));
   const sourceFiles = reviewedFiles.filter(
-    (file) => file.path.startsWith(sourcePrefix) && /\.(?:[cm]?[jt]sx?|html)$/.test(file.path)
+    (file) =>
+      (file.path.startsWith(sourcePrefix) && /\.(?:[cm]?[jt]sx?|html)$/.test(file.path)) ||
+      isResolverConfig(file.path)
   );
   const distFiles = reviewedFiles.filter(
     (file) => file.path.startsWith(distPrefix) && /\.(?:js|mjs|cjs|html)$/.test(file.path)
   );
   const issues = analyzeImportSessionContract({
     manifest: readManifest() ?? {},
+    publishManifest: existsSync(resolve(ROOT, boundary.distRoot, "plannerxchange.publish.json"))
+      ? JSON.parse(readFileSync(resolve(ROOT, boundary.distRoot, "plannerxchange.publish.json"), "utf-8"))
+      : undefined,
     sourceFiles,
     distFiles
   });
