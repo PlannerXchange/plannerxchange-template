@@ -73,8 +73,10 @@ CSV and file ingress:
 - app-owned CSV outputs may become PX app-data records when they are builder-owned work product
 - high-risk client/account/custodian CSV imports must use a declared `px_import_session`; provider names in `sourceFormatHints` are CSV/source-format hints only, not API permissions
 - each `px_import_session` declaration needs a stable ID with a matching `openDataImportSession` call in source and committed build output; every import-facing UI entry point must reach that handoff instead of ending in explanatory copy
+- a local wrapper is supported when review can statically trace the import route or primary action through relative imports, parameter forwarding, assignments, and stored aliases to the runtime helper and the same declaration ID. A direct `ctx.openDataImportSession(...)` call remains the simplest recommended pattern.
+- export and download code is not file ingress by itself. `Blob`, download anchors, `XLSX.write`, `writeFile`, and `.xlsx` filenames are exports; file inputs, drop handlers, `FileReader`, `XLSX.read`, `readFile`, `sheet_to_json`, and `Papa.parse` are ingress and require a declaration.
 - `canonical_store` import handoff launches the PlannerXchange Core Data import wizard for upload, suggested field mapping, skipped fields, user confirmation, validation, audit, and canonical import
-- canonical imports, including position, transaction, and cost-basis CSV imports, must use PlannerXchange-owned import-session handling
+- canonical imports across household, client, account, portfolio, security, model, and sleeve data must use PlannerXchange-owned import-session handling
 - mixed-custodian account CSVs do not need separate uploads when the CSV maps a custodian column or the advisor supplies per-account custodians during PX review
 - do not call provider OAuth `/integrations/*`, hard-delete/cleanup routes, platform-only import routes, or undocumented canonical write/import routes directly from app code
 - do not parse, map, normalize, auto-create, or mutate canonical households, clients, accounts, account-owner links, positions, transactions, cost basis, restricted PII, or import jobs from app-managed high-risk CSV logic outside the governed PX import-session and canonical write contracts
@@ -86,6 +88,109 @@ CSV and file ingress:
 - do not invent a Creator Studio mapping-template prerequisite for `px_import_session`; the PlannerXchange import wizard owns mapping and confirmation
 - if `openDataImportSession` is missing from the local `ShellRuntimeContext` type, update `src/plannerxchange.ts` from the current template rather than replacing the handoff with direct import-route calls
 
+## PX-owned canonical CSV imports
+
+One catalog governs the entity hint, required ingress data class, and post-import read declaration. Use the exact values below; aliases such as `financial_transactions` are invalid.
+
+| Entity hint | Required `dataClasses` value | Post-import read category | Selection entity |
+|---|---|---|---|
+| `household` | `client_summary` | `households` | `household` |
+| `client` | `client_sensitive` | `clients` | `client` |
+| `account` | `account_data` | `accounts` | `account` |
+| `position` | `portfolio_positions` | `positions` | `account` |
+| `transaction` | `transactions` | `transactions` | `account` |
+| `cost_basis` | `cost_basis` | `cost_basis` | `account` |
+| `security` | `security_reference` | `securities` | `firm` |
+| `model`, `model_holding` | `model_portfolios` | `models` | `model` |
+| `sleeve`, `sleeve_allocation` | `model_portfolios` | `sleeves` | `sleeve` |
+
+`cost_basis` is the canonical tax-lot entity. Securities are shared all-or-none at firm scope. Models and sleeves support selected-record grants; model holdings inherit their model grant and sleeve allocations inherit their sleeve grant.
+
+Import parents before children: households before clients/accounts; accounts before positions/transactions/cost basis; models before model holdings; sleeves and models before sleeve allocations. PX resolves firm-scoped parent IDs first and otherwise requires one unique normalized-name match. Child imports never auto-create missing parents.
+
+Model-holding and sleeve-allocation CSVs are complete snapshots, not row upserts. The review step discloses the before/after counts, validates unique children and a 100% total within `0.0001`, then activates a new immutable composition revision. Weights may be decimals (`0.25`) or percent-formatted (`25%`).
+
+Worked canonical transaction-import declaration:
+
+```json
+{
+  "permissions": ["canonical.transaction.read"],
+  "dataIngressDeclarations": [
+    {
+      "id": "csv-bank-transactions-import",
+      "source": "csv_upload",
+      "purpose": "Launch the PlannerXchange-owned import wizard to map, validate, and store canonical bank and credit-card transactions.",
+      "dataClasses": ["transactions"],
+      "target": "px_import_session",
+      "supportedModes": ["canonical_store"],
+      "canonicalEntityHints": ["transaction"]
+    }
+  ],
+  "canonicalDataAccessDeclarations": [
+    {
+      "id": "cashflow-transactions-read",
+      "category": "transactions",
+      "required": true,
+      "purpose": "Read imported bank and credit-card transactions for cash-flow planning, transaction review, and reports.",
+      "scopes": ["read"],
+      "selectionEntity": "account"
+    }
+  ]
+}
+```
+
+The matching user action launches `csv-bank-transactions-import`. After the user returns from the PX wizard, read `/transactions` or `/accounts/{accountId}/transactions` through `authenticatedFetch`; the declaration alone does not replace the required `canonical.transaction.read` permission or the actual canonical read call.
+
+Additional declaration patterns (each item still needs its own matching `openDataImportSession` call and committed artifact marker):
+
+```json
+[
+  {
+    "id": "household-client-import",
+    "source": "csv_upload",
+    "purpose": "Import canonical household and client records through PX.",
+    "dataClasses": ["client_summary", "client_sensitive"],
+    "target": "px_import_session",
+    "supportedModes": ["canonical_store"],
+    "canonicalEntityHints": ["household", "client"]
+  },
+  {
+    "id": "account-portfolio-import",
+    "source": "csv_upload",
+    "purpose": "Import canonical accounts, positions, transactions, and tax lots through PX.",
+    "dataClasses": ["account_data", "portfolio_positions", "transactions", "cost_basis"],
+    "target": "px_import_session",
+    "supportedModes": ["canonical_store"],
+    "canonicalEntityHints": ["account", "position", "transaction", "cost_basis"]
+  },
+  {
+    "id": "model-composition-import",
+    "source": "csv_upload",
+    "purpose": "Import model metadata, then replace model holding compositions through PX.",
+    "dataClasses": ["model_portfolios"],
+    "target": "px_import_session",
+    "supportedModes": ["canonical_store"],
+    "canonicalEntityHints": ["model", "model_holding"]
+  },
+  {
+    "id": "sleeve-composition-import",
+    "source": "csv_upload",
+    "purpose": "Import sleeve metadata, then replace sleeve model allocations through PX.",
+    "dataClasses": ["model_portfolios"],
+    "target": "px_import_session",
+    "supportedModes": ["canonical_store"],
+    "canonicalEntityHints": ["sleeve", "sleeve_allocation"]
+  }
+]
+```
+
+Exact composition templates:
+
+- Model: `name`, optional `description`, `asset_manager`, `status`, `visibility`.
+- Model holding: model ID or name, security ID or symbol/CUSIP, `weight`, optional `tax_setting`.
+- Sleeve: `name`, optional `description`, `status`.
+- Sleeve allocation: sleeve ID or name, model ID or name, `weight`, optional `tax_setting`.
+
 Worked patterns:
 
 1. PX client data plus PX app-data
@@ -94,8 +199,8 @@ Worked patterns:
    Cashflow app reads approved partner-sourced data through PX-governed integration paths, then saves `projection_run` records through PX app-data. The partner facts stay partner-sourced; the projections are builder-owned work product.
 3. App-managed nonportable
    Marketing or content app may use no PX client data at all and may keep its own outputs in app-owned storage. It can still publish through PlannerXchange, but it should not imply its app-owned data is portable.
-4. Cashflow CSV categorization
-   Cashflow app accepts transaction-like CSV rows, creates `transaction_category_rule_set`, `transaction_category_assignment_set`, `cashflow_projection_run`, or `cashflow_upload_row_set` app-data records, and links them to canonical transactions or accounts through `sourceRefs`. These app-data records do not create or update canonical transactions.
+4. Cashflow categorization after PX import
+   Cashflow app launches the PX-owned transaction CSV import, refreshes approved canonical transactions, then creates `transaction_category_rule_set`, `transaction_category_assignment_set`, or `cashflow_projection_run` app-data records linked through `sourceRefs`. These work-product records do not create or update canonical transactions.
 
 Provenance-aware UI guidance:
 

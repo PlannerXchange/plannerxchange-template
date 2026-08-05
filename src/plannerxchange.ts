@@ -28,6 +28,8 @@ export type AppDataClass =
   | "portfolio_positions"
   | "transactions"
   | "cost_basis"
+  | "security_reference"
+  | "model_portfolios"
   | "app_work_product";
 export type AppDataIngressTarget =
   | "px_import_session"
@@ -42,7 +44,11 @@ export type AppDataImportCanonicalEntity =
   | "position"
   | "transaction"
   | "cost_basis"
-  | "security";
+  | "security"
+  | "model"
+  | "model_holding"
+  | "sleeve"
+  | "sleeve_allocation";
 export interface AppDataIngressDeclaration {
   id?: string;
   source: AppDataIngressSource;
@@ -54,6 +60,32 @@ export interface AppDataIngressDeclaration {
   sourceFormatHints?: string[];
   canonicalMutation?: boolean;
   retention?: string;
+  notes?: string;
+}
+export type AppCanonicalDataCategory =
+  | "households"
+  | "clients"
+  | "accounts"
+  | "positions"
+  | "transactions"
+  | "cost_basis"
+  | "securities"
+  | "models"
+  | "sleeves";
+export type AppCanonicalDataSelectionEntity =
+  | "household"
+  | "client"
+  | "account"
+  | "firm"
+  | "model"
+  | "sleeve";
+export interface AppCanonicalDataAccessDeclaration {
+  id?: string;
+  category: AppCanonicalDataCategory;
+  required: boolean;
+  purpose: string;
+  scopes: Array<"read" | "write">;
+  selectionEntity: AppCanonicalDataSelectionEntity;
   notes?: string;
 }
 export interface AppDataImportSessionRequest {
@@ -172,6 +204,7 @@ export interface PlannerXchangeManifest {
   dataPortabilityMode: AppDataPortabilityMode;
   categories: string[];
   dataIngressDeclarations?: AppDataIngressDeclaration[];
+  canonicalDataAccessDeclarations?: AppCanonicalDataAccessDeclaration[];
 }
 
 export interface PlannerXchangeApiRequestInit {

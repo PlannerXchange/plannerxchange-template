@@ -82,9 +82,10 @@ The student rule is simple:
 CSV and import boundary:
 
 - platform-only `/imports/*` routes are Core Data shell routes, not builder-facing API routes
-- canonical or high-risk transient position, transaction, cost-basis, account, client, and household CSV imports must use a PlannerXchange-owned import session declared as `target: "px_import_session"`
+- canonical household, client, account, position, transaction, cost-basis/tax-lot, security, model, model-holding, sleeve, and sleeve-allocation CSV imports must use a PlannerXchange-owned import session declared as `target: "px_import_session"`
 - use exact documented ingress source, target, and `dataClasses` values; aliases and legacy target names are invalid
 - launch the PlannerXchange Core Data import wizard with `ctx.openDataImportSession({ declarationId, mode: "canonical_store" })`; do not call `/imports/*` yourself
+- a local wrapper is valid only when PlannerXchange review can statically trace the import-facing route or action through local imports, parameter forwarding, assignments, and aliases to the matching runtime helper and declaration ID; prefer the direct call when practical
 - every import-facing route, navigation item, page, or primary action must reach that matching declaration ID in source and committed build output; informational-only terminal pages are prohibited
 - `openDataImportSession` is a launch-only handoff and returns `{ mode: "canonical_store", status: "launched" }`; do not wait for `completed`, `completed_with_errors`, `cancelled`, `importJobId`, `canonicalRefs`, or `mappingSummary`
 - do not invent a Creator Studio mapping-template prerequisite for `px_import_session`; the PlannerXchange import wizard owns upload, suggested mapping, skipped fields, confirmation, validation, audit, and canonical import
@@ -94,6 +95,7 @@ CSV and import boundary:
 - builder apps may store app-owned CSV-derived work product through `/app-data`, but must not create canonical records, parent records, account-owner links, or import jobs outside governed canonical write and import-handoff contracts
 - builder apps must not call `/integrations/*` or shell-owned custodian import routes to fetch or apply source data; read reconciled canonical facts through approved canonical routes and scopes
 - apps that parse or upload CSV/files should declare `dataIngressDeclarations` in `plannerxchange.app.json`
+- exports are not ingress: `Blob`, download anchors, `XLSX.write`, `writeFile`, and `.xlsx` filenames do not require an ingress declaration unless the app also reads, parses, drops, or uploads a file
 
 Public demo exception:
 

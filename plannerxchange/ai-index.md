@@ -36,6 +36,7 @@ the current context pack, SDK, or review export documents it as available.
 | Check access grants or feature entitlements | `plannerxchange/app-access.md` | runtime access checks |
 | Send workflow email | `plannerxchange/email-api.md` | `plannerxchange.app.json`, email call site |
 | Handle CSV or file uploads | `plannerxchange/app-data-api.md`, `plannerxchange/data-contract.md`, `plannerxchange/pii-and-security.md` | `plannerxchange.app.json`, upload flow |
+| Add or fix a PX-owned canonical CSV import and canonical read | `plannerxchange/data-contract.md` supported-entity matrix and worked import declarations, `plannerxchange/api-reference.md`, `plannerxchange/publish-notes.md` | `plannerxchange.app.json`, import route/action, runtime wrapper or direct call, matching canonical read |
 | Fix auth/session review findings | `plannerxchange/context.md`, `plannerxchange/api-reference.md` | remove app-owned auth code |
 | App needs Python, backend scripts, server-side functions, containers, or jobs | `plannerxchange/context.md`, `plannerxchange/publish-notes.md`, this file | do not implement runtime Python for shell publication; ask PlannerXchange which governed product lane applies |
 | Add or fix public landing-page behavior | `plannerxchange/landing-page.md`, `plannerxchange/publish-notes.md`, this file | landing-page source/components, CTA definitions, public-safe media |
@@ -172,6 +173,8 @@ Request only the scopes the app actually uses.
 - Treat `egressDeclarations` as review evidence, not approval. There is no non-enterprise Day 1 self-serve exception for external PX/client data egress.
 - Do not manually attach bearer tokens.
 - Do not pass `appInstallationId` in query strings.
+- Import wrappers are supported only when the source graph can statically trace the import-facing route or action through local imports, parameter forwarding, assignments, and aliases to `openDataImportSession` with the matching stable declaration ID. Prefer a direct runtime-helper call when no wrapper is needed.
+- Do not classify exports as file ingestion. Blob/download code, spreadsheet write APIs, and `.xlsx` filenames are output; file inputs, drop handlers, file readers, and spreadsheet/CSV parse APIs are ingress.
 
 ## Public Landing Pages
 
@@ -216,7 +219,7 @@ If the app accepts CSVs, spreadsheets, drag/drop files, browser `FileReader`, `F
 5. For high-risk client/account/custodian CSVs, declare `target: "px_import_session"` with a stable ID and call `ctx.openDataImportSession({ declarationId, mode: "canonical_store" })` using that exact ID.
 6. Every Import Data route, navigation item, page, or primary action must launch the matching PX session immediately or through its primary action. Only a transient launching state or recoverable error may remain; informational-only terminal pages are prohibited.
 7. Treat `openDataImportSession` as launch-only. The current result is `{ mode: "canonical_store", status: "launched" }`; do not wait for `completed`, `completed_with_errors`, `cancelled`, `importJobId`, `canonicalRefs`, or `mappingSummary`.
-8. Do not parse, map, normalize, or auto-create canonical households, clients, accounts, positions, transactions, cost basis, restricted PII, or import jobs from app-managed CSV logic outside the governed PX import-session and canonical write contracts.
+8. Do not parse, map, normalize, or auto-create canonical households, clients, accounts, positions, transactions, cost basis/tax lots, securities, models, model holdings, sleeves, sleeve allocations, restricted PII, or import jobs from app-managed CSV logic outside the governed PX import-session and canonical write contracts.
 9. Do not ask the builder to split a valid account CSV only because it contains multiple custodians. PX import sessions support mixed-custodian account files when a custodian column is mapped or the advisor supplies per-account custodians during review.
 10. If the PX import wizard route opens but renders blank, do not invent a mapping-template setup step. Treat the blank wizard as a PX shell/runtime issue or stale deployed shell; capture the URL and console logs, refresh CLI/context, and report the platform issue.
 11. If Creator Studio says canonical CSV import or hosted data storage is not allowed on the builder workspace's plan, treat it as a publish eligibility issue, not an app-code issue. The builder must upgrade the builder workspace or remove the paid capability before publication.
