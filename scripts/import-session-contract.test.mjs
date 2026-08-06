@@ -151,17 +151,18 @@ test("rejects source-only calls that disappear from the build", () => {
   assert.equal(issues.some((entry) => entry.code === "import-session-build-artifact-missing"), true);
 });
 
-test("reproduces the FlowState terminal import page", () => {
+test("rejects a route-linked informational terminal import page", () => {
   const issues = analyze({
     manifest: { dataIngressDeclarations: [declaration] },
     source: {
+      "src/App.tsx": `import { ImportData } from "./ImportData"; export function App() { return <Route path="/import" element={<ImportData />} />; }`,
       "src/ImportData.tsx": `export function ImportData() { return <section><h1>Data Import</h1><p>Transaction import is managed by PlannerXchange. Use the PlannerXchange data connector to import bank and credit card statements for this household.</p><p>Once PlannerXchange imports the data, it will appear automatically in Cashflow Planning, Transactions, and Reports.</p></section>;`
     }
   });
   assert.equal(issues.some((entry) => entry.code === "import-entrypoint-not-integrated"), true);
 });
 
-test("accepts a statically traceable FlowState-style wrapper", () => {
+test("accepts a statically traceable runtime wrapper", () => {
   const issues = analyze({
     manifest: { dataIngressDeclarations: [declaration] },
     source: {
@@ -237,26 +238,29 @@ test("ignores language imports, helper names, comments, and non-rendered import 
     source: {
       "src/App.tsx": `import ImportPage from "./ImportPage"; export { ImportPage } from "./ImportPage";`,
       "src/helpers.ts": `// Import Transactions\nexport function importTransactions() { throw new Error("Import transactions failed"); }`,
-      "src/report.ts": `const message = "Import Accounts when the report is ready";`
+      "src/report.ts": `const message = "Import Accounts when the report is ready";`,
+      "src/info.tsx": `export const Budget = () => <p>Import transactions or ask the assistant to start a budget.</p>;`,
+      "src/string.tsx": `export const markup = "<button>Import Accounts</button>";`
     }
   });
   assert.deepEqual(issues, []);
 });
 
-test("accepts FlowState-style configured aliases through relative tsconfig extends", () => {
+test("accepts a production-shaped configured-alias journey through relative tsconfig extends", () => {
   const issues = analyze({
     manifest: { dataIngressDeclarations: [declaration] },
     source: {
       "tsconfig.base.json": `{ "compilerOptions": { "baseUrl": ".", "paths": { "@/*": ["src/*"] } } }`,
       "tsconfig.json": `{ "extends": "./tsconfig.base.json", "compilerOptions": { /* JSONC */ } }`,
       "src/plugin.tsx": `import App from "@/App"; import { initPxImport } from "@/lib/px-import"; export function mount(context) { initPxImport(context?.openDataImportSession); return <App />; }`,
-      "src/App.tsx": `import ImportPage from "@/pages/import"; export default function App() { return <Route path="/import" element={<ImportPage />} />; }`,
+      "src/App.tsx": `import ImportPage from "@/pages/import"; export default function App() { return (\n<Route\n path="/clients/:clientId/import"\n element={<ImportPage />}\n/>\n); }`,
       "src/navigation.tsx": `export const nav = { label: "Import Data", to: "/import" };`,
+      "src/budget.tsx": `export const Budget = () => <p>Import transactions or ask the assistant to start a budget.</p>;`,
       "src/pages/import.tsx": `import { launchImport } from "@/lib/px-import"; export default function ImportPage() { return <button onClick={launchImport}>Import Transactions</button>; }`,
       "src/lib/px-import.ts": `const IMPORT_ID = "transactions-import"; let launch; export function initPxImport(openDataImportSession) { launch = openDataImportSession; } export function launchImport() { return launch({ declarationId: IMPORT_ID, mode: "canonical_store" }); }`
     },
     dist: {
-      "dist/assets/plugin.js": `const i="transactions-import";e.openDataImportSession({declarationId:i,mode:"canonical_store"})`
+      "dist/assets/plugin.js": `${"const genericImportLabel='import';".repeat(2_000)}const i="transactions-import";e.openDataImportSession({declarationId:i,mode:"canonical_store"})`
     }
   });
   assert.deepEqual(issues, []);

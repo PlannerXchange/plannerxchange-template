@@ -80,6 +80,71 @@ function maskCodeComments(content) {
     .replace(/(^|\s)\/\/[^\r\n]*/gm, (value) => mask(value));
 }
 
+function isOffsetInsideCodeStringOrComment(content, targetOffset) {
+  let state = "code";
+  for (let index = 0; index < targetOffset; index += 1) {
+    const character = content[index];
+    const next = content[index + 1];
+    if (state === "line_comment") {
+      if (character === "\n") state = "code";
+      continue;
+    }
+    if (state === "block_comment") {
+      if (character === "*" && next === "/") { state = "code"; index += 1; }
+      continue;
+    }
+    if (state !== "code") {
+      if (character === "\\") { index += 1; continue; }
+      if ((state === "single" && character === "'") ||
+          (state === "double" && character === "\"") ||
+          (state === "template" && character === "`")) state = "code";
+      continue;
+    }
+    if (character === "/" && next === "/") { state = "line_comment"; index += 1; }
+    else if (character === "/" && next === "*") { state = "block_comment"; index += 1; }
+    else if (character === "'") state = "single";
+    else if (character === "\"") state = "double";
+    else if (character === "`") state = "template";
+  }
+  return state !== "code";
+}
+
+function extractRenderedElements(content) {
+  const elements = [];
+  for (const match of content.matchAll(/<([A-Za-z][\w.]*)\b/g)) {
+    const start = match.index ?? 0;
+    if (isOffsetInsideCodeStringOrComment(content, start)) continue;
+    let quote;
+    let braceDepth = 0;
+    let openingEnd = -1;
+    for (let index = start + match[0].length; index < content.length; index += 1) {
+      const character = content[index];
+      if (quote) {
+        if (character === "\\") index += 1;
+        else if (character === quote) quote = undefined;
+        continue;
+      }
+      if (character === "\"" || character === "'" || character === "`") { quote = character; continue; }
+      if (character === "{") braceDepth += 1;
+      else if (character === "}" && braceDepth > 0) braceDepth -= 1;
+      else if (character === ">" && braceDepth === 0) { openingEnd = index + 1; break; }
+    }
+    if (openingEnd < 0) continue;
+    const closing = new RegExp(`</${match[1].replace(/[.]/g, "\\.")}\\s*>`, "g");
+    closing.lastIndex = openingEnd;
+    const closingMatch = closing.exec(content);
+    if (!closingMatch) continue;
+    elements.push({
+      tag: match[1],
+      attributes: content.slice(start + match[0].length, openingEnd - 1),
+      inner: content.slice(openingEnd, closingMatch.index),
+      start,
+      end: closingMatch.index + closingMatch[0].length
+    });
+  }
+  return elements;
+}
+
 function isFixturePath(path) {
   return /(?:^|\/)(?:__tests__|test|tests|fixtures?|mocks?)(?:\/|$)|\.(?:test|spec)\.[cm]?[jt]sx?$/i.test(normalizePath(path));
 }
@@ -348,45 +413,70 @@ function detectEntrypointEntities(text) {
 
 function findImportEntrypoints(files) {
   const entrypoints = [];
-  const routePattern = /\b(path|route|to|href)\s*[:=]\s*(?:\{\s*)?["'`]([^"'`]*(?:\/import\b|import-data\b|data-import\b)[^"'`]*)["'`]/i;
-  const routerCallPattern = /\b(?:navigate|setLocation|router\.(?:push|replace)|history\.(?:push|replace))\s*\(\s*["'`]([^"'`]*(?:\/import\b|import-data\b|data-import\b)[^"'`]*)["'`]/i;
-  const renderedCopyPattern = /(?:<[^>]+>[^<]*|\b(?:label|title|text|name|aria-label|children)\s*[:=]\s*(?:\{\s*)?["'`])[^\n]{0,240}/i;
+  const routePattern = /\b(path|route|to|href)\s*[:=]\s*(?:\{\s*)?["'`]([^"'`]*(?:\/import\b|import-data\b|data-import\b)[^"'`]*)["'`]/gi;
+  const routerCallPattern = /\b(?:navigate|setLocation|router\.(?:push|replace)|history\.(?:push|replace))\s*\(\s*["'`]([^"'`]*(?:\/import\b|import-data\b|data-import\b)[^"'`]*)["'`]/gi;
+  const accessibilityPattern = /\b(?:aria-label|title)\s*=\s*["'`]([^"'`]{1,240})["'`]/gi;
+  const renderedText = (value) => value.replace(/<[^>]+>/g, " ").replace(/\{[^{}]*\}/g, " ").replace(/\s+/g, " ").trim();
+  const isInteractive = (tag, attributes) => /^(?:button|a|Button|Link|NavLink|MenuItem|DropdownMenuItem)$/i.test(tag) ||
+    /\b(?:onClick|onKeyDown|href|to|role\s*=\s*["'](?:button|link|menuitem)["'])\b/i.test(attributes);
 
   for (const file of files) {
     if (!CODE_FILE_PATTERN.test(file.path) || isFixturePath(file.path)) continue;
     const normalizedFile = normalizePath(file.path);
     const isRenderedFile = /\.(?:tsx|jsx|html)$/i.test(normalizedFile);
     const content = maskCodeComments(file.content);
-    content.split(/\r?\n/).forEach((line, index) => {
-      const routeMatch = routePattern.exec(line);
-      const routerCallMatch = routerCallPattern.exec(line);
-      const copyMatch = IMPORT_ENTRYPOINT_PATTERN.exec(line);
-      const entityTypes = detectEntrypointEntities(line);
-      if (routeMatch || routerCallMatch) {
-        const navigation = Boolean(routerCallMatch || /^(?:to|href)$/i.test(routeMatch?.[1] ?? ""));
-        const destination = normalizeImportDestination(routerCallMatch?.[1] ?? routeMatch?.[2]);
-        const text = (routerCallMatch ?? routeMatch)[0];
+    for (const routeMatch of content.matchAll(routePattern)) {
+      const offset = routeMatch.index ?? 0;
+      if (isOffsetInsideCodeStringOrComment(file.content, offset)) continue;
+      const navigation = /^(?:to|href)$/i.test(routeMatch[1] ?? "");
+      const destination = normalizeImportDestination(routeMatch[2]);
+      const entityTypes = detectEntrypointEntities(routeMatch[0]);
+      entrypoints.push({
+        entrypointId: stableEntrypointId(`${normalizedFile}:${destination}:${entityTypes.join(",") || "generic"}`),
+        file: normalizedFile, signal: navigation ? "navigation" : "route", text: routeMatch[0],
+        line: lineNumber(content, offset), offset, entityTypes, destination
+      });
+    }
+    for (const routerCallMatch of content.matchAll(routerCallPattern)) {
+      const offset = routerCallMatch.index ?? 0;
+      if (isOffsetInsideCodeStringOrComment(file.content, offset)) continue;
+      const destination = normalizeImportDestination(routerCallMatch[1]);
+      const entityTypes = detectEntrypointEntities(routerCallMatch[0]);
+      entrypoints.push({
+        entrypointId: stableEntrypointId(`${normalizedFile}:${destination}:${entityTypes.join(",") || "generic"}`),
+        file: normalizedFile, signal: "navigation", text: routerCallMatch[0],
+        line: lineNumber(content, offset), offset, entityTypes, destination
+      });
+    }
+    if (isRenderedFile) {
+      const elements = extractRenderedElements(file.content);
+      for (const element of elements) {
+        if (!isInteractive(element.tag, element.attributes)) continue;
+        const text = renderedText(element.inner);
+        const accessible = [...element.attributes.matchAll(accessibilityPattern)].map((match) => match[1]).join(" ");
+        const copy = [text, accessible].filter(Boolean).join(" ");
+        if (!IMPORT_ENTRYPOINT_PATTERN.test(copy)) continue;
+        const entityTypes = detectEntrypointEntities(copy);
         entrypoints.push({
-          entrypointId: stableEntrypointId(`${normalizedFile}:${destination}:${entityTypes.join(",") || "generic"}`),
-          file: normalizedFile,
-          signal: navigation ? "navigation" : "route",
-          text,
-          line: index + 1,
-          entityTypes,
-          destination
-        });
-      } else if (copyMatch && isRenderedFile && renderedCopyPattern.test(line)) {
-        const text = copyMatch[0];
-        entrypoints.push({
-          entrypointId: stableEntrypointId(`${normalizedFile}:${text.toLowerCase().replace(/\s+/g, " ").trim()}:${entityTypes.join(",") || "generic"}`),
-          file: normalizedFile,
-          signal: "user_copy",
-          text,
-          line: index + 1,
-          entityTypes
+          entrypointId: stableEntrypointId(`${normalizedFile}:${copy.toLowerCase().replace(/\s+/g, " ").trim()}:${entityTypes.join(",") || "generic"}`),
+          file: normalizedFile, signal: "user_copy", text: copy,
+          line: lineNumber(content, element.start), offset: element.start, entityTypes
         });
       }
-    });
+      if (/(?:^|\/)(?:import(?:[-_.][^/]*)?|importdata)\.[cm]?[jt]sx?$|(?:^|\/)(?:import|data-import)(?:\/|$)/i.test(normalizedFile)) {
+        for (const element of elements) {
+          if (!/^(?:h[1-6]|CardTitle|DialogTitle|SheetTitle)$/i.test(element.tag)) continue;
+          const copy = renderedText(element.inner);
+          if (!IMPORT_ENTRYPOINT_PATTERN.test(copy)) continue;
+          const entityTypes = detectEntrypointEntities(copy);
+          entrypoints.push({
+            entrypointId: stableEntrypointId(`${normalizedFile}:${copy.toLowerCase().replace(/\s+/g, " ").trim()}:${entityTypes.join(",") || "generic"}`),
+            file: normalizedFile, signal: "component", text: copy,
+            line: lineNumber(content, element.start), offset: element.start, entityTypes
+          });
+        }
+      }
+    }
   }
   return entrypoints.filter((entrypoint, index) =>
     entrypoints.findIndex((candidate) => candidate.entrypointId === entrypoint.entrypointId) === index
@@ -395,9 +485,24 @@ function findImportEntrypoints(files) {
 
 function findClosingBrace(content, opening) {
   let depth = 0;
+  let state = "code";
   for (let index = opening; index < content.length; index += 1) {
-    if (content[index] === "{") depth += 1;
-    if (content[index] === "}" && --depth === 0) return index + 1;
+    const character = content[index];
+    const next = content[index + 1];
+    if (state === "line_comment") { if (character === "\n") state = "code"; continue; }
+    if (state === "block_comment") { if (character === "*" && next === "/") { state = "code"; index += 1; } continue; }
+    if (state !== "code") {
+      if (character === "\\") { index += 1; continue; }
+      if ((state === "single" && character === "'") || (state === "double" && character === "\"") || (state === "template" && character === "`")) state = "code";
+      continue;
+    }
+    if (character === "/" && next === "/") { state = "line_comment"; index += 1; continue; }
+    if (character === "/" && next === "*") { state = "block_comment"; index += 1; continue; }
+    if (character === "'") { state = "single"; continue; }
+    if (character === "\"") { state = "double"; continue; }
+    if (character === "`") { state = "template"; continue; }
+    if (character === "{") depth += 1;
+    if (character === "}" && --depth === 0) return index + 1;
   }
   return content.length;
 }
@@ -515,7 +620,12 @@ function buildSourceDependencyGraph(files) {
         internalEdges.push({ from: path, to: resolved, kind, offset: match.index ?? 0, ...extractModuleBinding(content, specifier, kind, match.index ?? 0) });
       } else if (relative || alias?.potentialLocal) {
         const diagnostics = diagnosticsByFile.get(path) ?? [];
-        diagnostics.push(alias?.diagnostic ?? `Unresolved local import: ${specifier}`);
+        const kind = relative ? (match[2] ? "dynamic_import" : match[3] ? "require" : "relative_import") : "path_alias";
+        diagnostics.push({
+          message: alias?.diagnostic ?? `Unresolved local import: ${specifier}`,
+          offset: match.index ?? 0,
+          localSymbols: extractModuleBinding(content, specifier, kind, match.index ?? 0).localSymbols
+        });
         diagnosticsByFile.set(path, diagnostics);
       }
     }
@@ -540,12 +650,17 @@ function buildSourceDependencyGraph(files) {
 
 function getReachableSource(graph, candidate) {
   const reached = new Set();
+  const processedStates = new Set();
+  const relevantDiagnostics = new Set();
   const activeRanges = new Map();
   const queue = [{ path: normalizePath(candidate.file), depth: 0, candidateLine: candidate.line, seedSymbols: [] }];
   let bounded = false;
-  while (queue.length > 0 && reached.size < 64) {
+  while (queue.length > 0 && processedStates.size < 128) {
     const current = queue.shift();
-    if (!current || reached.has(current.path)) continue;
+    if (!current) continue;
+    const stateKey = `${current.path}:${current.candidateLine ?? 0}:${[...(current.seedSymbols ?? [])].sort().join(",")}`;
+    if (processedStates.has(stateKey)) continue;
+    processedStates.add(stateKey);
     if (current.depth > 8) {
       bounded = true;
       continue;
@@ -554,17 +669,26 @@ function getReachableSource(graph, candidate) {
     const file = graph.filesByPath.get(current.path);
     if (!file) continue;
     const ranges = buildActiveSourceRanges(file, current.candidateLine, current.seedSymbols);
-    activeRanges.set(current.path, ranges);
-    const activeText = ranges.map((range) => file.content.slice(range.start, range.end)).join("\n");
+    const combinedRanges = [...(activeRanges.get(current.path) ?? [])];
+    for (const range of ranges) {
+      if (!combinedRanges.some((value) => value.start === range.start && value.end === range.end)) combinedRanges.push(range);
+    }
+    activeRanges.set(current.path, combinedRanges);
+    const activeText = combinedRanges.map((range) => file.content.slice(range.start, range.end)).join("\n");
+    for (const diagnostic of graph.diagnosticsByFile.get(current.path) ?? []) {
+      const offsetReachable = combinedRanges.some((range) => diagnostic.offset >= range.start && diagnostic.offset < range.end);
+      const symbolReachable = diagnostic.localSymbols.some((symbol) => new RegExp(`\\b${symbol.replace(/[$]/g, "\\$")}\\b`).test(activeText));
+      if (offsetReachable || symbolReachable) relevantDiagnostics.add(diagnostic.message);
+    }
     for (const edge of graph.internalEdges.filter((value) => value.from === current.path)) {
-      const offsetReachable = ranges.some((range) => edge.offset >= range.start && edge.offset < range.end);
+      const offsetReachable = combinedRanges.some((range) => edge.offset >= range.start && edge.offset < range.end);
       const symbolReachable = edge.localSymbols.some((symbol) => new RegExp(`\\b${symbol.replace(/[$]/g, "\\$")}\\b`).test(activeText));
       if (edge.kind !== "navigation_route" && !offsetReachable && !symbolReachable) continue;
       queue.push({ path: edge.to, depth: current.depth + 1, candidateLine: edge.targetLine, seedSymbols: edge.targetSymbols });
     }
   }
   if (queue.length > 0) bounded = true;
-  const diagnostics = [...reached].flatMap((path) => graph.diagnosticsByFile.get(path) ?? []);
+  const diagnostics = [...relevantDiagnostics];
   if (bounded) diagnostics.push("Import source graph exceeded its bounded traversal limit.");
   return { files: [...reached], activeRanges, diagnostics: [...new Set(diagnostics)], bounded };
 }
@@ -745,7 +869,7 @@ export function analyzeImportSessionContract({ manifest, publishManifest, source
 
   const importEntrypoints = findImportEntrypoints(sourceFiles);
   const sourceGraph = buildSourceDependencyGraph(sourceFiles);
-  for (const entrypoint of importEntrypoints) {
+  const evaluatedEntrypoints = importEntrypoints.map((entrypoint) => {
     const reachability = getReachableSource(sourceGraph, entrypoint);
     const reachableFiles = new Set(reachability.files);
     const matchingReachableCall = sourceCalls.find((call) => {
@@ -756,12 +880,40 @@ export function analyzeImportSessionContract({ manifest, publishManifest, source
       const declaredEntities = declarationEntities.get(call.declarationId) ?? new Set();
       return entrypoint.entityTypes.some((entityType) => declaredEntities.has(entityType));
     });
-    if (!matchingReachableCall) {
-      if (reachability.diagnostics.length > 0 || reachability.bounded) {
+    return { entrypoint, reachability, matchingReachableCall };
+  });
+  const parents = evaluatedEntrypoints.map((_, index) => index);
+  const find = (index) => parents[index] === index ? index : (parents[index] = find(parents[index]));
+  const unite = (left, right) => { const a = find(left); const b = find(right); if (a !== b) parents[b] = a; };
+  for (let left = 0; left < evaluatedEntrypoints.length; left += 1) {
+    for (let right = left + 1; right < evaluatedEntrypoints.length; right += 1) {
+      const a = evaluatedEntrypoints[left];
+      const b = evaluatedEntrypoints[right];
+      const sameDestination = importDestinationsCompatible(a.entrypoint.destination, b.entrypoint.destination);
+      const sameResolvedJourney = Boolean(
+        a.matchingReachableCall?.declarationId &&
+        a.matchingReachableCall.declarationId === b.matchingReachableCall?.declarationId &&
+        a.reachability.files.some((file) => b.reachability.files.includes(file))
+      );
+      if (sameDestination || sameResolvedJourney) unite(left, right);
+    }
+  }
+  const grouped = new Map();
+  evaluatedEntrypoints.forEach((evaluation, index) => {
+    const values = grouped.get(find(index)) ?? [];
+    values.push(evaluation);
+    grouped.set(find(index), values);
+  });
+  for (const evaluations of grouped.values()) {
+    if (!evaluations.some((evaluation) => evaluation.matchingReachableCall)) {
+      const diagnostics = [...new Set(evaluations.flatMap((evaluation) => evaluation.reachability.diagnostics))];
+      const bounded = evaluations.some((evaluation) => evaluation.reachability.bounded);
+      const entrypoint = evaluations[0].entrypoint;
+      if (diagnostics.length > 0 || bounded) {
         issues.push(
           issue(
             "import-contract-analysis-indeterminate",
-            `The import UI graph could not be resolved deterministically: ${reachability.diagnostics.join("; ")}`,
+            `The import UI graph could not be resolved deterministically: ${diagnostics.join("; ")}`,
             entrypoint.file
           )
         );
@@ -774,8 +926,8 @@ export function analyzeImportSessionContract({ manifest, publishManifest, source
             ? "Import-facing UI ends in app-authored informational copy instead of launching the PX wizard."
             : "An import-facing route or control does not reach a matching openDataImportSession declaration.",
           entrypoint.file
-        )
-      );
+      )
+    );
     }
   }
 

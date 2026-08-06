@@ -174,6 +174,8 @@ Request only the scopes the app actually uses.
 - Do not manually attach bearer tokens.
 - Do not pass `appInstallationId` in query strings.
 - Import wrappers are supported only when the source graph can statically trace the import-facing route or action through relative imports or uniquely resolved configured `tsconfig`/`jsconfig` path aliases, parameter forwarding, assignments, and aliases to `openDataImportSession` with the matching stable declaration ID. Relative `extends`, `baseUrl`, `paths`, and a unique conventional `@/` or `~/` source-root alias are supported; ambiguous or unresolved local aliases remain unverified. Prefer a direct runtime-helper call when no wrapper is needed.
+- PlannerXchange groups a route, its navigation destination, its rendered import page, and its primary import action into one user journey, then verifies that journey against its own declaration ID and committed artifact evidence. Unrelated imports elsewhere in the source tree cannot satisfy it.
+- Informational prose that merely mentions importing data is not an import action. A rendered import-specific route, accessible control, navigation destination, page title, or primary action is; it must reach the PX-owned wizard rather than terminate in app-authored copy.
 - Do not classify exports as file ingestion. Blob/download code, spreadsheet write APIs, and `.xlsx` filenames are output; file inputs, drop handlers, file readers, and spreadsheet/CSV parse APIs are ingress.
 
 ## Public Landing Pages
