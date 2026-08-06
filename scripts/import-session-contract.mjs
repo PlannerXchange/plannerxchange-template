@@ -56,8 +56,6 @@ const IMPORT_ENTRYPOINT_PATTERN = new RegExp(
 const TERMINAL_IMPORT_COPY_PATTERN =
   /(?:import(?:s|ing)?\s+(?:is|are)\s+managed\s+by\s+PlannerXchange|once\s+PlannerXchange\s+imports?|will\s+appear\s+automatically)/i;
 const IMPORT_CALL_PATTERN = /\b([A-Za-z_$][\w$]*)\s*!?\s*(?:\?\.)?\s*\(\s*\{([\s\S]{0,1800}?)\}\s*\)/g;
-const MODULE_IMPORT_PATTERN =
-  /\b(?:from\s*["'`]([^"'`]+)["'`]|import\(\s*["'`]([^"'`]+)["'`]\s*\)|require\(\s*["'`]([^"'`]+)["'`]\s*\))/g;
 const CODE_FILE_PATTERN = /\.(?:[cm]?[jt]sx?|html)$/i;
 const ACTUAL_FILE_INGRESS_PATTERN =
   /(?:<input\b[^>]*\btype\s*=\s*["']file["']|\bFileReader\b|\bXLSX\s*\.\s*read\s*\(|\breadFile\s*\(|\bsheet_to_json\s*\(|\bPapa\s*\.\s*parse\s*\(|\b(?:onDrop|dropzone|DataTransfer\.files)\b)/i;
@@ -571,34 +569,123 @@ function buildActiveSourceRanges(file, candidateLine, seedSymbols = []) {
   return active;
 }
 
-function extractModuleBinding(content, specifier, kind, offset) {
-  const escaped = specifier.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const window = content.slice(Math.max(0, offset - 400), offset + specifier.length + 200);
-  if (kind === "dynamic_import") {
-    const assigned = new RegExp(`(?:const|let|var)\\s+([A-Za-z_$][\\w$]*)[\\s\\S]{0,180}import\\(\\s*["'\`]${escaped}["'\`]`).exec(window);
-    return { localSymbols: assigned?.[1] ? [assigned[1]] : [], targetSymbols: ["default"] };
-  }
-  if (kind === "require") {
-    const assigned = new RegExp(`(?:const|let|var)\\s+([A-Za-z_$][\\w$]*)\\s*=\\s*require\\(\\s*["'\`]${escaped}["'\`]`).exec(window);
-    return { localSymbols: assigned?.[1] ? [assigned[1]] : [], targetSymbols: ["default"] };
-  }
-  const statement = new RegExp(`import\\s*([\\s\\S]{1,300}?)\\s+from\\s*["'\`]${escaped}["'\`]`).exec(window)?.[1]?.trim();
-  if (!statement) return { localSymbols: [], targetSymbols: [] };
+function parseStaticModuleBinding(statement) {
+  const clause = /^\s*import\s+([\s\S]*?)\s+from\s+["'`]/.exec(statement)?.[1]?.trim().replace(/^type\s+/, "");
+  if (!clause) return { localSymbols: [], targetSymbols: [] };
   const localSymbols = [];
   const targetSymbols = [];
-  const defaultBinding = statement.match(/^([A-Za-z_$][\w$]*)/);
+  const defaultBinding = clause.match(/^([A-Za-z_$][\w$]*)/);
   if (defaultBinding) {
     localSymbols.push(defaultBinding[1]);
     targetSymbols.push("default");
   }
-  const named = statement.match(/\{([\s\S]*?)\}/)?.[1];
+  const named = clause.match(/\{([\s\S]*?)\}/)?.[1];
   for (const item of named?.split(",") ?? []) {
     const parts = item.trim().split(/\s+as\s+/);
     if (!parts[0]) continue;
     targetSymbols.push(parts[0].trim());
     localSymbols.push((parts[1] ?? parts[0]).trim());
   }
+  const namespace = clause.match(/\*\s+as\s+([A-Za-z_$][\w$]*)/);
+  if (namespace) {
+    localSymbols.push(namespace[1]);
+    targetSymbols.push("default");
+  }
   return { localSymbols, targetSymbols };
+}
+
+function isWordBoundary(content, offset, length) {
+  const before = content[offset - 1];
+  const after = content[offset + length];
+  return (!before || !/[\w$]/.test(before)) && (!after || !/[\w$]/.test(after));
+}
+
+function readQuotedModuleSpecifier(content, quoteOffset) {
+  const quote = content[quoteOffset];
+  if (quote !== "'" && quote !== '"' && quote !== "`") return undefined;
+  let specifier = "";
+  for (let index = quoteOffset + 1; index < content.length; index += 1) {
+    const character = content[index];
+    if (character === "\\") {
+      if (index + 1 >= content.length) return undefined;
+      specifier += content[index + 1];
+      index += 1;
+      continue;
+    }
+    if (character === quote) return { specifier, end: index + 1 };
+    if (quote === "`" && character === "$" && content[index + 1] === "{") return undefined;
+    if (character === "\r" || character === "\n") return undefined;
+    specifier += character;
+  }
+  return undefined;
+}
+
+function skipModuleWhitespace(content, offset) {
+  let cursor = offset;
+  while (cursor < content.length && /\s/.test(content[cursor])) cursor += 1;
+  return cursor;
+}
+
+function extractModuleReferences(content) {
+  const references = [];
+  const add = (reference) => {
+    if (!references.some((candidate) =>
+      candidate.offset === reference.offset && candidate.specifier === reference.specifier
+    )) references.push(reference);
+  };
+  for (const match of content.matchAll(/\bimport\b/g)) {
+    const offset = match.index ?? 0;
+    if (isOffsetInsideCodeStringOrComment(content, offset)) continue;
+    let cursor = skipModuleWhitespace(content, offset + "import".length);
+    if (content[cursor] === "(") {
+      const literal = readQuotedModuleSpecifier(content, skipModuleWhitespace(content, cursor + 1));
+      if (!literal || content[skipModuleWhitespace(content, literal.end)] !== ")") continue;
+      const lineStart = content.lastIndexOf("\n", Math.max(0, offset - 1)) + 1;
+      const local = /(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=/.exec(content.slice(lineStart, offset))?.[1];
+      add({ specifier: literal.specifier, syntax: "dynamic", offset, localSymbols: local ? [local] : [], targetSymbols: ["default"] });
+      continue;
+    }
+    const sideEffect = readQuotedModuleSpecifier(content, cursor);
+    if (sideEffect) {
+      add({ specifier: sideEffect.specifier, syntax: "static", offset, localSymbols: [], targetSymbols: [] });
+      continue;
+    }
+    let braceDepth = 0;
+    while (cursor < content.length && cursor - offset <= 4_000) {
+      const character = content[cursor];
+      if (character === ";" && braceDepth === 0) break;
+      if (character === "{" || character === "[" || character === "(") braceDepth += 1;
+      else if (character === "}" || character === "]" || character === ")") braceDepth = Math.max(0, braceDepth - 1);
+      if (braceDepth === 0 && content.startsWith("import", cursor) && cursor !== offset && isWordBoundary(content, cursor, 6)) break;
+      if (braceDepth === 0 && content.startsWith("from", cursor) && isWordBoundary(content, cursor, 4)) {
+        const literal = readQuotedModuleSpecifier(content, skipModuleWhitespace(content, cursor + 4));
+        if (literal) add({
+          specifier: literal.specifier,
+          syntax: "static",
+          offset,
+          ...parseStaticModuleBinding(content.slice(offset, literal.end))
+        });
+        break;
+      }
+      cursor += 1;
+    }
+  }
+  for (const match of content.matchAll(/\brequire\b/g)) {
+    const offset = match.index ?? 0;
+    if (isOffsetInsideCodeStringOrComment(content, offset)) continue;
+    let cursor = skipModuleWhitespace(content, offset + "require".length);
+    if (content[cursor] !== "(") continue;
+    const literal = readQuotedModuleSpecifier(content, skipModuleWhitespace(content, cursor + 1));
+    if (!literal || content[skipModuleWhitespace(content, literal.end)] !== ")") continue;
+    const lineStart = content.lastIndexOf("\n", Math.max(0, offset - 1)) + 1;
+    const local = /(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=/.exec(content.slice(lineStart, offset))?.[1];
+    add({ specifier: literal.specifier, syntax: "require", offset, localSymbols: local ? [local] : [], targetSymbols: ["default"] });
+  }
+  return references.sort((left, right) => left.offset - right.offset);
+}
+
+function isNonActionAssetModule(specifier) {
+  return /\.(?:css|scss|sass|less|styl|svg|png|jpe?g|gif|webp|avif|ico|woff2?|ttf|otf)(?:[?#].*)?$/i.test(specifier);
 }
 
 function buildSourceDependencyGraph(files) {
@@ -610,21 +697,26 @@ function buildSourceDependencyGraph(files) {
   for (const file of codeFiles) {
     const path = normalizePath(file.path);
     const content = maskCodeComments(file.content);
-    for (const match of content.matchAll(MODULE_IMPORT_PATTERN)) {
-      const specifier = match[1] ?? match[2] ?? match[3];
+    for (const reference of extractModuleReferences(content)) {
+      const specifier = reference.specifier;
       const relative = specifier.startsWith("./") || specifier.startsWith("../");
       const alias = relative ? undefined : resolveAliasImport(specifier, paths, aliasRules);
       const resolved = relative ? resolveRelativeImport(path, specifier, paths) : alias?.resolved;
       if (resolved) {
-        const kind = relative ? (match[2] ? "dynamic_import" : match[3] ? "require" : "relative_import") : "path_alias";
-        internalEdges.push({ from: path, to: resolved, kind, offset: match.index ?? 0, ...extractModuleBinding(content, specifier, kind, match.index ?? 0) });
-      } else if (relative || alias?.potentialLocal) {
+        const kind = relative
+          ? reference.syntax === "dynamic"
+            ? "dynamic_import"
+            : reference.syntax === "require"
+              ? "require"
+              : "relative_import"
+          : "path_alias";
+        internalEdges.push({ from: path, to: resolved, kind, offset: reference.offset, localSymbols: reference.localSymbols, targetSymbols: reference.targetSymbols });
+      } else if ((relative || alias?.potentialLocal) && !isNonActionAssetModule(specifier)) {
         const diagnostics = diagnosticsByFile.get(path) ?? [];
-        const kind = relative ? (match[2] ? "dynamic_import" : match[3] ? "require" : "relative_import") : "path_alias";
         diagnostics.push({
           message: alias?.diagnostic ?? `Unresolved local import: ${specifier}`,
-          offset: match.index ?? 0,
-          localSymbols: extractModuleBinding(content, specifier, kind, match.index ?? 0).localSymbols
+          offset: reference.offset,
+          localSymbols: reference.localSymbols
         });
         diagnosticsByFile.set(path, diagnostics);
       }
@@ -728,8 +820,8 @@ function getReachableDistFiles(files, starts) {
   for (const file of files) {
     const path = normalizePath(file.path);
     const fileDependencies = new Set();
-    for (const match of maskCodeComments(file.content).matchAll(MODULE_IMPORT_PATTERN)) {
-      const specifier = match[1] ?? match[2] ?? match[3];
+    for (const reference of extractModuleReferences(maskCodeComments(file.content))) {
+      const specifier = reference.specifier;
       if (!specifier.startsWith("./") && !specifier.startsWith("../")) continue;
       const resolved = resolveRelativeImport(path, specifier, available);
       if (resolved) fileDependencies.add(resolved);
