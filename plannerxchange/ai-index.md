@@ -28,7 +28,7 @@ the current context pack, SDK, or review export documents it as available.
 | --- | --- | --- |
 | Fix manifest or review metadata | `plannerxchange/publish-notes.md`, this file | `plannerxchange.app.json` |
 | Add or change API access | `plannerxchange/api-reference.md`, `plannerxchange/data-contract.md` | `plannerxchange.app.json`, app API calls |
-| Save app-owned work product | `plannerxchange/app-data-api.md` | `src/lib/px-gateway.ts`, app data models |
+| Save app-owned work product | `plannerxchange/app-data-api.md` | Prefer SDK app-data methods; otherwise use exact list/create/get/update/delete record routes in `src/lib/px-gateway.ts` and retain server-issued record IDs |
 | Read clients, households, accounts, positions, transactions, CRM, or tax data | `plannerxchange/api-reference.md`, `plannerxchange/data-contract.md`, `plannerxchange/pii-and-security.md` | `plannerxchange.app.json`, app API calls |
 | Add or fix a Client, Household, or Account field | `plannerxchange/canonical-entity-controls.md`, `plannerxchange/api-reference.md`, `plannerxchange/data-contract.md` | field UI/model, `plannerxchange.app.json`, `src/lib/px-gateway.ts` |
 | Create, update, or soft-delete PX canonical records | `plannerxchange/api-reference.md`, `plannerxchange/data-contract.md`, `plannerxchange/pii-and-security.md` | `plannerxchange.app.json`, `src/lib/px-gateway.ts`, app API calls |
@@ -173,6 +173,8 @@ Request only the scopes the app actually uses.
 - Treat `egressDeclarations` as review evidence, not approval. There is no non-enterprise Day 1 self-serve exception for external PX/client data egress.
 - Do not manually attach bearer tokens.
 - Do not pass `appInstallationId` in query strings.
+- Treat `/app-data` as a record API, not a key-value store. Use `GET /app-data` to list, `POST /app-data` to create, and the returned `recordId` with `GET`, `PATCH`, or `DELETE /app-data/{recordId}`. Store app-owned content in `payload`; never use `PUT`, locally fabricated record IDs, `{ value }`, or a top-level `.value` response.
+- `app_data.read` and `app_data.write` authorize access but do not make an unsupported route, method, body, response, or record-ID lifecycle valid. Preflight and publication review enforce both permissions and request compliance.
 - Import wrappers are supported only when the source graph can statically trace the import-facing route or action through relative imports or uniquely resolved configured `tsconfig`/`jsconfig` path aliases, parameter forwarding, assignments, and aliases to `openDataImportSession` with the matching stable declaration ID. Relative `extends`, `baseUrl`, `paths`, and a unique conventional `@/` or `~/` source-root alias are supported; ambiguous or unresolved local aliases remain unverified. Prefer a direct runtime-helper call when no wrapper is needed.
 - PlannerXchange groups a route, its navigation destination, its rendered import page, and its primary import action into one user journey, then verifies that journey against its own declaration ID and committed artifact evidence. Unrelated imports elsewhere in the source tree cannot satisfy it.
 - Informational prose that merely mentions importing data is not an import action. A rendered import-specific route, accessible control, navigation destination, page title, or primary action is; it must reach the PX-owned wizard rather than terminate in app-authored copy.

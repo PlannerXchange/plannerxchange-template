@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-import { analyzeImportSessionContract, CANONICAL_IMPORT_ENTITY_CATALOG } from "./import-session-contract.mjs";
+import { analyzeImportSessionContract, buildReviewSourceReachability, CANONICAL_IMPORT_ENTITY_CATALOG } from "./import-session-contract.mjs";
 
 const declaration = {
   id: "transactions-import",
@@ -34,6 +34,17 @@ test("accepts an exact declaration with matching source and build calls", () => 
     }
   });
   assert.deepEqual(issues, []);
+});
+
+test("keeps same-line action use when excluding an unresolved import statement", () => {
+  const sourceFiles = [
+    { path: "tsconfig.json", content: JSON.stringify({ compilerOptions: { paths: { "@/*": ["src/*", "alternate/*"] } } }) },
+    { path: "src/plugin.ts", content: `import { load } from "@/lib/store"; export function mount(api){return load(api)}` },
+    { path: "src/lib/store.ts", content: `export function load(api){return api.listAppData()}` },
+    { path: "alternate/lib/store.ts", content: `export function load(){return []}` }
+  ];
+  const result = buildReviewSourceReachability({ sourceFiles, entrypointFiles: ["src/plugin.ts"] });
+  assert.match(result.relevantDiagnostics.join(" "), /Ambiguous local import alias/);
 });
 
 test("accepts every catalog entity with its exact required data class and entrypoint label", () => {

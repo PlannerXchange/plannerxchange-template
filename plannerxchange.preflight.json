@@ -97,6 +97,13 @@
       "type": "import-session-contract"
     },
     {
+      "id": "app-data-contract",
+      "severity": "error",
+      "title": "App-data requests use the PX record contract",
+      "description": "App-data operations must use list/create/get/update/delete semantics, server-issued record IDs, payload envelopes, matching permissions, and committed artifact evidence.",
+      "type": "app-data-contract"
+    },
+    {
       "id": "build-output-exists",
       "severity": "error",
       "title": "Build output exists",

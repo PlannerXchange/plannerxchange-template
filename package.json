@@ -8,7 +8,7 @@
     "build": "tsc -p tsconfig.json && vite build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "preflight": "node scripts/preflight.mjs",
-    "test:preflight": "node --test scripts/import-session-contract.test.mjs"
+    "test:preflight": "node --test scripts/*.test.mjs"
   },
   "dependencies": {
     "react": "^19.0.0",

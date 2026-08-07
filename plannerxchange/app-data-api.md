@@ -1,5 +1,11 @@
 # PlannerXchange App Data API
 
+`/app-data` is a record API, not a key-value store. Create with
+`POST /app-data`, retain the server-issued `recordId`, and update with
+`PATCH /app-data/{recordId}`. Do not construct record IDs from client or
+application keys. There is no `PUT` route or `{ value }` compatibility shape;
+app-owned content is read and written through `payload`.
+
 This document defines the builder-facing write contract for PlannerXchange-hosted app-owned work product.
 
 It is separate from the canonical-data contract. Builder apps read and mutate shared canonical records through governed canonical APIs, and write builder-owned work product through the app-data API family.
@@ -146,6 +152,8 @@ List builder-owned work-product records for the current app and firm.
 
 **Query parameters:** `recordType`, `clientUserId`, `householdId`, `accountId`, `status`, `limit`, `cursor`
 
+Unknown query parameters are rejected. `limit`, when present, must be a positive integer. Record routes do not accept query parameters.
+
 **Response:**
 
 ```json
@@ -186,6 +194,8 @@ Create a new work-product record.
 ```
 
 **Response:** the created record with server-assigned `recordId`, `appId`, `appInstallationId`, `firmId`, `createdAt`, `createdByUserId`.
+
+Create accepts only `recordType`, optional `title`, `status`, `schemaVersion`, optional association IDs, optional `sourceRefs`, and `payload`. `recordType`, `status`, `schemaVersion`, and an object `payload` are required. Status must be `draft`, `final`, or `archived`; `schemaVersion` must be a positive integer.
 
 ### `GET /app-data/{recordId}`
 
@@ -261,6 +271,8 @@ Firm/app-level template, no client association required:
   }
 }
 ```
+
+Patch accepts only `title`, `status`, and `payload`, and at least one must be present. The payload, when present, must be an object. Preflight and publication review validate source and committed build operations independently; declaring permissions does not waive request-contract checks.
 
 Client invitation, top-level `clientUserId` required:
 

@@ -642,12 +642,12 @@ function extractModuleReferences(content) {
       if (!literal || content[skipModuleWhitespace(content, literal.end)] !== ")") continue;
       const lineStart = content.lastIndexOf("\n", Math.max(0, offset - 1)) + 1;
       const local = /(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=/.exec(content.slice(lineStart, offset))?.[1];
-      add({ specifier: literal.specifier, syntax: "dynamic", offset, localSymbols: local ? [local] : [], targetSymbols: ["default"] });
+      add({ specifier: literal.specifier, syntax: "dynamic", offset, endOffset: skipModuleWhitespace(content, literal.end) + 1, localSymbols: local ? [local] : [], targetSymbols: ["default"] });
       continue;
     }
     const sideEffect = readQuotedModuleSpecifier(content, cursor);
     if (sideEffect) {
-      add({ specifier: sideEffect.specifier, syntax: "static", offset, localSymbols: [], targetSymbols: [] });
+      add({ specifier: sideEffect.specifier, syntax: "static", offset, endOffset: sideEffect.end, localSymbols: [], targetSymbols: [] });
       continue;
     }
     let braceDepth = 0;
@@ -663,6 +663,7 @@ function extractModuleReferences(content) {
           specifier: literal.specifier,
           syntax: "static",
           offset,
+          endOffset: literal.end,
           ...parseStaticModuleBinding(content.slice(offset, literal.end))
         });
         break;
@@ -679,7 +680,7 @@ function extractModuleReferences(content) {
     if (!literal || content[skipModuleWhitespace(content, literal.end)] !== ")") continue;
     const lineStart = content.lastIndexOf("\n", Math.max(0, offset - 1)) + 1;
     const local = /(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=/.exec(content.slice(lineStart, offset))?.[1];
-    add({ specifier: literal.specifier, syntax: "require", offset, localSymbols: local ? [local] : [], targetSymbols: ["default"] });
+    add({ specifier: literal.specifier, syntax: "require", offset, endOffset: skipModuleWhitespace(content, literal.end) + 1, localSymbols: local ? [local] : [], targetSymbols: ["default"] });
   }
   return references.sort((left, right) => left.offset - right.offset);
 }
@@ -716,6 +717,7 @@ function buildSourceDependencyGraph(files) {
         diagnostics.push({
           message: alias?.diagnostic ?? `Unresolved local import: ${specifier}`,
           offset: reference.offset,
+          endOffset: reference.endOffset,
           localSymbols: reference.localSymbols
         });
         diagnosticsByFile.set(path, diagnostics);
@@ -738,6 +740,37 @@ function buildSourceDependencyGraph(files) {
     }
   }
   return { internalEdges, diagnosticsByFile, filesByPath: new Map(codeFiles.map((file) => [normalizePath(file.path), file])) };
+}
+
+export function buildReviewSourceReachability({ sourceFiles, entrypointFiles, maxFiles = 256, maxDepth = 12 }) {
+  const graph = buildSourceDependencyGraph(sourceFiles);
+  const reached = new Set();
+  const diagnostics = new Set();
+  const relevantDiagnostics = new Set();
+  const queue = entrypointFiles.map((path) => ({ path: normalizePath(path), depth: 0 }));
+  let bounded = false;
+  while (queue.length > 0 && reached.size < maxFiles) {
+    const current = queue.shift();
+    if (!current || reached.has(current.path)) continue;
+    if (current.depth > maxDepth) {
+      bounded = true;
+      continue;
+    }
+    reached.add(current.path);
+    for (const diagnostic of graph.diagnosticsByFile.get(current.path) ?? []) {
+      diagnostics.add(diagnostic.message);
+      const file = graph.filesByPath.get(current.path);
+      if (file && diagnostic.localSymbols.length > 0) {
+        const withoutImport = maskCodeComments(file.content.slice(0, diagnostic.offset) + " ".repeat(diagnostic.endOffset - diagnostic.offset) + file.content.slice(diagnostic.endOffset));
+        if (diagnostic.localSymbols.some((symbol) => new RegExp(`(?:\\b${symbol.replace(/[$]/g, "\\$")}\\s*(?:\\.[A-Za-z_$][\\w$]*)?\\s*\\(|<\\s*${symbol.replace(/[$]/g, "\\$")}\\b)`).test(withoutImport))) relevantDiagnostics.add(diagnostic.message);
+      }
+    }
+    for (const edge of graph.internalEdges.filter((value) => value.from === current.path)) {
+      queue.push({ path: edge.to, depth: current.depth + 1 });
+    }
+  }
+  if (queue.length > 0) bounded = true;
+  return { files: [...reached], diagnostics: [...diagnostics], relevantDiagnostics: [...relevantDiagnostics], bounded };
 }
 
 function getReachableSource(graph, candidate) {

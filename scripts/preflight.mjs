@@ -11,7 +11,8 @@
 
 import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
 import { resolve, join } from "node:path";
-import { analyzeImportSessionContract } from "./import-session-contract.mjs";
+import { analyzeAppDataContract } from "./app-data-contract.mjs";
+import { analyzeImportSessionContract, buildReviewSourceReachability } from "./import-session-contract.mjs";
 
 // Try to load a glob implementation. Node 22+ has globSync in node:fs,
 // but older versions need the "glob" npm package or a manual walk.
@@ -456,6 +457,44 @@ function runImportSessionContractCheck(check) {
   );
 }
 
+function runAppDataContractCheck(check) {
+  if (!existsSync(MANIFEST_PATH)) {
+    report(check, false, "plannerxchange.app.json not found");
+    return;
+  }
+  const boundary = getAppBoundary();
+  const sourcePrefix = boundary.appRoot === "." ? "src/" : `${boundary.appRoot}/src/`;
+  const distPrefix = `${boundary.distRoot}/`;
+  const configPrefix = boundary.appRoot === "." ? "" : `${boundary.appRoot}/`;
+  const files = walkDir(ROOT, { includeDist: true })
+    .map((filePath) => ({ filePath, path: toRelativePath(filePath) }))
+    .filter((file) =>
+      (file.path.startsWith(sourcePrefix) && /\.(?:[cm]?[jt]sx?|html)$/.test(file.path)) ||
+      (file.path.startsWith(distPrefix) && /\.(?:js|mjs|cjs|html)$/.test(file.path)) ||
+      (file.path.startsWith(configPrefix) && /(?:^|\/)(?:tsconfig|jsconfig)(?:\.[^/]+)?\.json$/i.test(file.path))
+    )
+    .map((file) => ({ path: file.path, content: readFileSync(file.filePath, "utf-8") }));
+  const sourceFiles = files.filter((file) => !file.path.startsWith(distPrefix));
+  const distFiles = files.filter((file) => file.path.startsWith(distPrefix));
+  const entrypointFile = boundary.appRoot === "."
+    ? boundary.entryPoint
+    : `${boundary.appRoot}/${boundary.entryPoint}`;
+  const reachability = buildReviewSourceReachability({ sourceFiles, entrypointFiles: [entrypointFile] });
+  const issues = analyzeAppDataContract({
+    manifest: readManifest() ?? {},
+    sourceFiles,
+    distFiles,
+    reachableSourceFiles: reachability.files,
+    relevantResolverDiagnostics: reachability.relevantDiagnostics,
+    traversalBounded: reachability.bounded,
+  });
+  report(
+    check,
+    issues.length === 0,
+    issues.length > 0 ? issues.slice(0, 8).map((entry) => `${entry.code}: ${entry.message}`).join("; ") : undefined
+  );
+}
+
 function runBuildProvenanceBoundaryCheck(check) {
   const boundary = getAppBoundary();
   const provenancePath = join(ROOT, boundary.buildProvenancePath);
@@ -523,6 +562,9 @@ for (const check of checks) {
       break;
     case "import-session-contract":
       runImportSessionContractCheck(check);
+      break;
+    case "app-data-contract":
+      runAppDataContractCheck(check);
       break;
     case "build-provenance-boundary":
       runBuildProvenanceBoundaryCheck(check);
