@@ -53,6 +53,41 @@ test("accepts aliases and typed local wrappers", () => {
   assert.ok(operations.every((operation) => operation.issues.length === 0));
 });
 
+test("accepts initializer forwarding into module-scoped app-data state", () => {
+  const operations = analyzeAppDataOperations(files({
+    "src/plugin.ts": `import { configureStore as initStore } from "./store";export function mount(ctx,demo){initStore(demo?undefined:ctx.authenticatedFetch,demo)}`,
+    "src/store.ts": `let transport;export function configureStore(fetcher,demo){transport=demo?undefined:fetcher}export function load(){return transport("/app-data")}export function save(input){return transport("/app-data",{method:"POST",body:JSON.stringify(input)})}`
+  }), "source");
+  assert.equal(operations.length, 2);
+  assert.ok(operations.every((operation) => !operation.issues.includes("gateway adapter is unresolved")), JSON.stringify(operations));
+});
+
+test("does not silently drop an unresolved app-data adapter", () => {
+  const issues = analyzeAppDataContract({
+    manifest,
+    sourceFiles: files({ "src/plugin.ts": `export function mount(){return opaqueTransport("/app-data",{method:"POST",body:JSON.stringify(input)})}` }),
+    distFiles: []
+  });
+  assert.ok(issues.some((issue) => issue.code === "app-data-analysis-indeterminate"));
+  assert.equal(issues.some((issue) => issue.code === "app-data-request-contract-invalid"), false);
+});
+
+test("discovers a statically named app-data route", () => {
+  const operations = analyzeAppDataOperations(files({
+    "src/store.ts": `const collectionPath="/app-data";export function load(){return authenticatedFetch(collectionPath)}`
+  }), "source");
+  assert.equal(operations.length, 1);
+  assert.deepEqual(operations[0].issues, []);
+});
+
+test("discovers app-data routes appended to a configured gateway base URL", () => {
+  const operations = analyzeAppDataOperations(files({
+    "src/store.ts": `export function load(ctx){return ctx.authenticatedFetch(ctx.apiBaseUrl + "/app-data?recordType=state")}`
+  }), "source");
+  assert.equal(operations.length, 1);
+  assert.deepEqual(operations[0].issues, []);
+});
+
 test("does not classify nested payload properties as request fields", () => {
   const [operation] = analyzeAppDataOperations(files({
     "src/repository.ts": `export function create(ctx){return ctx.authenticatedFetch("/app-data",{method:"POST",body:JSON.stringify({recordType:"state",status:"draft",schemaVersion:1,payload:{settings:{currency:"USD"},budgets:[]}})})}`

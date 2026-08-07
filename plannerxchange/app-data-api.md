@@ -6,6 +6,12 @@
 application keys. There is no `PUT` route or `{ value }` compatibility shape;
 app-owned content is read and written through `payload`.
 
+Small local adapters are supported. Preflight and publication review trace
+`authenticatedFetch` through initializer parameters, assignments,
+module/object storage, and local wrappers. Keep those edges and `/app-data`
+routes statically resolvable; renaming or storing the capability does not change
+the request contract.
+
 This document defines the builder-facing write contract for PlannerXchange-hosted app-owned work product.
 
 It is separate from the canonical-data contract. Builder apps read and mutate shared canonical records through governed canonical APIs, and write builder-owned work product through the app-data API family.

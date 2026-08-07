@@ -148,6 +148,36 @@ function callArguments(call) {
   return values;
 }
 
+function resolveStaticRouteExpression(expression, prefix) {
+  const trimmed = expression.trim();
+  const literal = /^(?:["'`]([^"'`]*)["'`])$/.exec(trimmed)?.[1];
+  if (literal !== undefined) return literal;
+  const routeLiteral = /["'`]([^"'`]*\/app-data[^"'`]*)["'`]/.exec(trimmed)?.[1];
+  if (routeLiteral !== undefined) {
+    const prefixMarker = trimmed.slice(0, trimmed.indexOf(routeLiteral)).includes("+") ? "${dynamic}" : "";
+    const suffixMarker = trimmed.slice(trimmed.indexOf(routeLiteral) + routeLiteral.length).includes("+") ? "${dynamic}" : "";
+    return `${prefixMarker}${routeLiteral}${suffixMarker}`;
+  }
+  const identifier = /^([A-Za-z_$][\w$]*)$/.exec(trimmed)?.[1];
+  if (!identifier) return undefined;
+  const assignments = [...prefix.matchAll(new RegExp(`\\b(?:const|let|var)\\s+${escapeRegex(identifier)}\\s*=\\s*(["'\`])([^"'\`]*)\\1`, "g"))];
+  return assignments.at(-1)?.[2];
+}
+
+function gatewayCallCandidates(content) {
+  const candidates = [];
+  for (const match of content.matchAll(/\b([A-Za-z_$][\w$]*(?:(?:\?\.)?\.[A-Za-z_$][\w$]*)*)\s*\(/g)) {
+    const start = match.index ?? 0;
+    const open = start + match[0].lastIndexOf("(");
+    const end = callEnd(content, open);
+    const call = content.slice(start, end);
+    const route = callArguments(call)[0] ?? "";
+    const routeValue = resolveStaticRouteExpression(route, content.slice(0, start));
+    if (routeValue?.includes("/app-data")) candidates.push({ symbol: match[1], start, end, call, route, routeValue });
+  }
+  return candidates;
+}
+
 function aliases(content, targets) {
   const output = new Map();
   const targetPattern = targets.map(escapeRegex).join("|");
@@ -161,6 +191,95 @@ function aliases(content, targets) {
     }
   }
   return output;
+}
+
+function importBindings(content) {
+  const output = new Map();
+  for (const match of content.matchAll(/\bimport\s*\{([\s\S]*?)\}\s*from\s*["'`][^"'`]+["'`]/g)) {
+    for (const item of match[1].split(",")) {
+      const parsed = /^\s*([A-Za-z_$][\w$]*)(?:\s+as\s+([A-Za-z_$][\w$]*))?\s*$/.exec(item);
+      if (parsed) output.set(parsed[2] ?? parsed[1], parsed[1]);
+    }
+  }
+  return output;
+}
+
+function adapterBindings(files) {
+  const codeFiles = files.filter((file) => /\.(?:[cm]?[jt]sx?|html)$/i.test(file.path));
+  const masked = new Map(codeFiles.map((file) => [file.path, maskComments(file.content)]));
+  const definitions = [];
+  for (const file of codeFiles) {
+    const content = masked.get(file.path);
+    for (const match of content.matchAll(/\b(?:export\s+(?:default\s+)?)?(?:async\s+)?function\s+([A-Za-z_$][\w$]*)\s*\(([^)]*)\)\s*\{/g)) {
+      const start = match.index ?? 0;
+      const bodyStart = start + match[0].lastIndexOf("{");
+      definitions.push({ file: file.path, name: match[1], params: match[2].split(",").map((value) => value.replace(/[?:].*$/s, "").trim()).filter(Boolean), start, bodyStart, end: closingBrace(content, bodyStart), content });
+    }
+  }
+  const byName = new Map();
+  for (const definition of definitions) byName.set(definition.name, [...(byName.get(definition.name) ?? []), definition]);
+  const bindings = new Map(codeFiles.map((file) => [file.path, new Set(["authenticatedFetch", "requestJson", "fetch"])]));
+  const forwarded = new Map();
+  const expressionUses = (expression, symbols) => /\.\s*authenticatedFetch\b/.test(expression) || [...symbols].some((symbol) => new RegExp(`\\b${escapeRegex(symbol)}\\b`).test(expression));
+  for (let pass = 0; pass < 12; pass += 1) {
+    let changed = false;
+    for (const file of codeFiles) {
+      const content = masked.get(file.path);
+      const symbols = bindings.get(file.path);
+      const imported = importBindings(content);
+      for (const [local, importedName] of imported) {
+        const targets = byName.get(importedName) ?? [];
+        if (targets.length === 1 && bindings.get(targets[0].file)?.has(targets[0].name) && !symbols.has(local)) {
+          symbols.add(local);
+          changed = true;
+        }
+      }
+      for (const match of content.matchAll(/(?:\b(?:const|let|var)\s+)?([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)?)\s*=\s*([^;\r\n]+)/g)) {
+        const definition = definitions.find((candidate) => candidate.file === file.path && (match.index ?? 0) >= candidate.bodyStart && (match.index ?? 0) < candidate.end);
+        const forwardedParams = definition ? forwarded.get(definition) ?? new Set() : new Set();
+        if (!expressionUses(match[2], symbols) && ![...forwardedParams].some((param) => new RegExp(`\\b${escapeRegex(param)}\\b`).test(match[2]))) continue;
+        if (!symbols.has(match[1])) {
+          symbols.add(match[1]);
+          changed = true;
+        }
+      }
+    }
+    for (const file of codeFiles) {
+      const content = masked.get(file.path);
+      const symbols = bindings.get(file.path);
+      const imported = importBindings(content);
+      for (const match of content.matchAll(/\b([A-Za-z_$][\w$]*)\s*\(/g)) {
+        const targetName = imported.get(match[1]) ?? match[1];
+        const targets = byName.get(targetName) ?? [];
+        if (targets.length !== 1) continue;
+        const target = targets[0];
+        if (target.file === file.path && (match.index ?? 0) >= target.start && (match.index ?? 0) <= target.bodyStart) continue;
+        const open = (match.index ?? 0) + match[0].lastIndexOf("(");
+        const end = callEnd(content, open);
+        const args = callArguments(content.slice(match.index, end));
+        args.forEach((argument, index) => {
+          if (!target.params[index] || !expressionUses(argument, symbols)) return;
+          const params = forwarded.get(target) ?? new Set();
+          if (!params.has(target.params[index])) {
+            params.add(target.params[index]);
+            forwarded.set(target, params);
+            changed = true;
+          }
+        });
+      }
+    }
+    for (const definition of definitions) {
+      const symbols = bindings.get(definition.file);
+      const body = definition.content.slice(definition.bodyStart, definition.end);
+      const params = forwarded.get(definition) ?? new Set();
+      if (!expressionUses(body, symbols) && ![...params].some((param) => new RegExp(`\\b${escapeRegex(param)}\\s*\\(`).test(body))) continue;
+      if (!/\breturn\b/.test(body) || symbols.has(definition.name)) continue;
+      symbols.add(definition.name);
+      changed = true;
+    }
+    if (!changed) break;
+  }
+  return bindings;
 }
 
 function objectFields(value) {
@@ -286,6 +405,7 @@ function validate(fact) {
 
 export function analyzeAppDataOperations(files, source) {
   const facts = [];
+  const gatewayBindings = adapterBindings(files);
   for (const file of files) {
     if (!/\.(?:[cm]?[jt]sx?|html)$/i.test(file.path)) continue;
     const content = maskComments(file.content);
@@ -306,21 +426,13 @@ export function analyzeAppDataOperations(files, source) {
       if (!shape.resolved || !listQuery.resolved) fact.issues.push("dynamic request contract");
       facts.push(fact);
     }
-    const gatewayAliases = aliases(content, ["authenticatedFetch", "requestJson", "fetch"]);
-    const gatewaySymbols = [...new Set(["authenticatedFetch", "requestJson", "fetch", ...gatewayAliases.keys()])];
-    const gatewayPattern = new RegExp(`\\b(?:${gatewaySymbols.map(escapeRegex).join("|")})\\s*\\(`, "g");
-    for (const routeMatch of content.matchAll(/\/app-data\b/g)) {
-      const routeOffset = routeMatch.index ?? 0;
-      const prefix = content.slice(Math.max(0, routeOffset - 500), routeOffset);
-      const candidate = [...prefix.matchAll(gatewayPattern)].at(-1);
-      if (!candidate || candidate.index === undefined) continue;
-      const start = Math.max(0, routeOffset - 500) + candidate.index;
-      const open = content.indexOf("(", start);
-      const end = callEnd(content, open);
-      if (routeOffset > end) continue;
-      const call = content.slice(start, end);
-      const route = callArguments(call)[0] ?? "";
-      const after = route.slice(route.indexOf("/app-data") + 9);
+    const gatewaySymbols = gatewayBindings.get(file.path) ?? new Set(["authenticatedFetch", "requestJson", "fetch"]);
+    for (const candidate of gatewayCallCandidates(content)) {
+      const { start, end, call, route, routeValue } = candidate;
+      const terminalSymbol = candidate.symbol.split(".").at(-1);
+      const gatewayUnresolved = !gatewaySymbols.has(candidate.symbol) && !gatewaySymbols.has(terminalSymbol) && terminalSymbol !== "authenticatedFetch";
+      const after = routeValue.slice(routeValue.indexOf("/app-data") + 9);
+      const originalAfter = route.includes("/app-data") ? route.slice(route.indexOf("/app-data") + 9) : after;
       const endpoint = /^\s*(?:["'`]|\?|$)/.test(after) ? "collection" : /\/|\$\{/.test(after) ? "record" : "unknown";
       const literalMethod = /\bmethod\s*:\s*["'`](GET|POST|PATCH|DELETE|PUT)["'`]/i.exec(call)?.[1]?.toUpperCase();
       const method = literalMethod ?? ((/\bmethod\s*:/.test(call) || /(?:\{|,)\s*method\s*(?:,|\})/.test(call)) ? "UNKNOWN" : "GET");
@@ -329,8 +441,9 @@ export function analyzeAppDataOperations(files, source) {
       const callPrefix = content.slice(Math.max(0, start - 4_000), start);
       const shape = requestShape(call, callPrefix, "gateway", resolvedOperation);
       if (/JSON\.stringify[\s\S]*?\{[\s\S]*?\bvalue\s*(?::|,|\})/.test(call)) shape.fields = [...new Set([...shape.fields, "value"])].sort();
-      const fact = validate({ file: file.path, source, mechanism: "gateway", operation: resolvedOperation, method, endpoint, recordIdProvenance: endpoint === "record" ? recordIdProvenance(after, callPrefix) : "none", requestFields: shape.fields, requestShapeResolved: shape.resolved, queryFields: [...new Set([...route.matchAll(/[?&]([A-Za-z_$][\w$-]*)\s*=/g)].map((match) => match[1]))], responseFields: /\b(?:body|data|record|response|result)\??\.value\b/.test(trailing) ? ["value"] : [], line: lineAt(file.content, start), offset: start });
+      const fact = validate({ file: file.path, source, mechanism: "gateway", operation: resolvedOperation, method, endpoint, recordIdProvenance: endpoint === "record" ? recordIdProvenance(originalAfter, callPrefix) : "none", requestFields: shape.fields, requestShapeResolved: shape.resolved, queryFields: [...new Set([...route.matchAll(/[?&]([A-Za-z_$][\w$-]*)\s*=/g)].map((match) => match[1]))], responseFields: /\b(?:body|data|record|response|result)\??\.value\b/.test(trailing) ? ["value"] : [], line: lineAt(file.content, start), offset: start });
       if (!shape.resolved) fact.issues.push("dynamic request contract");
+      if (gatewayUnresolved) fact.issues.push("gateway adapter is unresolved");
       facts.push(fact);
     }
   }
@@ -359,11 +472,19 @@ export function analyzeAppDataContract({ manifest, sourceFiles, distFiles, reach
   const artifact = analyzeAppDataOperations(distFiles, "dist");
   const available = new Map();
   for (const fact of artifact) {
+    if (fact.issues.includes("gateway adapter is unresolved")) {
+      issues.push({ code: "app-data-analysis-indeterminate", file: fact.file, message: "Committed app-data gateway provenance could not be resolved." });
+      continue;
+    }
     const provenIssues = fact.issues.filter((issue) => !/dynamic request contract|provenance is unresolved/.test(issue));
     if (provenIssues.length === 0) available.set(signature(fact), [...(available.get(signature(fact)) ?? []), fact]);
     else issues.push({ code: "app-data-request-contract-invalid", file: fact.file, message: `${fact.method} ${fact.endpoint} app-data operation: ${provenIssues.join(", ")}.` });
   }
   for (const fact of source) {
+    if (fact.issues.includes("gateway adapter is unresolved")) {
+      issues.push({ code: "app-data-analysis-indeterminate", file: fact.file, message: "App-data gateway provenance could not be resolved." });
+      continue;
+    }
     const unresolvedProvenance = fact.issues.includes("record id provenance is unresolved");
     const provenIssues = fact.issues.filter((issue) => issue !== "record id provenance is unresolved");
     if (provenIssues.length > 0) issues.push({ code: "app-data-request-contract-invalid", file: fact.file, message: `${fact.method} ${fact.endpoint} app-data operation: ${provenIssues.join(", ")}.` });
