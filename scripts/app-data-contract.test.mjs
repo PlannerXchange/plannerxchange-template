@@ -293,6 +293,84 @@ test("resolves static spreads and validates literal request values", () => {
   assert.match(invalid.issues.join(" "), /invalid sourceRefs entry/);
 });
 
+test("validates every statically resolvable conditional create branch", () => {
+  const valid = resolveAppDataRequestShape({
+    expression: `useFirst ? { recordType: "state", status: "draft", schemaVersion: 1, payload: first } : { recordType: "state", status: "final", schemaVersion: 1, payload: second }`,
+    source: "",
+    kind: "create",
+  });
+  assert.equal(valid.resolved, true);
+  assert.deepEqual(valid.issues, []);
+  const missing = resolveAppDataRequestShape({
+    expression: `useFirst ? { recordType: "state", status: "draft", schemaVersion: 1, payload: first } : { recordType: "state", schemaVersion: 1, payload: second }`,
+    source: "",
+    kind: "create",
+  });
+  assert.match(missing.issues.join(" "), /required create field status is optional/);
+});
+
+test("treats a deliberately dynamic create body as an app-owned preflight finding", () => {
+  const call = `export function save(api,input){return api.createAppDataRecord({...input,schemaVersion:1})}`;
+  const issues = analyzeAppDataContract({
+    manifest,
+    sourceFiles: files({ "src/plugin.ts": call }),
+    distFiles: files({ "dist/plugin.js": call }),
+  });
+  assert.ok(issues.some((issue) => issue.code === "app-data-request-contract-invalid"));
+  assert.equal(issues.some((issue) => issue.code === "app-data-analysis-indeterminate"), false);
+  assert.match(issues.map((issue) => issue.message).join(" "), /dynamic request contract/);
+});
+
+test("accepts all five app-data operations with a distant server-id cache and erased artifact types", () => {
+  const distant = "x".repeat(8_000);
+  const source = `
+    type Association = { status: "draft"; clientUserId: string };
+    type StoredState = { recordId: string; payload: Record<string, unknown> };
+    let transport;
+    const records = new Map<string, StoredState>();
+    function configure(next) { transport = next; }
+    async function parseJson(response) { return await response.json(); }
+    async function locate(clientUserId) {
+      const query = new URLSearchParams({ recordType: "state", clientUserId });
+      const response = await transport("/app-data?" + query.toString());
+      const page = await parseJson(response);
+      const listed = page.items.find((item) => item.recordType === "state");
+      if (listed?.recordId) records.set(clientUserId, { recordId: listed.recordId, payload: listed.payload });
+      const record = records.get(clientUserId);
+      if (record?.recordId) return transport("/app-data/" + encodeURIComponent(record.recordId));
+    }
+    const filler = "${distant}";
+    async function save(clientUserId, payload, association: Association) {
+      const record = records.get(clientUserId);
+      if (record?.recordId) return transport("/app-data/" + encodeURIComponent(record.recordId), { method: "PATCH", body: JSON.stringify({ payload }) });
+      const base = { recordType: "state", schemaVersion: 1 };
+      const response = await transport("/app-data", { method: "POST", body: JSON.stringify({ ...base, ...association, payload }) });
+      const created = await parseJson(response);
+      records.set(clientUserId, { recordId: created.recordId, payload: created.payload });
+      return created;
+    }
+    async function remove(clientUserId) {
+      const record = records.get(clientUserId);
+      if (record?.recordId) return transport("/app-data/" + encodeURIComponent(record.recordId), { method: "DELETE" });
+    }
+    export function mount(context) {
+      configure(context.authenticatedFetch);
+      void locate("selected-client");
+      void save("selected-client", {}, { status: "draft", clientUserId: "selected-client" });
+      void remove("selected-client");
+    }
+  `;
+  const artifact = `let t;const c=new Map;function q(e){return t=e}async function j(e){return await e.json()}async function l(e){const r=new URLSearchParams({recordType:"state",clientUserId:e}),a=await t("/app-data?"+r.toString()),o=await j(a),n=o.items.find(e=>"state"===e.recordType);n?.recordId&&c.set(e,{recordId:n.recordId,payload:n.payload});const i=c.get(e);if(i?.recordId)return t("/app-data/"+encodeURIComponent(i.recordId))}const f="${distant}";async function s(e,r,a){const o=c.get(e);if(o?.recordId)return t("/app-data/"+encodeURIComponent(o.recordId),{method:"PATCH",body:JSON.stringify({payload:r})});const n=await t("/app-data",{method:"POST",body:JSON.stringify({recordType:"state",schemaVersion:1,...a,payload:r})}),i=await j(n);return c.set(e,{recordId:i.recordId,payload:i.payload}),i}async function d(e){const r=c.get(e);if(r?.recordId)return t("/app-data/"+encodeURIComponent(r.recordId),{method:"DELETE"})}export function mount(e){q(e.authenticatedFetch),l("selected-client"),s("selected-client",{},{status:"draft",clientUserId:"selected-client"}),d("selected-client")}`;
+  const operations = analyzeAppDataOperations(files({ "src/plugin.ts": source }), "source");
+  assert.deepEqual(operations.map((entry) => entry.operation).sort(), ["create", "delete", "get", "list", "update"]);
+  assert.ok(operations.every((entry) => entry.issues.length === 0), JSON.stringify(operations));
+  assert.deepEqual(analyzeAppDataContract({
+    manifest,
+    sourceFiles: files({ "src/plugin.ts": source }),
+    distFiles: files({ "dist/plugin.js": artifact }),
+  }), []);
+});
+
 test("the public gateway source retains the strict app-data type contract", async () => {
   const gateway = await import("node:fs/promises").then((fs) => fs.readFile(new URL("../src/lib/px-gateway.ts", import.meta.url), "utf8"));
   const createBody = /export interface AppDataCreateInput[\s\S]*?\n\}/.exec(gateway)?.[0] ?? "";
@@ -338,5 +416,5 @@ test("only request-reachable type modules influence template preflight resolutio
     { path: "src/one/contracts.ts", content: good },
     { path: "src/two/contracts.ts", content: good },
   ], "source");
-  assert.match(ambiguous.issues.join(" "), /dynamic request contract/);
+  assert.match(ambiguous.issues.join(" "), /request shape resolution unavailable/);
 });

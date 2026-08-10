@@ -576,10 +576,11 @@ function expressionComesFromAppData(expression, prefix, visited = new Set(), dep
   return false;
 }
 
-function recordIdProvenance(expression, prefix = "") {
+function recordIdProvenance(expression, prefix = "", visited = new Set()) {
+  if (expressionComesFromAppData(expression, prefix)) return "server";
   if (/\b(?:clientId|clientUserId|householdId|accountId|storageKey|cacheKey|key)\b|px-[a-z0-9_-]+/i.test(expression)) return "fabricated";
   if (/^\s*["'`][^$]+["'`]\s*$/.test(expression)) return "fabricated";
-  const property = /\b([A-Za-z_$][\w$]*)[^,;]*?(?:\.recordId\b|\[["']recordId["']\])/.exec(expression);
+  const property = /\b([A-Za-z_$][\w$]*)\??(?:\.recordId\b|\[["']recordId["']\])/.exec(expression);
   if (property) {
     const root = property[1];
     const assignment = lastAssignedValue(prefix, root);
@@ -591,8 +592,27 @@ function recordIdProvenance(expression, prefix = "") {
   if (identifier) {
     if (new RegExp(`\\b(?:const|let|var)\\s*\\{[^}]*\\b${escapeRegex(identifier)}\\b[^}]*\\}\\s*=\\s*(?:await\\s*)?[^;\\n]*(?:listAppData|getAppDataRecord|createAppDataRecord|updateAppDataRecord)\\s*\\(`).test(prefix)) return "server";
     const assignment = lastAssignedValue(prefix, identifier);
-    if (assignment) return recordIdProvenance(assignment, prefix.slice(0, Math.max(0, prefix.lastIndexOf(assignment))));
+    if (assignment) return recordIdProvenance(
+      assignment,
+      prefix.slice(0, Math.max(0, prefix.lastIndexOf(assignment))),
+      new Set(visited).add(identifier)
+    );
     if (isExplicitFunctionParameter(prefix, identifier)) return "parameter";
+  }
+  const ignored = new Set(["await", "encodeURIComponent", "get", "return", "undefined", "null", "true", "false"]);
+  for (const match of expression.matchAll(/(?<![A-Za-z0-9_$])([A-Za-z_$][\w$]*)(?![A-Za-z0-9_$])/g)) {
+    const symbol = match[1];
+    if (ignored.has(symbol) || visited.has(symbol)) continue;
+    const assignment = lastAssignedValue(prefix, symbol);
+    if (!assignment) continue;
+    if (expressionComesFromAppData(assignment, prefix)) return "server";
+    const offset = prefix.lastIndexOf(assignment);
+    const resolved = recordIdProvenance(
+      assignment,
+      offset >= 0 ? prefix.slice(0, offset) : prefix,
+      new Set(visited).add(symbol)
+    );
+    if (resolved !== "unresolved") return resolved;
   }
   return "unresolved";
 }
@@ -650,14 +670,14 @@ export function analyzeAppDataOperations(files, source) {
       const open = (match.index ?? 0) + match[0].lastIndexOf("(");
       const end = callEnd(content, open);
       const call = content.slice(match.index, end);
-      const prefix = content.slice(Math.max(0, (match.index ?? 0) - 4_000), match.index ?? 0);
+      const prefix = content.slice(0, match.index ?? 0);
       const shapeSource = content.slice(0, match.index ?? 0);
       const shape = requestShape(call, shapeSource, "sdk", resolvedOperation, typeSources);
       const listQuery = resolvedOperation === "list" ? resolveListQueryFields(callArguments(call)[0] ?? "", shapeSource, typeSources) : { fields: [], resolved: true, issues: [] };
       const destructuresValue = /(?:const|let|var)\s*\{\s*value\s*\}\s*=\s*(?:await\s*)?$/.test(content.slice(Math.max(0, (match.index ?? 0) - 160), match.index ?? 0));
       const fact = validate({ file: file.path, source, mechanism: "sdk", operation: resolvedOperation, method, endpoint, recordIdProvenance: endpoint === "record" ? recordIdProvenance(callArguments(call)[0] ?? "", prefix) : "none", requestFields: shape.fields, requestRequiredFields: shape.requiredFields, requestFieldOffsets: requestFieldOffsets(call, shape.fields, match.index ?? 0), requestShapeResolved: shape.resolved, requestShapeProvenance: shape.provenance, queryFields: listQuery.fields, responseFields: destructuresValue || legacyValueResponse(content, match.index ?? 0, end) ? ["value"] : [], line: lineAt(file.content, match.index ?? 0), offset: match.index ?? 0 });
       fact.issues.push(...shape.issues, ...listQuery.issues);
-      if (!shape.resolved || !listQuery.resolved) fact.issues.push("dynamic request contract");
+      if ((!shape.resolved || !listQuery.resolved) && shape.issues.length === 0 && listQuery.issues.length === 0) fact.issues.push("request shape resolution unavailable");
       facts.push(fact);
     }
     for (const candidate of gatewayCallCandidates(content)) {
@@ -675,12 +695,12 @@ export function analyzeAppDataOperations(files, source) {
       const literalMethod = /\bmethod\s*:\s*["'`](GET|POST|PATCH|DELETE|PUT)["'`]/i.exec(call)?.[1]?.toUpperCase();
       const method = literalMethod ?? ((/\bmethod\s*:/.test(call) || /(?:\{|,)\s*method\s*(?:,|\})/.test(call)) ? "UNKNOWN" : "GET");
       const resolvedOperation = operation(endpoint, method);
-      const callPrefix = content.slice(Math.max(0, start - 4_000), start);
+      const callPrefix = content.slice(0, start);
       const shapeSource = content.slice(0, start);
       const shape = requestShape(call, shapeSource, "gateway", resolvedOperation, typeSources);
       const fact = validate({ file: file.path, source, mechanism: "gateway", operation: resolvedOperation, method, endpoint, recordIdProvenance: endpoint === "record" ? recordIdProvenance(originalAfter, callPrefix) : "none", requestFields: shape.fields, requestRequiredFields: shape.requiredFields, requestFieldOffsets: requestFieldOffsets(call, shape.fields, start), requestShapeResolved: shape.resolved, requestShapeProvenance: shape.provenance, queryFields: queryFields(route, shapeSource), responseFields: legacyValueResponse(content, start, end) ? ["value"] : [], line: lineAt(file.content, start), offset: start });
       fact.issues.push(...shape.issues, ...queryValueIssues(route, shapeSource));
-      if (!shape.resolved) fact.issues.push("dynamic request contract");
+      if (!shape.resolved && shape.issues.length === 0) fact.issues.push("request shape resolution unavailable");
       if (gatewayUnresolved) fact.issues.push("gateway adapter is unresolved");
       facts.push(fact);
     }
@@ -691,6 +711,9 @@ export function analyzeAppDataOperations(files, source) {
 const signature = (fact) => [fact.endpoint, fact.method, fact.operation].join(":");
 const fieldsCompatible = (source, artifact) => {
   if (source.requestFields.length === 0 || artifact.requestFields.length === 0) return true;
+  if (artifact.issues.length > 0 && artifact.issues.every((issue) => issue === "dynamic request contract")) {
+    return artifact.requestFields.every((field) => source.requestFields.includes(field));
+  }
   if (["resolved_local_type", "trusted_public_type"].includes(source.requestShapeProvenance)) {
     return artifact.requestFields.every((field) => source.requestFields.includes(field)) &&
       (source.requestRequiredFields ?? []).every((field) => artifact.requestFields.includes(field));
@@ -745,7 +768,7 @@ export function analyzeAppDataContract({ manifest, sourceFiles, distFiles, reach
       issues.push({ code: "app-data-analysis-indeterminate", file: fact.file, message: "App-data gateway provenance could not be resolved." });
       continue;
     }
-    if (fact.issues.includes("dynamic request contract")) {
+    if (fact.issues.includes("request shape resolution unavailable")) {
       issues.push({ code: "app-data-analysis-indeterminate", file: fact.file, message: "An action-bearing app-data request shape could not be resolved statically. Make its route, method, envelope, type, spread, and record-ID source explicit." });
       continue;
     }

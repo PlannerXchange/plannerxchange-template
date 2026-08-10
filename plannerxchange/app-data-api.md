@@ -481,6 +481,15 @@ PlannerXchange-hosted app-data records are governed and exportable but are not c
   of `title`, `status`, or `payload`.
 - Confirm response data is read from `items` and `payload`, never `.value`.
 - Confirm every record-level route uses a server-issued record ID.
+- Keep routes, methods, request objects, type aliases, and spreads statically
+  resolvable. `dynamic_request_contract` is a builder finding: replace an
+  untyped/dynamic method or body with a literal or statically typed request.
+  `request_shape_resolution_unavailable` is a PlannerXchange processing failure,
+  not an instruction to redesign a valid app.
+- For a dynamic create finding, use a literal or statically typed body containing
+  required `recordType`, `status`, `schemaVersion`, and object `payload` fields.
+  For a dynamic update finding, send at least one of `title`, `status`, or
+  `payload` with a server-issued record ID.
 - Rebuild and commit production output and provenance after source changes.
 
 Apps using app-data writes should expect publication review for:

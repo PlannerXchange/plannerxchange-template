@@ -266,22 +266,88 @@ function objectExpression(expression, source, typeSource, kind, visited) {
   return { fields: [...fields].sort(), requiredFields: [...required].sort(), resolved, provenance: spread ? "resolved_spread" : "literal_object", issues: [...new Set(issues)] };
 }
 
+function splitTopLevelConditional(expression) {
+  let depth = 0;
+  let quote;
+  let question = -1;
+  for (let index = 0; index < expression.length; index += 1) {
+    const current = expression[index];
+    if (quote) {
+      if (current === "\\") index += 1;
+      else if (current === quote) quote = undefined;
+      continue;
+    }
+    if (current === '"' || current === "'" || current === "`") quote = current;
+    else if ("([{".includes(current)) depth += 1;
+    else if (")]}".includes(current)) depth = Math.max(0, depth - 1);
+    else if (depth === 0 && current === "?" && expression[index + 1] !== "?" && expression[index + 1] !== ".") {
+      question = index;
+      break;
+    }
+  }
+  if (question < 0) return undefined;
+  depth = 0;
+  quote = undefined;
+  let nested = 0;
+  for (let index = question + 1; index < expression.length; index += 1) {
+    const current = expression[index];
+    if (quote) {
+      if (current === "\\") index += 1;
+      else if (current === quote) quote = undefined;
+      continue;
+    }
+    if (current === '"' || current === "'" || current === "`") quote = current;
+    else if ("([{".includes(current)) depth += 1;
+    else if (")]}".includes(current)) depth = Math.max(0, depth - 1);
+    else if (depth === 0 && current === "?" && expression[index + 1] !== "?" && expression[index + 1] !== ".") nested += 1;
+    else if (depth === 0 && current === ":") {
+      if (nested > 0) nested -= 1;
+      else return [expression.slice(question + 1, index).trim(), expression.slice(index + 1).trim()];
+    }
+  }
+  return undefined;
+}
+
+function mergeBranches(left, right) {
+  const fields = [...new Set([...left.fields, ...right.fields])].sort();
+  const requiredFields = left.requiredFields.filter((field) => right.requiredFields.includes(field)).sort();
+  return {
+    fields,
+    requiredFields,
+    resolved: left.resolved && right.resolved,
+    provenance: left.provenance === right.provenance ? left.provenance : "resolved_spread",
+    issues: [...new Set([...left.issues, ...right.issues])]
+  };
+}
+
 function resolveExpression(expression, source, typeSource, kind, visited) {
   const clean = expression.replace(/\s+satisfies\s+[A-Za-z_$][\w$]*(?:<[^;]+>)?\s*$/, "").trim();
+  const conditional = splitTopLevelConditional(clean);
+  if (conditional) return mergeBranches(
+    resolveExpression(conditional[0], source, typeSource, kind, new Set(visited)),
+    resolveExpression(conditional[1], source, typeSource, kind, new Set(visited))
+  );
   if (clean.startsWith("{")) return objectExpression(clean, source, typeSource, kind, visited);
   const symbol = /^([A-Za-z_$][\w$]*)$/.exec(clean)?.[1];
-  if (!symbol || visited.has(symbol)) return { fields: [], requiredFields: [], resolved: false, provenance: "unresolved", issues: [] };
+  if (!symbol) return { fields: [], requiredFields: [], resolved: false, provenance: "unresolved", issues: clean ? ["dynamic request contract"] : ["request shape resolution unavailable"] };
+  if (visited.has(symbol)) return { fields: [], requiredFields: [], resolved: false, provenance: "unresolved", issues: ["request shape resolution unavailable"] };
   const next = new Set(visited).add(symbol);
   const assigned = lastAssignedExpression(source, symbol);
   if (assigned) { const result = resolveExpression(assigned, source, typeSource, kind, next); return { ...result, provenance: result.provenance === "literal_object" ? "resolved_assignment" : result.provenance }; }
   const annotation = annotationFor(source, symbol);
-  if (!annotation) return { fields: [], requiredFields: [], resolved: false, provenance: "unresolved", issues: [] };
+  if (!annotation) return { fields: [], requiredFields: [], resolved: false, provenance: "unresolved", issues: ["dynamic request contract"] };
   const shape = resolveType(annotation, typeSource);
-  if (!shape.resolved) return { fields: [], requiredFields: [], resolved: false, provenance: "unresolved", issues: [] };
+  if (!shape.resolved) return { fields: [], requiredFields: [], resolved: false, provenance: "unresolved", issues: ["request shape resolution unavailable"] };
   return { fields: [...shape.fields].sort(), requiredFields: [...shape.required].sort(), resolved: true, provenance: shape.trusted ? "trusted_public_type" : "resolved_local_type", issues: validateType(shape, kind) };
 }
 
 export function resolveAppDataRequestShape({ expression, source, typeSources = [], kind }) {
   if (!expression.trim() && kind === "list") return { fields: [], requiredFields: [], resolved: true, provenance: "literal_object", issues: [] };
-  return resolveExpression(expression.trim(), source, [source, ...typeSources].join("\n"), kind, new Set());
+  const result = resolveExpression(expression.trim(), source, [source, ...typeSources].join("\n"), kind, new Set());
+  if (kind !== "create") return result;
+  const issues = new Set(result.issues);
+  for (const field of ["recordType", "status", "schemaVersion", "payload"]) {
+    if (result.fields.includes(field) && !result.requiredFields.includes(field)) issues.add(`required create field ${field} is optional`);
+  }
+  return { ...result, issues: [...issues] };
 }

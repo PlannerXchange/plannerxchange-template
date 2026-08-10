@@ -177,6 +177,11 @@ Request only the scopes the app actually uses.
 - Do not pass `appInstallationId` in query strings.
 - Treat `/app-data` as a record API, not a key-value store. Use `GET /app-data` to list, `POST /app-data` to create, and the returned `recordId` with `GET`, `PATCH`, or `DELETE /app-data/{recordId}`. Store app-owned content in `payload`; never use `PUT`, locally fabricated record IDs, `{ value }`, or a top-level `.value` response.
 - A local initializer or wrapper may store `authenticatedFetch` when parameter forwarding, assignment, and calls remain statically traceable. Do not hide app-data routes or methods behind dynamic module resolution.
+- Keep app-data methods and bodies literal or statically typed. A review
+  `dynamic_request_contract` finding means the builder must make the operation
+  explicit; a `request_shape_resolution_unavailable` result is a PlannerXchange
+  processing failure and requests no speculative app rewrite. See
+  [`app-data-api.md#review-remediation-checklist`](app-data-api.md#review-remediation-checklist).
 - `app_data.read` and `app_data.write` authorize access but do not make an unsupported route, method, body, response, or record-ID lifecycle valid. Preflight and publication review enforce both permissions and request compliance.
 - Import wrappers are supported only when the source graph can statically trace the import-facing route or action through relative imports or uniquely resolved configured `tsconfig`/`jsconfig` path aliases, parameter forwarding, assignments, and aliases to `openDataImportSession` with the matching stable declaration ID. Relative `extends`, `baseUrl`, `paths`, and a unique conventional `@/` or `~/` source-root alias are supported; ambiguous or unresolved local aliases remain unverified. Prefer a direct runtime-helper call when no wrapper is needed.
 - PlannerXchange groups a route, its navigation destination, its rendered import page, and its primary import action into one user journey, then verifies that journey against its own declaration ID and committed artifact evidence. Unrelated imports elsewhere in the source tree cannot satisfy it.

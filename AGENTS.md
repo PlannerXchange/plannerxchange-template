@@ -34,6 +34,11 @@ Core rules:
 - Public landing pages are enabled from PlannerXchange after review eligibility; they are not currently builder manifest fields.
 - PlannerXchange owns auth, routing, shell context, disclosure, publication review, and app installation identity.
 - Use `ShellRuntimeContext.authenticatedFetch` for protected PlannerXchange API calls.
+- Treat `/app-data` as a statically reviewable record API. Keep methods and
+  request bodies literal or statically typed, retain server-issued record IDs,
+  and read/write `payload`. A `dynamic_request_contract` review result is an app
+  finding; `request_shape_resolution_unavailable` is a PlannerXchange processing
+  failure and does not justify a speculative app rewrite.
 - Do not call app-owned backend routes such as `/api/questions`, `/api/results`, `/questions`, or `/results`; shell-published apps are static frontend plugins.
 - Do not use `VITE_API_URL`, `VITE_BACKEND_URL`, `NEXT_PUBLIC_API_URL`, or similar frontend env vars for shell-published runtime behavior.
 - Do not add runtime Python scripts, Flask/FastAPI apps, notebooks, Celery/RQ workers, serverless functions, Docker containers, scheduled jobs, or subprocess expectations for shell-published behavior. Python is local/build tooling only unless PlannerXchange explicitly approves a governed Python runtime or AI Connector path.
