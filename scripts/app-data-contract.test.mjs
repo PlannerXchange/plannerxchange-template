@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { analyzeAppDataContract, analyzeAppDataOperations } from "./app-data-contract.mjs";
+import { analyzeAppDataContract, analyzeAppDataOperations, selectAppDataArtifactFiles } from "./app-data-contract.mjs";
 import { resolveAppDataRequestShape } from "./app-data-request-shape.mjs";
 
 const files = (entries) => Object.entries(entries).map(([path, content]) => ({ path, content }));
@@ -196,6 +196,33 @@ test("accepts production-minified initializer, cached server id, and nested payl
   assert.deepEqual(operations[1].requestFields, ["payload"]);
   assert.equal(typeof operations[1].requestFieldOffsets.payload, "number");
   assert.equal(typeof operations[2].requestFieldOffsets.status, "number");
+});
+
+test("excludes comparison-heavy vendor artifacts from app-data preflight", () => {
+  const comparisonDensity = Array.from(
+    { length: 4_000 },
+    (_, index) => `const v${index}=left${index}<right${index}?left${index}:right${index};`
+  ).join("");
+  const selected = selectAppDataArtifactFiles(files({
+    "dist/app.js": `const send=runtime.authenticatedFetch;export function mount(){return send("/app-data?recordType=workspace_state")}`,
+    "dist/runtime.js": `export const send=runtime.authenticatedFetch;`,
+    "dist/vendor-react.js": comparisonDensity,
+    "dist/vendor-components.js": comparisonDensity,
+  }));
+
+  assert.deepEqual(selected.map((entry) => entry.path), ["dist/app.js", "dist/runtime.js"]);
+});
+
+test("runtime comparisons do not hide later app-data request fields", () => {
+  const shape = resolveAppDataRequestShape({
+    expression: `{ recordType: "state", payload: { data: left < right ? left >> 1 : right, label: "<ImportPanel />" }, status: "draft", schemaVersion: 1 }`,
+    source: "",
+    kind: "create",
+  });
+
+  assert.equal(shape.resolved, true);
+  assert.deepEqual(shape.fields, ["payload", "recordType", "schemaVersion", "status"]);
+  assert.deepEqual(shape.issues, []);
 });
 
 test("does not treat an enclosing promise callback as another gateway operation", () => {

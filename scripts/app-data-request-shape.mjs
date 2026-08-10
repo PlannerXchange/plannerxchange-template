@@ -6,7 +6,7 @@ const TRUSTED_MODULES = new Set(["@plannerxchange/types", "@plannerxchange/sdk"]
 
 const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-function splitTopLevel(value, separator) {
+function splitTopLevel(value, separator, balanceAngles = true) {
   const parts = [];
   let start = 0;
   let depth = 0;
@@ -19,8 +19,8 @@ function splitTopLevel(value, separator) {
       continue;
     }
     if (`"'\``.includes(current)) quote = current;
-    else if ("([{<".includes(current)) depth += 1;
-    else if (new Set(")]}>").has(current)) depth = Math.max(0, depth - 1);
+    else if ("([{".includes(current) || (balanceAngles && current === "<")) depth += 1;
+    else if (")]}".includes(current) || (balanceAngles && current === ">")) depth = Math.max(0, depth - 1);
     else if (current === separator && depth === 0) {
       parts.push(value.slice(start, index).trim());
       start = index + 1;
@@ -63,8 +63,8 @@ function lastAssignedExpression(source, identifier) {
       continue;
     }
     if (`"'\``.includes(current)) quote = current;
-    else if ("([{<".includes(current)) depth += 1;
-    else if (new Set(")]}>").has(current)) depth = Math.max(0, depth - 1);
+    else if ("([{".includes(current)) depth += 1;
+    else if (")]}".includes(current)) depth = Math.max(0, depth - 1);
     else if (depth === 0 && ";\n\r".includes(current)) return source.slice(start, index).trim();
   }
   return source.slice(start).trim();
@@ -230,7 +230,7 @@ function validateValue(field, rawValue, source, kind) {
   if (field === "limit" && kind === "list") { const limit = /^["']?(\d+(?:\.\d+)?)["']?$/.exec(value)?.[1]; if (limit && (!Number.isInteger(Number(limit)) || Number(limit) <= 0)) issues.push("limit must be a positive integer"); }
   if (field === "sourceRefs" && value.startsWith("[")) {
     const close = matchingClose(value, 0, "[", "]");
-    for (const entry of close >= 0 ? splitTopLevel(value.slice(1, close), ",") : []) {
+    for (const entry of close >= 0 ? splitTopLevel(value.slice(1, close), ",", false) : []) {
       const shape = resolveExpression(entry, source, source, "create", new Set());
       if (!shape.resolved || !shape.fields.includes("sourceType") || !shape.fields.includes("sourceId") || shape.fields.some((name) => !SOURCE_REF_FIELDS.has(name))) issues.push("invalid sourceRefs entry");
     }
@@ -247,7 +247,7 @@ function objectExpression(expression, source, typeSource, kind, visited) {
   const issues = [];
   let resolved = true;
   let spread = false;
-  for (const entry of splitTopLevel(expression.slice(start + 1, close), ",")) {
+  for (const entry of splitTopLevel(expression.slice(start + 1, close), ",", false)) {
     if (entry.startsWith("...")) {
       spread = true;
       const shape = resolveExpression(entry.slice(3).trim(), source, typeSource, kind, new Set(visited));

@@ -216,7 +216,7 @@ function resolveStaticRouteExpression(expression, prefix) {
         break;
       }
       index = end;
-    } else if ("([{<".includes(current)) depth += 1;
+    } else if ("([{".includes(current)) depth += 1;
     else if (")]}".includes(current)) depth = Math.max(0, depth - 1);
   }
   if (routeLiteral !== undefined) {
@@ -363,7 +363,7 @@ function scanAssignments(content) {
         continue;
       }
       if (current === '"' || current === "'" || current === "`") quote = current;
-      else if ("([{<".includes(current)) depth += 1;
+      else if ("([{".includes(current)) depth += 1;
       else if (")]}".includes(current)) depth = Math.max(0, depth - 1);
       else if (depth === 0 && (current === "," || current === ";" || current === "\n" || current === "\r")) { end = index; break; }
     }
@@ -534,7 +534,7 @@ function lastAssignedValue(prefix, identifier) {
       continue;
     }
     if (current === '"' || current === "'" || current === "`") quote = current;
-    else if ("([{<".includes(current)) depth += 1;
+    else if ("([{".includes(current)) depth += 1;
     else if (")]}".includes(current)) depth = Math.max(0, depth - 1);
     else if (depth === 0 && (current === "," || current === ";" || current === "\n" || current === "\r")) return prefix.slice(start, index).trim();
   }
@@ -637,6 +637,7 @@ function legacyValueResponse(content, start, end) {
 
 export function analyzeAppDataOperations(files, source) {
   const facts = [];
+  const adapterResolutions = new Map();
   for (const file of files) {
     if (!/\.(?:[cm]?[jt]sx?|html)$/i.test(file.path)) continue;
     const content = maskComments(file.content);
@@ -662,7 +663,11 @@ export function analyzeAppDataOperations(files, source) {
     for (const candidate of gatewayCallCandidates(content)) {
       const { start, end, call, route, routeValue } = candidate;
       const terminalSymbol = candidate.symbol.split(".").at(-1);
-      const gatewayUnresolved = !resolveAdapterSymbol(files, file.path, candidate.symbol) &&
+      const adapterKey = `${file.path}\u0000${candidate.symbol}`;
+      if (!adapterResolutions.has(adapterKey)) {
+        adapterResolutions.set(adapterKey, resolveAdapterSymbol(files, file.path, candidate.symbol));
+      }
+      const gatewayUnresolved = !adapterResolutions.get(adapterKey) &&
         !["authenticatedFetch", "requestJson", "fetch"].includes(terminalSymbol);
       const after = routeValue.slice(routeValue.indexOf("/app-data") + 9);
       const originalAfter = route.includes("/app-data") ? route.slice(route.indexOf("/app-data") + 9) : after;
@@ -705,6 +710,15 @@ function diagnosticMayResolveToFile(diagnostic, file) {
   return normalizedSpecifier.length > 0 && (normalizedFile.endsWith(`/${normalizedSpecifier}`) || normalizedFile === normalizedSpecifier);
 }
 
+const APP_DATA_ARTIFACT_ANCHOR = /\/app-data(?=$|[/?#"'\`\\])|\b(?:listAppData|getAppDataRecord|createAppDataRecord|updateAppDataRecord|deleteAppDataRecord)\s*\(|(?:\.|\[\s*["'])authenticatedFetch(?:\b|["']\s*\])/;
+
+export function selectAppDataArtifactFiles(files) {
+  return files.filter((file) =>
+    /\.(?:[cm]?[jt]sx?|html)$/i.test(file.path) &&
+    APP_DATA_ARTIFACT_ANCHOR.test(maskComments(file.content))
+  );
+}
+
 export function analyzeAppDataContract({ manifest, sourceFiles, distFiles, reachableSourceFiles, relevantResolverDiagnostics = [], traversalBounded = false }) {
   const issues = [];
   const reachable = new Set(reachableSourceFiles ?? sourceFiles.map((file) => file.path));
@@ -715,7 +729,7 @@ export function analyzeAppDataContract({ manifest, sourceFiles, distFiles, reach
     if (unreachable.some((fact) => diagnosticMayResolveToFile(diagnostic, fact.file))) issues.push({ code: "app-data-analysis-indeterminate", file: "plannerxchange.app.json", message: `${diagnostic}. Configure a unique local path mapping so app-data calls can be verified.` });
   }
   if (traversalBounded && unreachable.length > 0) issues.push({ code: "app-data-analysis-indeterminate", file: "plannerxchange.app.json", message: "App-data source traversal exceeded its bounded review limit." });
-  const artifact = analyzeAppDataOperations(distFiles, "dist");
+  const artifact = analyzeAppDataOperations(selectAppDataArtifactFiles(distFiles), "dist");
   const available = new Map();
   for (const fact of artifact) {
     if (fact.issues.includes("gateway adapter is unresolved")) {
