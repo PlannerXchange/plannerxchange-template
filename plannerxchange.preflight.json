@@ -90,6 +90,13 @@
       "type": "manifest-canonical-data-access"
     },
     {
+      "id": "manifest-canonical-demo-usage",
+      "severity": "error",
+      "title": "Canonical Demo fields match the pinned catalog",
+      "description": "Optional canonicalDataUsageDeclarations must use px_canonical_demo_v1, exact object/category/field paths, supported uses, no custom fields, and matching read permissions.",
+      "type": "manifest-canonical-demo-usage"
+    },
+    {
       "id": "import-session-contract",
       "severity": "error",
       "title": "Import entry points launch the PX wizard",

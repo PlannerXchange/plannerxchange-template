@@ -2,15 +2,17 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { analyzeAppDataContract, analyzeAppDataOperations } from "./app-data-contract.mjs";
+import { resolveAppDataRequestShape } from "./app-data-request-shape.mjs";
 
 const files = (entries) => Object.entries(entries).map(([path, content]) => ({ path, content }));
+const trustedAppDataTypes = `import type { AppDataCreateInput, AppDataUpdateInput } from "@plannerxchange/types";`;
 const manifest = { permissions: ["app_data.read", "app_data.write"] };
 
 test("accepts SDK record lifecycle with server-returned record ids", () => {
   const issues = analyzeAppDataContract({
     manifest,
     sourceFiles: files({
-      "src/repository.ts": `export async function save(api, input: AppDataCreateInput, patch: AppDataUpdateInput) { const list = await api.listAppData(); const made = await api.createAppDataRecord(input); await api.updateAppDataRecord(made.recordId, patch); return api.getAppDataRecord(list.items[0].recordId); }`
+      "src/repository.ts": `${trustedAppDataTypes} export async function save(api, input: AppDataCreateInput, patch: AppDataUpdateInput) { const list = await api.listAppData(); const made = await api.createAppDataRecord(input); await api.updateAppDataRecord(made.recordId, patch); return api.getAppDataRecord(list.items[0].recordId); }`
     }),
     distFiles: files({
       "dist/plugin.js": `a.listAppData();a.createAppDataRecord(i);a.updateAppDataRecord(r.recordId,p);a.getAppDataRecord(l.items[0].recordId);`
@@ -47,7 +49,7 @@ test("rejects legacy PUT, value envelopes, and fabricated keys", () => {
 
 test("accepts aliases and typed local wrappers", () => {
   const operations = analyzeAppDataOperations(files({
-    "src/repository.ts": `const create=sdk.createAppDataRecord; const send=ctx.authenticatedFetch; async function make(input: AppDataCreateInput){await create(input);return send("/app-data",{method:"POST",body:JSON.stringify(input)});}`
+    "src/repository.ts": `${trustedAppDataTypes} const create=sdk.createAppDataRecord; const send=ctx.authenticatedFetch; async function make(input: AppDataCreateInput){await create(input);return send("/app-data",{method:"POST",body:JSON.stringify(input)});}`
   }), "source");
   assert.equal(operations.length, 2);
   assert.ok(operations.every((operation) => operation.issues.length === 0));
@@ -99,7 +101,7 @@ test("does not classify nested payload properties as request fields", () => {
 test("keeps permission findings independent from request compliance", () => {
   const issues = analyzeAppDataContract({
     manifest: { permissions: [] },
-    sourceFiles: files({ "src/plugin.ts": `export function run(input: AppDataCreateInput){api.listAppData();api.createAppDataRecord(input);}` }),
+    sourceFiles: files({ "src/plugin.ts": `${trustedAppDataTypes} export function run(input: AppDataCreateInput){api.listAppData();api.createAppDataRecord(input);}` }),
     distFiles: files({ "dist/plugin.js": `a.listAppData();a.createAppDataRecord(i);` })
   });
   assert.ok(issues.some((issue) => issue.code === "app-data-read-scope-missing"));
@@ -123,7 +125,7 @@ test("ignores unreachable source and requires each reachable artifact marker", (
 test("rejects invalid query fields and missing committed operations", () => {
   const issues = analyzeAppDataContract({
     manifest,
-    sourceFiles: files({ "src/plugin.ts": `export function run(input: AppDataCreateInput){fetch("/app-data?key=legacy");api.createAppDataRecord(input);}` }),
+    sourceFiles: files({ "src/plugin.ts": `${trustedAppDataTypes} export function run(input: AppDataCreateInput){fetch("/app-data?key=legacy");api.createAppDataRecord(input);}` }),
     distFiles: files({ "dist/plugin.js": `fetch("/app-data?key=legacy");` })
   });
   assert.ok(issues.some((issue) => issue.code === "app-data-request-contract-invalid"));
@@ -148,7 +150,7 @@ test("rejects a locally fabricated variable even when it is named recordId", () 
 test("accepts a source-validated wrapper retained after minification", () => {
   const issues = analyzeAppDataContract({
     manifest,
-    sourceFiles: files({ "src/plugin.ts": `export function create(input: AppDataCreateInput){return authenticatedFetch("/app-data",{method:"POST",body:JSON.stringify(input)})}` }),
+    sourceFiles: files({ "src/plugin.ts": `${trustedAppDataTypes} export function create(input: AppDataCreateInput){return authenticatedFetch("/app-data",{method:"POST",body:JSON.stringify(input)})}` }),
     distFiles: files({ "dist/plugin.js": `const r=x.authenticatedFetch;function a(e){return r("/app-data",{method:"POST",body:JSON.stringify(e)})}` })
   });
   assert.deepEqual(issues, []);
@@ -172,4 +174,142 @@ test("distinguishes relevant alias uncertainty from unrelated unresolved imports
   assert.ok(relevant.some((issue) => issue.code === "app-data-analysis-indeterminate"));
   const unrelated = analyzeAppDataContract({ manifest, sourceFiles, distFiles: [], reachableSourceFiles: ["src/plugin.ts"], relevantResolverDiagnostics: ["Unresolved local import alias: @/components/chart"] });
   assert.equal(unrelated.some((issue) => issue.code === "app-data-analysis-indeterminate"), false);
+});
+
+test("accepts production-minified initializer, cached server id, and nested payload value", () => {
+  const filler = `const optionalContext="${"x".repeat(60_000)}";void optionalContext;`;
+  const operations = analyzeAppDataOperations(files({
+    "dist/plugin.js": `
+      const cache=new Map;let tx;
+      function $init(gateway,disabled=false){tx=disabled?void 0:gateway}
+      async function parse(response){return await response.json()}
+      async function load(owner){const query=new URLSearchParams({recordType:"state",clientUserId:owner,limit:"100"}),response=await tx(\`/app-data?\${query.toString()}\`),selected=((await parse(response)).items??[])[0],entry={recordId:selected?.recordId};return cache.set(owner,entry),entry}
+      async function save(owner,value){const current=cache.get(owner);return current?.recordId?tx(\`/app-data/\${current.recordId}\`,{method:"PATCH",body:JSON.stringify({payload:{data:value}})}):tx("/app-data",{method:"POST",body:JSON.stringify({recordType:"state",status:"draft",schemaVersion:1,clientUserId:owner,payload:{data:value}})})}
+      ${filler}
+      const plugin={mount(context){$init(context?.authenticatedFetch,false);return load("selected-owner")}};void plugin;
+    `,
+  }), "dist");
+  assert.deepEqual(operations.map((operation) => operation.operation), ["list", "update", "create"]);
+  assert.ok(operations.every((operation) => operation.issues.length === 0), JSON.stringify(operations));
+  assert.deepEqual(operations[0].queryFields, ["clientUserId", "limit", "recordType"]);
+  assert.equal(operations[1].recordIdProvenance, "server");
+  assert.deepEqual(operations[1].requestFields, ["payload"]);
+  assert.equal(typeof operations[1].requestFieldOffsets.payload, "number");
+  assert.equal(typeof operations[2].requestFieldOffsets.status, "number");
+});
+
+test("does not treat an enclosing promise callback as another gateway operation", () => {
+  const operations = analyzeAppDataOperations(files({
+    "src/store.ts": `const send=runtime.authenticatedFetch;export function save(queue,input){return queue.then(async()=>send("/app-data",{method:"POST",body:JSON.stringify(input)}))}`,
+  }), "source");
+  assert.equal(operations.length, 1);
+  assert.equal(operations[0].operation, "create");
+});
+
+test("distinguishes nested local value content from a removed top-level value envelope", () => {
+  const operations = analyzeAppDataOperations(files({
+    "src/store.ts": `export function valid(ctx,value){return ctx.authenticatedFetch("/app-data",{method:"POST",body:JSON.stringify({recordType:"state",status:"draft",schemaVersion:1,payload:{data:value}})})}export function invalid(ctx,value){return ctx.authenticatedFetch("/app-data",{method:"POST",body:JSON.stringify({recordType:"state",status:"draft",schemaVersion:1,value})})}`,
+  }), "source");
+  assert.deepEqual(operations[0].issues, []);
+  assert.match(operations[1].issues.join(" "), /legacy value request envelope/);
+});
+
+test("trusts only verified PX type imports and checks shadowed local types structurally", () => {
+  const trusted = resolveAppDataRequestShape({
+    expression: "input",
+    source: `import type { AppDataCreateInput as CreateInput } from "@plannerxchange/types"; function save(input: CreateInput) {}`,
+    kind: "create",
+  });
+  assert.equal(trusted.provenance, "trusted_public_type");
+  assert.deepEqual(trusted.issues, []);
+
+  const shadowed = resolveAppDataRequestShape({
+    expression: "input",
+    source: `interface AppDataCreateInput { recordType: string; status?: "draft"; schemaVersion?: number; payload: unknown } function save(input: AppDataCreateInput) {}`,
+    kind: "create",
+  });
+  assert.equal(shadowed.provenance, "resolved_local_type");
+  assert.match(shadowed.issues.join(" "), /status is optional/);
+  assert.match(shadowed.issues.join(" "), /schemaVersion is optional/);
+  assert.match(shadowed.issues.join(" "), /payload type must be an object/);
+});
+
+test("rejects all-optional and over-broad update types", () => {
+  const shape = resolveAppDataRequestShape({
+    expression: "input",
+    source: `type Patch = { title?: string; status?: "draft" | "final" | "archived"; payload?: Record<string, unknown>; clientUserId?: string }; function patch(input: Patch) {}`,
+    kind: "update",
+  });
+  assert.match(shape.issues.join(" "), /allows an empty patch/);
+  assert.match(shape.issues.join(" "), /unsupported update field clientUserId/);
+});
+
+test("resolves static spreads and validates literal request values", () => {
+  const source = `
+    type Base = { recordType: string; status: "draft" | "final" | "archived"; schemaVersion: number; payload: Record<string, unknown> };
+    const base: Base = { recordType: "state", status: "draft", schemaVersion: 1, payload: {} };
+    const input = { ...base, title: "Current" } satisfies Base & { title: string };
+  `;
+  const spread = resolveAppDataRequestShape({ expression: "input", source, kind: "create" });
+  assert.equal(spread.resolved, true);
+  assert.equal(spread.provenance, "resolved_spread");
+  assert.deepEqual(spread.issues, []);
+
+  const invalid = resolveAppDataRequestShape({
+    expression: `{ recordType: "state", status: "other", schemaVersion: 0, payload: [], sourceRefs: [{ sourceType: "canonical_account" }] }`,
+    source: "",
+    kind: "create",
+  });
+  assert.match(invalid.issues.join(" "), /invalid status value/);
+  assert.match(invalid.issues.join(" "), /positive integer/);
+  assert.match(invalid.issues.join(" "), /payload must be an object/);
+  assert.match(invalid.issues.join(" "), /invalid sourceRefs entry/);
+});
+
+test("the public gateway source retains the strict app-data type contract", async () => {
+  const gateway = await import("node:fs/promises").then((fs) => fs.readFile(new URL("../src/lib/px-gateway.ts", import.meta.url), "utf8"));
+  const createBody = /export interface AppDataCreateInput[\s\S]*?\n\}/.exec(gateway)?.[0] ?? "";
+  const updateBody = /export type AppDataUpdateInput[\s\S]*?;\n/.exec(gateway)?.[0] ?? "";
+  assert.match(createBody, /status:\s*"draft"/);
+  assert.match(createBody, /schemaVersion:\s*number/);
+  assert.match(createBody, /payload:\s*T/);
+  assert.doesNotMatch(updateBody, /clientUserId|householdId|accountId|sourceRefs/);
+  assert.doesNotMatch(gateway, /schemaVersion:\s*input\.schemaVersion\s*\?\?/);
+});
+
+test("resolves configured local type imports structurally and fails closed on ambiguity", () => {
+  const source = `import type { CreateShape as LocalCreate } from "@/contracts"; function save(input: LocalCreate) {}`;
+  const contract = `export interface CreateShape { recordType: string; status: "draft" | "final" | "archived"; schemaVersion: number; payload: Record<string, unknown> }`;
+  const resolved = resolveAppDataRequestShape({ expression: "input", source, typeSources: [contract], kind: "create" });
+  assert.equal(resolved.provenance, "resolved_local_type");
+  assert.deepEqual(resolved.issues, []);
+  const ambiguous = resolveAppDataRequestShape({ expression: "input", source, typeSources: [contract, contract], kind: "create" });
+  assert.equal(ambiguous.resolved, false);
+});
+
+test("validates mixed invalid request-property types", () => {
+  const source = `interface BadCreate { recordType: string; status: "draft" | "other"; schemaVersion: number | string; payload: Record<string, unknown> | string } function save(input: BadCreate) {}`;
+  const shape = resolveAppDataRequestShape({ expression: "input", source, kind: "create" });
+  assert.match(shape.issues.join(" "), /status type/);
+  assert.match(shape.issues.join(" "), /schemaVersion type/);
+  assert.match(shape.issues.join(" "), /payload type/);
+});
+
+test("only request-reachable type modules influence template preflight resolution", () => {
+  const good = `export interface CreateShape { recordType: string; status: "draft" | "final" | "archived"; schemaVersion: number; payload: Record<string, unknown> }`;
+  const call = `import type { CreateShape } from "@/contracts"; export function save(api, input: CreateShape) { return api.createAppDataRecord(input); }`;
+  const [resolved] = analyzeAppDataOperations([
+    { path: "src/store.ts", content: call },
+    { path: "src/contracts.ts", content: good },
+    { path: "src/unrelated.ts", content: `interface CreateShape { value?: string }` },
+  ], "source");
+  assert.deepEqual(resolved.issues, []);
+  assert.equal(resolved.requestShapeProvenance, "resolved_local_type");
+
+  const [ambiguous] = analyzeAppDataOperations([
+    { path: "src/store.ts", content: call },
+    { path: "src/one/contracts.ts", content: good },
+    { path: "src/two/contracts.ts", content: good },
+  ], "source");
+  assert.match(ambiguous.issues.join(" "), /dynamic request contract/);
 });

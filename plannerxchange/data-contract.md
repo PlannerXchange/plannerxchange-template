@@ -9,6 +9,9 @@ Use these rules while building:
 - assume PX canonical data contracts and governed APIs are stricter than standalone frontend code
 - decide early whether the app is `plannerxchange_portable` or `app_managed_nonportable`
 - if the app supports public demo mode, read `plannerxchange/demo-mode.md`, keep demo data synthetic, and branch on `context.runtimeMode === "public_demo"` or `context.isDemoMode === true` before authenticated initialization
+- if that Demo represents canonical records, also read
+  `plannerxchange/canonical-demo-data.md`, use the shared read-only adapter, and
+  declare exact non-custom field usage in `canonicalDataUsageDeclarations`
 
 Current practical reality:
 

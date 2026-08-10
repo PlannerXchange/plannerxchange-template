@@ -28,7 +28,7 @@ the current context pack, SDK, or review export documents it as available.
 | --- | --- | --- |
 | Fix manifest or review metadata | `plannerxchange/publish-notes.md`, this file | `plannerxchange.app.json` |
 | Add or change API access | `plannerxchange/api-reference.md`, `plannerxchange/data-contract.md` | `plannerxchange.app.json`, app API calls |
-| Save app-owned work product | `plannerxchange/app-data-api.md` | Prefer SDK app-data methods; otherwise use exact list/create/get/update/delete record routes in `src/lib/px-gateway.ts` and retain server-issued record IDs |
+| Save app-owned work product | [`plannerxchange/app-data-api.md#required-create-fields`](app-data-api.md#required-create-fields), [`#complete-typescript-record-lifecycle`](app-data-api.md#complete-typescript-record-lifecycle), [`#server-issued-record-id-provenance`](app-data-api.md#server-issued-record-id-provenance), [`#review-remediation-checklist`](app-data-api.md#review-remediation-checklist) | Prefer SDK app-data methods; otherwise use the exact list/create/get/update/delete lifecycle, retain server-issued record IDs, read/write `payload`, and rebuild committed output after changes |
 | Read clients, households, accounts, positions, transactions, CRM, or tax data | `plannerxchange/api-reference.md`, `plannerxchange/data-contract.md`, `plannerxchange/pii-and-security.md` | `plannerxchange.app.json`, app API calls |
 | Add or fix a Client, Household, or Account field | `plannerxchange/canonical-entity-controls.md`, `plannerxchange/api-reference.md`, `plannerxchange/data-contract.md` | field UI/model, `plannerxchange.app.json`, `src/lib/px-gateway.ts` |
 | Create, update, or soft-delete PX canonical records | `plannerxchange/api-reference.md`, `plannerxchange/data-contract.md`, `plannerxchange/pii-and-security.md` | `plannerxchange.app.json`, `src/lib/px-gateway.ts`, app API calls |
@@ -44,7 +44,7 @@ the current context pack, SDK, or review export documents it as available.
 | Update PX CLI | `README.md` | run `px --update dev` for dev or `px --update` for production; if not recognized, use the Creator Studio install block once |
 | Fetch PlannerXchange review feedback | `README.md`, `plannerxchange/publish-notes.md` | use an already-stated app outcome or ask with plain choices, map it to an internal goal, then run `px feedback --env dev --goal <selected-goal> --commit HEAD --format markdown`; the goal filters the latest full review |
 | Decide mock vs live behavior | `plannerxchange/context.md`, `src/plannerxchange.ts`, `src/dev-context.ts` | runtime branching |
-| Add or fix public demo mode | `plannerxchange/demo-mode.md`, `plannerxchange/context.md`, `plannerxchange/publish-notes.md` | public-demo branch, synthetic scenario, committed artifact |
+| Add or fix public demo mode | `plannerxchange/demo-mode.md`, `plannerxchange/canonical-demo-data.md`, `plannerxchange/context.md`, `plannerxchange/publish-notes.md` | public-demo branch, synthetic scenario, canonical field declarations when applicable, committed artifact |
 | PlannerXchange could not verify Demo mode | `plannerxchange/demo-mode.md`, `plannerxchange/publish-notes.md` | do not invent a code fix; Demo remains off while other app options are unaffected |
 
 ## Manifest Schema
@@ -70,6 +70,8 @@ Use these `plannerxchange.app.json` fields:
   "dataPortabilityMode": "app_managed_nonportable",
   "egressDeclarations": [],
   "dataIngressDeclarations": [],
+  "canonicalDataAccessDeclarations": [],
+  "canonicalDataUsageDeclarations": [],
   "categories": ["cash-flow"]
 }
 ```
@@ -96,7 +98,7 @@ Do not add these unsupported fields:
 | Marketplace distribution | PlannerXchange detected or evaluated public listing intent | Use `visibility: "marketplace_listed"` only if the app should be marketplace-listed |
 | Portable data | App declares or uses PlannerXchange portable/canonical data behavior | Use `dataPortabilityMode: "plannerxchange_portable"` and approved PX APIs |
 | Data approved | Eligibility outcome after review, not a manifest field | Fix data findings; request exact scopes in `permissions` |
-| Demo mode | Optional Creator Studio mode using synthetic data | Do not edit the manifest; enable demo mode in Creator Studio when eligible |
+| Demo mode | Optional Creator Studio mode using synthetic data | Do not add a Demo capability field; enable it in Creator Studio when eligible. Canonical-data demos may add `canonicalDataUsageDeclarations` for exact field evidence |
 | Landing page | Optional public marketplace nicety with public-safe copy, approved media, and PX-owned CTA handoffs | Read `landing-page.md`; do not edit the manifest unless another documented field also needs changes |
 | Private-label ready | Eligibility outcome for branding/legal behavior | Request `branding.read` or `legal.read` only when the UI consumes those contexts |
 | App-data write | App stores builder-owned work product through PX | Add `app_data.write` and use the app-data contract |

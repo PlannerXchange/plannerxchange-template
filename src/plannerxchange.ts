@@ -88,6 +88,42 @@ export interface AppCanonicalDataAccessDeclaration {
   selectionEntity: AppCanonicalDataSelectionEntity;
   notes?: string;
 }
+export type AppCanonicalDemoDataCategory =
+  | AppCanonicalDataCategory
+  | "crm_notes"
+  | "crm_tasks";
+export type AppCanonicalDemoDataObject =
+  | "household"
+  | "client_summary"
+  | "client_detail"
+  | "account"
+  | "position"
+  | "transaction"
+  | "cost_basis"
+  | "security"
+  | "merged_security"
+  | "model"
+  | "model_holding"
+  | "sleeve"
+  | "sleeve_allocation"
+  | "crm_note"
+  | "crm_task";
+export type AppCanonicalDataFieldUsageKind =
+  | "display"
+  | "calculation"
+  | "filter"
+  | "sort"
+  | "selection";
+export interface AppCanonicalDataUsageDeclaration {
+  id: string;
+  catalogVersion: "px_canonical_demo_v1";
+  category: AppCanonicalDemoDataCategory;
+  object: AppCanonicalDemoDataObject;
+  fields: Array<{
+    path: string;
+    uses: AppCanonicalDataFieldUsageKind[];
+  }>;
+}
 export interface AppDataImportSessionRequest {
   declarationId: string;
   mode?: AppDataImportSessionMode;
@@ -205,6 +241,7 @@ export interface PlannerXchangeManifest {
   categories: string[];
   dataIngressDeclarations?: AppDataIngressDeclaration[];
   canonicalDataAccessDeclarations?: AppCanonicalDataAccessDeclaration[];
+  canonicalDataUsageDeclarations?: AppCanonicalDataUsageDeclaration[];
 }
 
 export interface PlannerXchangeApiRequestInit {

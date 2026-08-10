@@ -407,6 +407,84 @@ function runManifestCanonicalDataAccessCheck(check) {
   );
 }
 
+const CANONICAL_DEMO_CATALOG_VERSION = "px_canonical_demo_v1";
+const CANONICAL_DEMO_USES = new Set(["display", "calculation", "filter", "sort", "selection"]);
+const CANONICAL_DEMO_OBJECT_CONTRACT = Object.fromEntries(
+  Object.entries({
+    household: ["households", "canonical.household.read", `id tenantId enterpriseId firmId name externalId taxFilingStatus taxState latestTaxYear latestTaxFilingId latestTaxDataSource latestTaxSyncedAt taxDataStatus notes assignedAdvisorUserIds status dedupeKey importJobId isDeleted deletedAt createdAt updatedAt createdBy updatedBy`],
+    client_summary: ["clients", "canonical.client.summary.read", `id firmId householdId householdRole displayName firstName lastName status externalId dedupeKey summaryFlags.hasRestrictedPii summaryFlags.hasLinkedAccounts createdAt updatedAt`],
+    client_detail: ["clients", "canonical.client.sensitive.read", `id tenantId enterpriseId firmId householdId householdRole clientUserId firstName lastName dateOfBirth emailPrimary emailSecondary phonePrimary phoneSecondary addressLine1 addressLine2 city state zip externalId status dedupeKey importJobId isDeleted deletedAt createdAt updatedAt createdBy updatedBy`],
+    account: ["accounts", "canonical.account.read", `id tenantId enterpriseId firmId householdId accountNumber accountName custodianName accountType taxType taxTreatment accountStatus openingDate closedDate repCode accountBalance balanceAsOfDate totalCash securityBalance accountCategory accountSource groupName ownerClientIds properties properties.equityDividendReinvestment properties.closedEndMfDividendReinvestment properties.capitalGainsDividendReinvestment properties.dividendReinvestmentAddedDate properties.institutionName properties.docDeliveryConfirms properties.docDeliveryStatements properties.docDeliveryProspectus properties.docDeliveryProxy properties.docDeliveryTaxForms externalId dedupeKey importJobId isDeleted deletedAt createdAt updatedAt createdBy updatedBy`],
+    position: ["positions", "canonical.position.read", `id tenantId firmId accountId asOfDate securityId cusip symbol securityName securityType currencyCode quantity price marketValue securityFactor repCode dedupeKey createdAt updatedAt sourceSystem importJobId importedAt isDeleted deletedAt`],
+    transaction: ["transactions", "canonical.transaction.read", `id tenantId firmId accountId date asOfDate tradeDate settleDate displayTransactionType detailedTransactionType symbol cusip description status quantity price amount currencyCode netAmount fees commission accountGroup accountType repOnRecord householdName dedupeKey createdAt updatedAt sourceSystem importJobId importedAt isDeleted deletedAt`],
+    cost_basis: ["cost_basis", "canonical.cost_basis.read", `id tenantId firmId accountId symbol cusip description acquisitionDate quantity marketValue costBasisUnadjusted costBasisAdjusted costBasisAmount currentValue gainLoss unrealizedGainLoss holdingPeriod asOfDate dedupeKey createdAt updatedAt sourceSystem importJobId importedAt isDeleted deletedAt`],
+    security: ["securities", "canonical.security.read", `id ticker symbol cusip sedol isin securityName securityType status fees maturityDate yield taxStatus source dedupeKey createdAt updatedAt isDeleted deletedAt`],
+    merged_security: ["securities", "canonical.security.read", `id ticker symbol cusip sedol isin securityName securityType status fees maturityDate yield taxStatus source dedupeKey createdAt updatedAt isDeleted deletedAt tickerId firmOverride firmOverride.id firmOverride.firmId firmOverride.securityId firmOverride.tickerId firmOverride.displayName firmOverride.returnExpectation firmOverride.assetClassId firmOverride.benchmark firmOverride.taxLossHarvestReplacement firmOverride.notes firmOverride.createdAt firmOverride.updatedAt firmOverride.createdBy firmOverride.updatedBy pxClassification pxClassification.label pxClassification.isMixed pxClassification.source pxClassification.allocations pxClassification.allocations.assetClassId pxClassification.allocations.assetClassName pxClassification.allocations.percent pxClassification.allocations.path pxClassification.allocations.source firmClassification firmClassification.label firmClassification.isMixed firmClassification.source firmClassification.allocations firmClassification.allocations.assetClassId firmClassification.allocations.assetClassName firmClassification.allocations.percent firmClassification.allocations.path firmClassification.allocations.source resolvedReturnExpectation resolvedReturnExpectation.value resolvedReturnExpectation.source resolvedReturnExpectation.sourceLabel`],
+    model: ["models", "canonical.model.read", `id tenantId firmId name description assetManager status visibility dedupeKey createdAt updatedAt importJobId isDeleted deletedAt`],
+    model_holding: ["models", "canonical.model.read", `id firmId modelId securityId tickerId weight taxSetting createdAt updatedAt`],
+    sleeve: ["sleeves", "canonical.sleeve.read", `id tenantId firmId name description status dedupeKey createdAt updatedAt isDeleted deletedAt`],
+    sleeve_allocation: ["sleeves", "canonical.sleeve.read", `id firmId sleeveId modelId weight taxSetting createdAt updatedAt`],
+    crm_note: ["crm_notes", "canonical.crm_note.read", `id tenantId enterpriseId firmId sourceSystem sourceRecordId householdId clientId title content summaryFlags.hasRestrictedPii summaryFlags.redactedFields creatorExternalId creatorName visibleTo tagLabels sourceCreatedAt sourceUpdatedAt sourceLastSyncedAt status isDeleted deletedAt createdAt updatedAt createdBy updatedBy`],
+    crm_task: ["crm_tasks", "canonical.crm_task.read", `id tenantId enterpriseId firmId sourceSystem sourceRecordId householdId clientId name description summaryFlags.hasRestrictedPii summaryFlags.redactedFields dueDate completed assigneeExternalId assigneeName categoryLabel tagLabels sourceCreatedAt sourceUpdatedAt sourceLastSyncedAt status isDeleted deletedAt createdAt updatedAt createdBy updatedBy`]
+  }).map(([object, [category, permission, fields]]) => [
+    object,
+    { category, permission, fields: new Set(fields.trim().split(/\s+/)) }
+  ])
+);
+
+function runManifestCanonicalDemoUsageCheck(check) {
+  if (!existsSync(MANIFEST_PATH)) {
+    report(check, false, "plannerxchange.app.json not found");
+    return;
+  }
+
+  const manifest = readManifest() ?? {};
+  if (manifest.canonicalDataUsageDeclarations === undefined) {
+    report(check, true);
+    return;
+  }
+  if (!Array.isArray(manifest.canonicalDataUsageDeclarations)) {
+    report(check, false, "canonicalDataUsageDeclarations must be an array");
+    return;
+  }
+
+  const permissions = new Set(Array.isArray(manifest.permissions) ? manifest.permissions : []);
+  const ids = new Set();
+  const issues = [];
+  for (const declaration of manifest.canonicalDataUsageDeclarations) {
+    const id = typeof declaration?.id === "string" ? declaration.id.trim() : "";
+    const contract = CANONICAL_DEMO_OBJECT_CONTRACT[declaration?.object];
+    if (!id || !contract || !Array.isArray(declaration?.fields) || declaration.fields.length === 0) {
+      issues.push("canonicalDataUsageDeclarations contains an incomplete item");
+      continue;
+    }
+    if (ids.has(id)) issues.push(`duplicate canonical Demo declaration id '${id}'`);
+    ids.add(id);
+    if (declaration.catalogVersion !== CANONICAL_DEMO_CATALOG_VERSION) {
+      issues.push(`${id} must use ${CANONICAL_DEMO_CATALOG_VERSION}`);
+    }
+    if (declaration.category !== contract.category) {
+      issues.push(`${id} object ${declaration.object} belongs to ${contract.category}`);
+    }
+    if (!permissions.has(contract.permission)) {
+      issues.push(`${id} requires ${contract.permission}`);
+    }
+    const paths = new Set();
+    for (const field of declaration.fields) {
+      const path = typeof field?.path === "string" ? field.path.trim() : "";
+      if (!path || paths.has(path) || path === "customFields" || path.startsWith("customFields.") || !contract.fields.has(path)) {
+        issues.push(`${id} has unsupported or duplicate field '${path || "(empty)"}'`);
+      }
+      paths.add(path);
+      if (!Array.isArray(field?.uses) || field.uses.length === 0 || field.uses.some((usage) => !CANONICAL_DEMO_USES.has(usage))) {
+        issues.push(`${id}.${path || "(empty)"} has unsupported uses`);
+      }
+    }
+  }
+
+  report(check, issues.length === 0, issues.length > 0 ? issues.slice(0, 8).join("; ") : undefined);
+}
+
 function runImportSessionContractCheck(check) {
   if (!existsSync(MANIFEST_PATH)) {
     report(check, false, "plannerxchange.app.json not found");
@@ -559,6 +637,9 @@ for (const check of checks) {
       break;
     case "manifest-canonical-data-access":
       runManifestCanonicalDataAccessCheck(check);
+      break;
+    case "manifest-canonical-demo-usage":
+      runManifestCanonicalDemoUsageCheck(check);
       break;
     case "import-session-contract":
       runImportSessionContractCheck(check);

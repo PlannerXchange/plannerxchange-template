@@ -143,11 +143,11 @@ export class PxApiError extends Error {
 }
 
 /** Generic app-data record envelope. */
-export interface AppDataRecord<T = unknown> {
+export interface AppDataRecord<T extends Record<string, unknown> = Record<string, unknown>> {
   recordId: string;
   recordType: string;
   title?: string;
-  status?: "draft" | "final" | "archived";
+  status: "draft" | "final" | "archived";
   schemaVersion: number;
   clientUserId?: string;
   householdId?: string;
@@ -165,11 +165,11 @@ export interface AppDataSourceRef {
   asOf?: string;
 }
 
-export interface AppDataCreateInput<T = unknown> {
+export interface AppDataCreateInput<T extends Record<string, unknown> = Record<string, unknown>> {
   recordType: string;
   title?: string;
-  status?: "draft" | "final" | "archived";
-  schemaVersion?: number;
+  status: "draft" | "final" | "archived";
+  schemaVersion: number;
   clientUserId?: string;
   householdId?: string;
   accountId?: string;
@@ -177,11 +177,12 @@ export interface AppDataCreateInput<T = unknown> {
   payload: T;
 }
 
-export type AppDataUpdateInput<T = unknown> = Partial<
-  Pick<AppDataCreateInput<T>, "title" | "status" | "clientUserId" | "householdId" | "accountId" | "sourceRefs" | "payload">
->;
+export type AppDataUpdateInput<T extends Record<string, unknown> = Record<string, unknown>> =
+  | { title: string; status?: "draft" | "final" | "archived"; payload?: T }
+  | { title?: string; status: "draft" | "final" | "archived"; payload?: T }
+  | { title?: string; status?: "draft" | "final" | "archived"; payload: T };
 
-interface AppDataListResponse<T = unknown> {
+interface AppDataListResponse<T extends Record<string, unknown> = Record<string, unknown>> {
   items: AppDataRecord<T>[];
 }
 
@@ -261,10 +262,10 @@ export interface PxGateway {
   ): Promise<CanonicalSoftDeleteResult>;
 
   // App-data CRUD
-  getAppData<T = unknown>(recordType: string): Promise<AppDataRecord<T>[]>;
-  createAppData<T = unknown>(input: AppDataCreateInput<T>): Promise<AppDataRecord<T>>;
-  updateAppData<T = unknown>(recordId: string, input: AppDataUpdateInput<T>): Promise<AppDataRecord<T>>;
-  softDeleteAppData<T = unknown>(recordId: string): Promise<AppDataRecord<T>>;
+  getAppData<T extends Record<string, unknown> = Record<string, unknown>>(recordType: string): Promise<AppDataRecord<T>[]>;
+  createAppData<T extends Record<string, unknown> = Record<string, unknown>>(input: AppDataCreateInput<T>): Promise<AppDataRecord<T>>;
+  updateAppData<T extends Record<string, unknown> = Record<string, unknown>>(recordId: string, input: AppDataUpdateInput<T>): Promise<AppDataRecord<T>>;
+  softDeleteAppData<T extends Record<string, unknown> = Record<string, unknown>>(recordId: string): Promise<AppDataRecord<T>>;
 }
 
 export function createPxGateway(ctx: ShellRuntimeContext): PxGateway {
@@ -523,13 +524,13 @@ function mockGateway(): PxGateway {
       };
     },
 
-    async getAppData<T = unknown>(recordType: string): Promise<AppDataRecord<T>[]> {
+    async getAppData<T extends Record<string, unknown> = Record<string, unknown>>(recordType: string): Promise<AppDataRecord<T>[]> {
       return [...mockAppDataStore.values()].filter(
         (r) => r.recordType === recordType
       ) as AppDataRecord<T>[];
     },
 
-    async createAppData<T = unknown>(input: AppDataCreateInput<T>): Promise<AppDataRecord<T>> {
+    async createAppData<T extends Record<string, unknown> = Record<string, unknown>>(input: AppDataCreateInput<T>): Promise<AppDataRecord<T>> {
       const recordId =
         typeof crypto !== "undefined" && "randomUUID" in crypto
           ? crypto.randomUUID()
@@ -538,8 +539,8 @@ function mockGateway(): PxGateway {
         recordId,
         recordType: input.recordType,
         title: input.title,
-        status: input.status ?? "draft",
-        schemaVersion: input.schemaVersion ?? 1,
+        status: input.status,
+        schemaVersion: input.schemaVersion,
         clientUserId: input.clientUserId,
         householdId: input.householdId,
         accountId: input.accountId,
@@ -555,7 +556,7 @@ function mockGateway(): PxGateway {
       return record;
     },
 
-    async updateAppData<T = unknown>(
+    async updateAppData<T extends Record<string, unknown> = Record<string, unknown>>(
       recordId: string,
       input: AppDataUpdateInput<T>
     ): Promise<AppDataRecord<T>> {
@@ -573,7 +574,7 @@ function mockGateway(): PxGateway {
       return updated;
     },
 
-    async softDeleteAppData<T = unknown>(recordId: string): Promise<AppDataRecord<T>> {
+    async softDeleteAppData<T extends Record<string, unknown> = Record<string, unknown>>(recordId: string): Promise<AppDataRecord<T>> {
       const existing = mockAppDataStore.get(recordId) as AppDataRecord<T> | undefined;
       if (!existing) {
         throw new Error(`Mock app-data record not found: ${recordId}`);
@@ -779,24 +780,21 @@ function liveGateway(ctx: ShellRuntimeContext): PxGateway {
       );
     },
 
-    async getAppData<T = unknown>(recordType: string): Promise<AppDataRecord<T>[]> {
+    async getAppData<T extends Record<string, unknown> = Record<string, unknown>>(recordType: string): Promise<AppDataRecord<T>[]> {
       const payload = await pxFetch<AppDataListResponse<T>>(
         `/app-data?recordType=${encodeURIComponent(recordType)}`
       );
       return payload.items ?? [];
     },
 
-    async createAppData<T = unknown>(input: AppDataCreateInput<T>): Promise<AppDataRecord<T>> {
+    async createAppData<T extends Record<string, unknown> = Record<string, unknown>>(input: AppDataCreateInput<T>): Promise<AppDataRecord<T>> {
       return pxFetch<AppDataRecord<T>>("/app-data", {
         method: "POST",
-        body: JSON.stringify({
-          ...input,
-          schemaVersion: input.schemaVersion ?? 1,
-        }),
+        body: JSON.stringify(input),
       });
     },
 
-    async updateAppData<T = unknown>(
+    async updateAppData<T extends Record<string, unknown> = Record<string, unknown>>(
       recordId: string,
       input: AppDataUpdateInput<T>
     ): Promise<AppDataRecord<T>> {
@@ -806,7 +804,7 @@ function liveGateway(ctx: ShellRuntimeContext): PxGateway {
       });
     },
 
-    async softDeleteAppData<T = unknown>(recordId: string): Promise<AppDataRecord<T>> {
+    async softDeleteAppData<T extends Record<string, unknown> = Record<string, unknown>>(recordId: string): Promise<AppDataRecord<T>> {
       return pxFetch<AppDataRecord<T>>(`/app-data/${encodeURIComponent(recordId)}`, {
         method: "DELETE",
       });

@@ -12,6 +12,15 @@ module/object storage, and local wrappers. Keep those edges and `/app-data`
 routes statically resolvable; renaming or storing the capability does not change
 the request contract.
 
+Production minification may rename the transport, place its runtime-property
+capture far from the app-data calls, and compress assignments onto one line.
+That is supported when the lexical initializer/assignment path remains
+statically resolvable. Retaining a server-issued `recordId` in an in-memory
+object or `Map` keyed by a selected client, household, or account does not make
+the ID locally fabricated. Request-envelope checks apply only to top-level
+properties: `payload: { data: value }` is valid, while top-level `{ value }` is
+not.
+
 This document defines the builder-facing write contract for PlannerXchange-hosted app-owned work product.
 
 It is separate from the canonical-data contract. Builder apps read and mutate shared canonical records through governed canonical APIs, and write builder-owned work product through the app-data API family.
@@ -150,6 +159,13 @@ Current route status:
 | `PATCH /app-data/{recordId}` | live | single-record update |
 | `DELETE /app-data/{recordId}` | live | soft-delete/archive builder-owned work product |
 
+## Required create fields
+
+Every `POST /app-data` body must include `recordType`, `status`,
+`schemaVersion`, and an object `payload`. Local interfaces do not become the PX
+contract because they reuse a familiar type name: keep them structurally aligned
+with this guide or import the current public PX type through an installed SDK.
+
 ### `GET /app-data`
 
 List builder-owned work-product records for the current app and firm.
@@ -202,6 +218,120 @@ Create a new work-product record.
 **Response:** the created record with server-assigned `recordId`, `appId`, `appInstallationId`, `firmId`, `createdAt`, `createdByUserId`.
 
 Create accepts only `recordType`, optional `title`, `status`, `schemaVersion`, optional association IDs, optional `sourceRefs`, and `payload`. `recordType`, `status`, `schemaVersion`, and an object `payload` are required. Status must be `draft`, `final`, or `archived`; `schemaVersion` must be a positive integer.
+
+## Complete TypeScript record lifecycle
+
+This example keeps one app-owned state record per selected client. It lists
+first, retains the server-issued ID, creates only when no record exists, and
+serializes writes for the same client so concurrent UI actions do not race into
+duplicate creates.
+
+```ts
+type AppState = { budgets: Record<string, number> };
+type AppDataRecord<T extends Record<string, unknown>> = {
+  recordId: string;
+  payload: T;
+};
+type AppDataPage<T extends Record<string, unknown>> = {
+  items: AppDataRecord<T>[];
+};
+
+const recordIdsByClient = new Map<string, string>();
+const writesByClient = new Map<string, Promise<void>>();
+
+async function requestJson<T>(
+  authenticatedFetch: (path: string, init?: RequestInit) => Promise<Response>,
+  path: string,
+  init?: RequestInit
+): Promise<T> {
+  const response = await authenticatedFetch(path, init);
+  if (!response.ok) throw new Error(`PlannerXchange request failed (${response.status})`);
+  return response.json() as Promise<T>;
+}
+
+async function findStateRecord(
+  authenticatedFetch: (path: string, init?: RequestInit) => Promise<Response>,
+  clientUserId: string
+): Promise<AppDataRecord<AppState> | undefined> {
+  const query = new URLSearchParams({
+    recordType: "cashflow_state",
+    clientUserId,
+    limit: "100"
+  });
+  const page = await requestJson<AppDataPage<AppState>>(
+    authenticatedFetch,
+    `/app-data?${query.toString()}`
+  );
+  const record = page.items[0];
+  if (record) recordIdsByClient.set(clientUserId, record.recordId);
+  return record;
+}
+
+export async function loadState(
+  authenticatedFetch: (path: string, init?: RequestInit) => Promise<Response>,
+  clientUserId: string
+): Promise<AppState | undefined> {
+  return (await findStateRecord(authenticatedFetch, clientUserId))?.payload;
+}
+
+export function saveState(
+  authenticatedFetch: (path: string, init?: RequestInit) => Promise<Response>,
+  clientUserId: string,
+  payload: AppState
+): Promise<void> {
+  const previous = writesByClient.get(clientUserId) ?? Promise.resolve();
+  const next = previous.then(async () => {
+    let recordId = recordIdsByClient.get(clientUserId);
+    if (!recordId) recordId = (await findStateRecord(authenticatedFetch, clientUserId))?.recordId;
+    if (recordId) {
+      await requestJson(authenticatedFetch, `/app-data/${encodeURIComponent(recordId)}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ payload })
+      });
+      return;
+    }
+    const created = await requestJson<AppDataRecord<AppState>>(authenticatedFetch, "/app-data", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        recordType: "cashflow_state",
+        status: "draft",
+        schemaVersion: 1,
+        clientUserId,
+        payload
+      })
+    });
+    recordIdsByClient.set(clientUserId, created.recordId);
+  });
+  writesByClient.set(clientUserId, next);
+  return next.finally(() => {
+    if (writesByClient.get(clientUserId) === next) writesByClient.delete(clientUserId);
+  });
+}
+
+export async function deleteState(
+  authenticatedFetch: (path: string, init?: RequestInit) => Promise<Response>,
+  clientUserId: string
+): Promise<void> {
+  const recordId = recordIdsByClient.get(clientUserId) ??
+    (await findStateRecord(authenticatedFetch, clientUserId))?.recordId;
+  if (!recordId) return;
+  await requestJson(authenticatedFetch, `/app-data/${encodeURIComponent(recordId)}`, {
+    method: "DELETE"
+  });
+  recordIdsByClient.delete(clientUserId);
+}
+```
+
+## Server-issued record ID provenance
+
+An ID is valid when it comes from `POST /app-data`, `GET /app-data`, a
+record-level response, or an explicit route/function parameter documented as an
+app-data record ID. It remains server-issued when cached in a browser-memory
+object or `Map`, even if that cache is indexed by client, household, or account.
+The invalid pattern is constructing the record ID itself from one of those
+identities or from a custom prefixed key.
 
 ### `GET /app-data/{recordId}`
 
@@ -270,6 +400,7 @@ Firm/app-level template, no client association required:
 ```json
 {
   "recordType": "rtq_template",
+  "status": "draft",
   "schemaVersion": 1,
   "payload": {
     "title": "Risk tolerance questionnaire",
@@ -285,6 +416,7 @@ Client invitation, top-level `clientUserId` required:
 ```json
 {
   "recordType": "rtq_invitation",
+  "status": "draft",
   "schemaVersion": 1,
   "clientUserId": "client_456",
   "payload": {
@@ -300,6 +432,7 @@ Client response, top-level `clientUserId` required and `sourceRefs` recommended 
 ```json
 {
   "recordType": "rtq_response",
+  "status": "draft",
   "schemaVersion": 1,
   "clientUserId": "client_456",
   "sourceRefs": [
@@ -340,6 +473,15 @@ Builder apps **may not**:
 PlannerXchange-hosted app-data records are governed and exportable but are not canonical or cross-app portable by default. If PlannerXchange later promotes a record family to canonical data, that happens through an explicit contract change.
 
 ## Review implications
+
+### Review remediation checklist
+
+- Confirm source and committed build both use the same supported operation.
+- Confirm create includes all required fields and update includes at least one
+  of `title`, `status`, or `payload`.
+- Confirm response data is read from `items` and `payload`, never `.value`.
+- Confirm every record-level route uses a server-issued record ID.
+- Rebuild and commit production output and provenance after source changes.
 
 Apps using app-data writes should expect publication review for:
 

@@ -35,6 +35,9 @@ Manifest schema guardrail:
 - portable-data intent is expressed with `dataPortabilityMode: "plannerxchange_portable"`
 - data/API access is expressed with exact scope strings in the `permissions` array
 - demo mode is enabled in Creator Studio after eligibility review; it is not currently a builder manifest field
+- `canonicalDataUsageDeclarations` is allowed only as exact field-level review
+  evidence for canonical Demo fixtures; it does not enable Demo mode or replace
+  canonical permissions and access declarations
 - public landing pages are enabled in PlannerXchange after eligibility review; they are not currently builder manifest fields
 
 Visibility management:
@@ -264,6 +267,11 @@ The following issues are common causes of publication rejection. Check for them 
 25. **Unapproved landing-page trust or pricing claims** - landing-page copy claims `PX Approved`, `Portable Data`, install availability, ratings, reviews, pricing, security approval, or marketplace status without using PlannerXchange marketplace records.
 26. **Runtime Python or script execution** - the app requires PlannerXchange to run `.py` files, notebooks, Flask/FastAPI apps, Celery/RQ workers, serverless functions, Docker containers, scheduled jobs, shell scripts, or subprocess commands after publication. Shell-published apps are hosted web artifacts; use local/build-time Python only, or ask PlannerXchange about an approved governed runtime lane.
 27. **Declared canonical access without usage** - `canonicalDataAccessDeclarations` requests a category/operation that reviewed source does not use through the matching PX route, SDK, or gateway method. Use the declared access or remove the declaration and permission. This blocks only the data-persistence goal.
+28. **Canonical Demo contract mismatch** - a Demo-capable canonical app omits
+    `canonicalDataUsageDeclarations`, uses custom or computed fields, does not
+    pin `px_canonical_demo_v1` plus a literal scenario, or omits the shared
+    fixture adapter from committed output. Fix the exact evidence gap; this
+    affects Demo eligibility only.
 28. **Canonical-looking freeform field** - a Client, Household, or Account control accepts app-local text without PX-backed selection or governed creation. Integrate it through PX or rename it as an app-local concept. This is a nonblocking recommendation.
 
 ## PX Approved badge direction
