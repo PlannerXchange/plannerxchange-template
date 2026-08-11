@@ -95,18 +95,26 @@ function enclosingNamedFunction(content, offset) {
   return enclosing;
 }
 
-function operationIsReachable(files, fact) {
+function operationIsReachable(files, fact, sourceOperations, artifactOperations) {
   const file = files.find((candidate) => candidate.path === fact.file);
   if (!file) return false;
   const content = maskComments(file.content);
   const enclosing = enclosingNamedFunction(content, fact.offset);
-  if (!enclosing || enclosing.exported || enclosing.name === "mount") return true;
+  if (!enclosing || enclosing.name === "mount") return true;
   const reference = new RegExp(`(?:\\b${escapeRegex(enclosing.name)}\\s*\\(|<${escapeRegex(enclosing.name)}\\b|on[A-Za-z]+\\s*=\\s*\\{\\s*${escapeRegex(enclosing.name)}\\s*\\})`);
-  return files.some((candidate) => {
+  const explicitlyReferenced = files.some((candidate) => {
     const candidateContent = maskComments(candidate.content);
     if (candidate.path !== fact.file) return reference.test(candidateContent);
     return reference.test(candidateContent.slice(0, enclosing.start) + " ".repeat(enclosing.end - enclosing.start) + candidateContent.slice(enclosing.end));
   });
+  if (explicitlyReferenced) return true;
+  if (!enclosing.exported) return false;
+  const functionOperations = sourceOperations.filter((candidate) =>
+    candidate.file === fact.file && candidate.offset >= enclosing.start && candidate.offset < enclosing.end
+  );
+  return functionOperations.some((sourceOperation) =>
+    artifactOperations.some((artifactOperation) => artifactMatches(sourceOperation, artifactOperation))
+  );
 }
 
 function maskComments(content) {
@@ -808,13 +816,13 @@ export function analyzeAppDataContract({ manifest, sourceFiles, distFiles, reach
   const issues = [];
   const reachable = new Set(reachableSourceFiles ?? sourceFiles.map((file) => file.path));
   const allSource = analyzeAppDataOperations(sourceFiles, "source");
-  const source = allSource.filter((fact) => reachable.has(fact.file) && operationIsReachable(sourceFiles, fact));
+  const artifact = analyzeAppDataOperations(selectAppDataArtifactFiles(distFiles), "dist");
+  const source = allSource.filter((fact) => reachable.has(fact.file) && operationIsReachable(sourceFiles, fact, allSource, artifact));
   const unreachable = allSource.filter((fact) => !source.includes(fact));
   for (const diagnostic of relevantResolverDiagnostics) {
     if (unreachable.some((fact) => diagnosticMayResolveToFile(diagnostic, fact.file))) issues.push({ code: "app-data-analysis-indeterminate", file: "plannerxchange.app.json", message: `${diagnostic}. Configure a unique local path mapping so app-data calls can be verified.` });
   }
   if (traversalBounded && unreachable.length > 0) issues.push({ code: "app-data-analysis-indeterminate", file: "plannerxchange.app.json", message: "App-data source traversal exceeded its bounded review limit." });
-  const artifact = analyzeAppDataOperations(selectAppDataArtifactFiles(distFiles), "dist");
   const available = new Map();
   for (const fact of artifact) {
     if (fact.issues.includes("gateway adapter is unresolved")) {

@@ -165,6 +165,30 @@ test("ignores an unreferenced local helper in a reachable file", () => {
   assert.deepEqual(issues, []);
 });
 
+test("ignores an exported app-data helper that is never called and absent from the build", () => {
+  const issues = analyzeAppDataContract({
+    manifest,
+    sourceFiles: files({
+      "src/plugin.ts": `export function mount(){return null} export function removeUnused(){return fetch("/app-data/local",{method:"PUT",body:JSON.stringify({value:1})})}`
+    }),
+    distFiles: files({ "dist/plugin.js": `export function mount(){return null}` })
+  });
+  assert.deepEqual(issues, []);
+});
+
+test("retains an exported app-data helper when reachable code calls it", () => {
+  const issues = analyzeAppDataContract({
+    manifest,
+    sourceFiles: files({
+      "src/plugin.ts": `export function removeStored(){return fetch("/app-data/local",{method:"PUT",body:JSON.stringify({value:1})})} export function mount(){void removeStored()}`
+    }),
+    distFiles: files({
+      "dist/plugin.js": `function r(){return fetch("/app-data/local",{method:"PUT",body:JSON.stringify({value:1})})}export function mount(){r()}`
+    })
+  });
+  assert.ok(issues.some((issue) => issue.code === "app-data-request-contract-invalid"));
+});
+
 test("distinguishes relevant alias uncertainty from unrelated unresolved imports", () => {
   const sourceFiles = files({
     "src/plugin.ts": `export function mount(){return null}`,

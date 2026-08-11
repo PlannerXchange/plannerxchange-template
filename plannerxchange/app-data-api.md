@@ -477,6 +477,9 @@ PlannerXchange-hosted app-data records are governed and exportable but are not c
 ### Review remediation checklist
 
 - Confirm source and committed build both use the same supported operation.
+- Confirm every app-data helper intended for runtime use is called from reachable
+  plugin code. Exporting a helper does not execute it; preflight ignores an
+  unused exported helper that the production build tree-shakes away.
 - Confirm create includes all required fields and update includes at least one
   of `title`, `status`, or `payload`.
 - Confirm response data is read from `items` and `payload`, never `.value`.

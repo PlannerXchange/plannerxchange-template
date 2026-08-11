@@ -186,6 +186,10 @@ Request only the scopes the app actually uses.
   explicit; a `request_shape_resolution_unavailable` result is a PlannerXchange
   processing failure and requests no speculative app rewrite. See
   [`app-data-api.md#review-remediation-checklist`](app-data-api.md#review-remediation-checklist).
+- Exporting an app-data helper does not make it execute. Call runtime helpers
+  from reachable plugin code; an unused exported helper removed by the
+  production build is dead source and does not satisfy or violate a runtime
+  operation contract.
 - `app_data.read` and `app_data.write` authorize access but do not make an unsupported route, method, body, response, or record-ID lifecycle valid. Preflight and publication review enforce both permissions and request compliance.
 - Import wrappers are supported only when the source graph can statically trace the import-facing route or action through relative imports or uniquely resolved configured `tsconfig`/`jsconfig` path aliases, parameter forwarding, assignments, and aliases to `openDataImportSession` with the matching stable declaration ID. Relative `extends`, `baseUrl`, `paths`, and a unique conventional `@/` or `~/` source-root alias are supported; ambiguous or unresolved local aliases remain unverified. Prefer a direct runtime-helper call when no wrapper is needed.
 - PlannerXchange groups a route, its navigation destination, its rendered import page, and its primary import action into one user journey, then verifies that journey against its own declaration ID and committed artifact evidence. Unrelated imports elsewhere in the source tree cannot satisfy it.
