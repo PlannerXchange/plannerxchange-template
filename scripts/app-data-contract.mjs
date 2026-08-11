@@ -547,6 +547,59 @@ function isExplicitFunctionParameter(prefix, identifier) {
   return new RegExp(`(?:^|[,\\s])${escapeRegex(identifier)}(?:\\s*[:?=,]|$)`).test(parameters);
 }
 
+function localFunctionDefinition(prefix, symbol) {
+  const pattern = new RegExp(
+    `(?<![A-Za-z0-9_$])(?:async\\s+)?function\\s+${escapeRegex(symbol)}\\s*(?:<[^{}()]*>)?\\s*\\(([^)]*)\\)\\s*(?::\\s*[^={]+)?\\s*\\{`,
+    "g"
+  );
+  const match = [...prefix.matchAll(pattern)].at(-1);
+  if (!match) return undefined;
+  const start = match.index ?? 0;
+  const openBrace = start + match[0].lastIndexOf("{");
+  const end = closingBrace(prefix, openBrace);
+  if (end <= openBrace) return undefined;
+  return {
+    parameters: (match[1] ?? "").split(",")
+      .map((parameter) => /([A-Za-z_$][A-Za-z0-9_$]*)/.exec(parameter.trim())?.[1])
+      .filter(Boolean),
+    body: prefix.slice(openBrace + 1, end - 1),
+    bodyOffset: openBrace + 1
+  };
+}
+
+function returnedExpressions(body) {
+  const results = [];
+  for (const match of body.matchAll(/(?<![A-Za-z0-9_$])return(?![A-Za-z0-9_$])/g)) {
+    const start = (match.index ?? 0) + match[0].length;
+    let depth = 0;
+    let quote;
+    for (let index = start; index <= body.length; index += 1) {
+      const current = body[index];
+      if (quote) {
+        if (current === "\\") index += 1;
+        else if (current === quote) quote = undefined;
+        continue;
+      }
+      if (current === '"' || current === "'" || current === "`") quote = current;
+      else if ("([{ ".trim().includes(current)) depth += 1;
+      else if (")]}".includes(current)) depth = Math.max(0, depth - 1);
+      else if ((current === ";" || current === undefined) && depth === 0) {
+        const expression = body.slice(start, index).trim();
+        if (expression) results.push({ expression, offset: start });
+        break;
+      }
+    }
+  }
+  return results;
+}
+
+function localInvocationArguments(expression, symbol) {
+  const match = new RegExp(`(?<![A-Za-z0-9_$])${escapeRegex(symbol)}\\s*(?:<[^(){};]*>)?\\s*\\(`).exec(expression);
+  if (!match) return undefined;
+  const openParen = (match.index ?? 0) + match[0].lastIndexOf("(");
+  return callArguments(expression.slice(match.index ?? 0, callEnd(expression, openParen)));
+}
+
 function expressionComesFromAppData(expression, prefix, visited = new Set(), depth = 0) {
   if (depth > 12) return false;
   if (/\b(?:listAppData|getAppDataRecord|createAppDataRecord|updateAppDataRecord)\s*\(|["'`]\/app-data(?:[/?"'`]|$)/.test(expression)) return true;
@@ -567,10 +620,19 @@ function expressionComesFromAppData(expression, prefix, visited = new Set(), dep
     const nextVisited = new Set(visited).add(symbol);
     const assigned = lastAssignedValue(prefix, symbol);
     if (assigned && expressionComesFromAppData(assigned, prefix, nextVisited, depth + 1)) return true;
-    const helper = new RegExp(`(?<![A-Za-z0-9_$])function\\s+${escapeRegex(symbol)}\\s*\\(([^)]*)\\)\\s*\\{([\\s\\S]*?)\\}`).exec(prefix);
-    if (helper && /\.json\s*\(\s*\)/.test(helper[2])) {
-      const invocation = new RegExp(`(?<![A-Za-z0-9_$])${escapeRegex(symbol)}\\s*\\(([^)]*)\\)`).exec(expression);
-      if (invocation && callArguments(`${symbol}(${invocation[1]})`).some((argument) => expressionComesFromAppData(argument, prefix, nextVisited, depth + 1))) return true;
+    const helper = localFunctionDefinition(prefix, symbol);
+    const invocationArguments = localInvocationArguments(expression, symbol);
+    if (helper && invocationArguments) {
+      for (const returned of returnedExpressions(helper.body)) {
+        const helperPrefix = prefix.slice(0, helper.bodyOffset) + helper.body.slice(0, returned.offset);
+        if (expressionComesFromAppData(returned.expression, helperPrefix, nextVisited, depth + 1)) return true;
+        for (let index = 0; index < helper.parameters.length; index += 1) {
+          const parameter = helper.parameters[index];
+          if (!new RegExp(`(?<![A-Za-z0-9_$])${escapeRegex(parameter)}(?![A-Za-z0-9_$])`).test(returned.expression)) continue;
+          const argument = invocationArguments[index];
+          if (argument && expressionComesFromAppData(argument, prefix, nextVisited, depth + 1)) return true;
+        }
+      }
     }
   }
   return false;
@@ -763,7 +825,17 @@ export function analyzeAppDataContract({ manifest, sourceFiles, distFiles, reach
     if (provenIssues.length === 0) available.set(signature(fact), [...(available.get(signature(fact)) ?? []), fact]);
     else issues.push({ code: "app-data-request-contract-invalid", file: fact.file, message: `${fact.method} ${fact.endpoint} app-data operation: ${provenIssues.join(", ")}.` });
   }
-  for (const fact of source) {
+  const reconciledSource = source.map((fact) => {
+    if (fact.issues.length !== 1 || fact.issues[0] !== "record id provenance is unresolved") return fact;
+    const matches = (available.get(signature(fact)) ?? []).filter((candidate) =>
+      candidate.recordIdProvenance === "server" && artifactMatches(fact, candidate)
+    );
+    if (matches.length !== 1) return fact;
+    const candidates = available.get(signature(fact)) ?? [];
+    candidates.splice(candidates.indexOf(matches[0]), 1);
+    return { ...fact, recordIdProvenance: "server", issues: [], artifactMatched: true };
+  });
+  for (const fact of reconciledSource) {
     if (fact.issues.includes("gateway adapter is unresolved")) {
       issues.push({ code: "app-data-analysis-indeterminate", file: fact.file, message: "App-data gateway provenance could not be resolved." });
       continue;
@@ -777,7 +849,7 @@ export function analyzeAppDataContract({ manifest, sourceFiles, distFiles, reach
     if (provenIssues.length > 0) issues.push({ code: "app-data-request-contract-invalid", file: fact.file, message: `${fact.method} ${fact.endpoint} app-data operation: ${provenIssues.join(", ")}.` });
     else if (unresolvedProvenance) issues.push({ code: "app-data-analysis-indeterminate", file: fact.file, message: `${fact.method} ${fact.endpoint} app-data record ID provenance could not be resolved. Use an explicit recordId or appRecordId parameter.` });
   }
-  for (const fact of source.filter((entry) => entry.issues.length === 0)) {
+  for (const fact of reconciledSource.filter((entry) => entry.issues.length === 0 && !entry.artifactMatched)) {
     const matches = available.get(signature(fact)) ?? [];
     const matchIndex = matches.findIndex((candidate) => artifactMatches(fact, candidate));
     if (matchIndex >= 0) matches.splice(matchIndex, 1);

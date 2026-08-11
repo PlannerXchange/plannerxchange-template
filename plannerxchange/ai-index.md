@@ -177,6 +177,10 @@ Request only the scopes the app actually uses.
 - Do not pass `appInstallationId` in query strings.
 - Treat `/app-data` as a record API, not a key-value store. Use `GET /app-data` to list, `POST /app-data` to create, and the returned `recordId` with `GET`, `PATCH`, or `DELETE /app-data/{recordId}`. Store app-owned content in `payload`; never use `PUT`, locally fabricated record IDs, `{ value }`, or a top-level `.value` response.
 - A local initializer or wrapper may store `authenticatedFetch` when parameter forwarding, assignment, and calls remain statically traceable. Do not hide app-data routes or methods behind dynamic module resolution.
+- A local response helper may return parsed JSON or a selected `page.items`
+  record, and browser-memory state may retain its server-issued `recordId`.
+  Keep the real return and assignment chain visible; a client/household/account
+  key may index that cache but must never become the app-data record ID.
 - Keep app-data methods and bodies literal or statically typed. A review
   `dynamic_request_contract` finding means the builder must make the operation
   explicit; a `request_shape_resolution_unavailable` result is a PlannerXchange

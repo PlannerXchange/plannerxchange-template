@@ -371,6 +371,63 @@ test("accepts all five app-data operations with a distant server-id cache and er
   }), []);
 });
 
+test("follows generic response helpers through filtered list selection and returned record aliases", () => {
+  const source = `
+    let transport;
+    async function requireJson(response) { return await response.json(); }
+    async function locate(contextId) {
+      const query = new URLSearchParams({ recordType: "workspace_state", clientUserId: contextId });
+      const response = await transport("/app-data?" + query.toString());
+      const page = await requireJson(response);
+      const records = (page.items ?? []).filter((record) => record.recordType === "workspace_state");
+      return records[0];
+    }
+    export async function refresh(contextId) {
+      const existing = await locate(contextId);
+      if (existing?.recordId) return transport("/app-data/" + encodeURIComponent(existing.recordId));
+    }
+    export function mount(context) { transport = context.authenticatedFetch; void refresh("selected-context"); }
+  `;
+  const operations = analyzeAppDataOperations(files({ "src/store.ts": source }), "source");
+  assert.deepEqual(operations.map((entry) => entry.operation).sort(), ["get", "list"]);
+  assert.ok(operations.every((entry) => entry.issues.length === 0), JSON.stringify(operations));
+  assert.equal(operations.find((entry) => entry.operation === "get")?.recordIdProvenance, "server");
+});
+
+test("uses one matching committed operation to resolve only sole source id uncertainty", () => {
+  const source = `
+    let transport;
+    const helpers = { async locate(contextId) { const response = await transport("/app-data?recordType=workspace_state&clientUserId=" + encodeURIComponent(contextId)); return ((await response.json()).items ?? [])[0]; } };
+    export async function refresh(contextId) { const existing = await helpers.locate(contextId); if (existing?.recordId) return transport("/app-data/" + encodeURIComponent(existing.recordId)); }
+    export function mount(context) { transport = context.authenticatedFetch; void refresh("selected-context"); }
+  `;
+  const artifact = `let t;export async function refresh(e){const r=await t("/app-data?recordType=workspace_state&clientUserId="+encodeURIComponent(e)),a=((await r.json()).items??[])[0];if(a?.recordId)return t("/app-data/"+encodeURIComponent(a.recordId))}export function mount(e){t=e.authenticatedFetch,refresh("selected-context")}`;
+  assert.deepEqual(analyzeAppDataContract({
+    manifest,
+    sourceFiles: files({ "src/store.ts": source }),
+    distFiles: files({ "dist/plugin.js": artifact })
+  }), []);
+});
+
+test("artifact server-id evidence never suppresses fabricated source ids or ambiguous matches", () => {
+  const fabricated = `let transport;export function remove(clientUserId){const recordId="workspace-"+clientUserId;return transport("/app-data/"+recordId,{method:"DELETE"})}export function mount(context){transport=context.authenticatedFetch;remove("selected-context")}`;
+  const validArtifact = `let t;export async function remove(e){const r=await t("/app-data?recordType=workspace_state&clientUserId="+e),a=((await r.json()).items??[])[0];if(a?.recordId)return t("/app-data/"+a.recordId,{method:"DELETE"})}export function mount(e){t=e.authenticatedFetch}`;
+  const fabricatedIssues = analyzeAppDataContract({
+    manifest,
+    sourceFiles: files({ "src/store.ts": fabricated }),
+    distFiles: files({ "dist/plugin.js": validArtifact })
+  });
+  assert.ok(fabricatedIssues.some((issue) => issue.code === "app-data-request-contract-invalid" && /fabricated/.test(issue.message)));
+
+  const unresolved = `let transport;const helpers={locate:async contextId=>({recordId:await opaque(contextId)})};export async function refresh(contextId){const existing=await helpers.locate(contextId);if(existing?.recordId)return transport("/app-data/"+existing.recordId)}export function mount(context){transport=context.authenticatedFetch;refresh("selected-context")}`;
+  const ambiguousIssues = analyzeAppDataContract({
+    manifest,
+    sourceFiles: files({ "src/store.ts": unresolved }),
+    distFiles: files({ "dist/one.js": validArtifact, "dist/two.js": validArtifact })
+  });
+  assert.ok(ambiguousIssues.some((issue) => issue.code === "app-data-analysis-indeterminate"));
+});
+
 test("the public gateway source retains the strict app-data type contract", async () => {
   const gateway = await import("node:fs/promises").then((fs) => fs.readFile(new URL("../src/lib/px-gateway.ts", import.meta.url), "utf8"));
   const createBody = /export interface AppDataCreateInput[\s\S]*?\n\}/.exec(gateway)?.[0] ?? "";
