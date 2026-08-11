@@ -176,15 +176,17 @@ Request only the scopes the app actually uses.
 - Do not manually attach bearer tokens.
 - Do not pass `appInstallationId` in query strings.
 - Treat `/app-data` as a record API, not a key-value store. Use `GET /app-data` to list, `POST /app-data` to create, and the returned `recordId` with `GET`, `PATCH`, or `DELETE /app-data/{recordId}`. Store app-owned content in `payload`; never use `PUT`, locally fabricated record IDs, `{ value }`, or a top-level `.value` response.
-- A local initializer or wrapper may store `authenticatedFetch` when parameter forwarding, assignment, and calls remain statically traceable. Do not hide app-data routes or methods behind dynamic module resolution.
+- Prefer PX SDK app-data methods: `listAppData`, `getAppDataRecord`, `createAppDataRecord`, `updateAppDataRecord`, and `deleteAppDataRecord`. A local initializer or wrapper may store `authenticatedFetch` when parameter forwarding, assignment, and calls remain statically traceable. Do not hide app-data routes or methods behind dynamic module resolution.
 - A local response helper may return parsed JSON or a selected `page.items`
   record, and browser-memory state may retain its server-issued `recordId`.
   Keep the real return and assignment chain visible; a client/household/account
   key may index that cache but must never become the app-data record ID.
-- Keep app-data methods and bodies literal or statically typed. A review
-  `dynamic_request_contract` finding means the builder must make the operation
-  explicit; a `request_shape_resolution_unavailable` result is a PlannerXchange
-  processing failure and requests no speculative app rewrite. See
+- Keep app-data adapters, routes, methods, bodies, response projections, and
+  server-ID flow literal or statically typed. A review
+  `dynamic_request_contract` or `request_not_statically_reviewable` finding means
+  the builder must use the matching SDK method or make the local operation
+  explicit. Only a true PX collector/analyzer/evidence/provider failure requests
+  no app rewrite. See
   [`app-data-api.md#review-remediation-checklist`](app-data-api.md#review-remediation-checklist).
 - Exporting an app-data helper does not make it execute. Call runtime helpers
   from reachable plugin code; an unused exported helper removed by the

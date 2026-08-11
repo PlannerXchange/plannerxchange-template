@@ -70,8 +70,9 @@ test("does not silently drop an unresolved app-data adapter", () => {
     sourceFiles: files({ "src/plugin.ts": `export function mount(){return opaqueTransport("/app-data",{method:"POST",body:JSON.stringify(input)})}` }),
     distFiles: []
   });
-  assert.ok(issues.some((issue) => issue.code === "app-data-analysis-indeterminate"));
-  assert.equal(issues.some((issue) => issue.code === "app-data-request-contract-invalid"), false);
+  assert.ok(issues.some((issue) => issue.code === "app-data-request-contract-invalid"));
+  assert.equal(issues.some((issue) => issue.code === "app-data-analysis-indeterminate"), false);
+  assert.match(issues.map((issue) => issue.message).join(" "), /request_not_statically_reviewable/);
 });
 
 test("discovers a statically named app-data route", () => {
@@ -125,7 +126,7 @@ test("ignores unreachable source and requires each reachable artifact marker", (
 test("rejects invalid query fields and missing committed operations", () => {
   const issues = analyzeAppDataContract({
     manifest,
-    sourceFiles: files({ "src/plugin.ts": `${trustedAppDataTypes} export function run(input: AppDataCreateInput){fetch("/app-data?key=legacy");api.createAppDataRecord(input);}` }),
+    sourceFiles: files({ "src/plugin.ts": `${trustedAppDataTypes} export function mount(input: AppDataCreateInput){fetch("/app-data?key=legacy");api.createAppDataRecord(input);}` }),
     distFiles: files({ "dist/plugin.js": `fetch("/app-data?key=legacy");` })
   });
   assert.ok(issues.some((issue) => issue.code === "app-data-request-contract-invalid"));
@@ -195,7 +196,8 @@ test("distinguishes relevant alias uncertainty from unrelated unresolved imports
     "src/lib/store.ts": `export function load(api){return api.listAppData()}`,
   });
   const relevant = analyzeAppDataContract({ manifest, sourceFiles, distFiles: [], reachableSourceFiles: ["src/plugin.ts"], relevantResolverDiagnostics: ["Ambiguous local import alias: @/lib/store"] });
-  assert.ok(relevant.some((issue) => issue.code === "app-data-analysis-indeterminate"));
+  assert.equal(relevant.some((issue) => issue.code === "app-data-analysis-indeterminate"), false);
+  assert.deepEqual(relevant, []);
   const unrelated = analyzeAppDataContract({ manifest, sourceFiles, distFiles: [], reachableSourceFiles: ["src/plugin.ts"], relevantResolverDiagnostics: ["Unresolved local import alias: @/components/chart"] });
   assert.equal(unrelated.some((issue) => issue.code === "app-data-analysis-indeterminate"), false);
 });
@@ -395,6 +397,43 @@ test("accepts all five app-data operations with a distant server-id cache and er
   }), []);
 });
 
+test("production-density corpus ignores dead helpers and unrelated artifacts", () => {
+  const unrelatedSource = Object.fromEntries(Array.from({ length: 88 }, (_, index) => [
+    `src/components/Panel${index}.tsx`,
+    `export function Panel${index}(){return <section>Panel ${index}</section>}`
+  ]));
+  const unrelatedArtifacts = Object.fromEntries(Array.from({ length: 5 }, (_, index) => [
+    `dist/assets/vendor-${index}.js`,
+    `const vendor${index}=${JSON.stringify("framework comparison < > import ".repeat(4_000))};export{vendor${index}};`
+  ]));
+  const source = `
+    let appDataApi;
+    export function configureAppData(api) { appDataApi = api; }
+    export function loadWorkspaceState(clientUserId) {
+      return appDataApi.listAppData({ recordType: "workspace_state", clientUserId });
+    }
+    export async function saveWorkspaceState(clientUserId, data) {
+      const page = await appDataApi.listAppData({ recordType: "workspace_state", clientUserId });
+      const existing = page.items[0];
+      if (existing) return appDataApi.updateAppDataRecord(existing.recordId, { payload: { data } });
+      return appDataApi.createAppDataRecord({ recordType: "workspace_state", status: "draft", schemaVersion: 1, clientUserId, payload: { data } });
+    }
+    export function removeUnusedWorkspaceState(recordId) { return appDataApi.deleteAppDataRecord(recordId); }
+  `;
+  const plugin = `
+    import { configureAppData, loadWorkspaceState, saveWorkspaceState } from "@/lib/workspace-state";
+    export async function mount(context) { configureAppData(context); await loadWorkspaceState("selected-client"); return saveWorkspaceState("selected-client", {}); }
+  `;
+  const artifact = `const filler=${JSON.stringify("import".repeat(12_000))};let a;export function c(e){a=e}export async function l(e){return a.listAppData({recordType:"workspace_state",clientUserId:e})}export async function s(e,t){const r=await a.listAppData({recordType:"workspace_state",clientUserId:e}),i=r.items[0];return i?a.updateAppDataRecord(i.recordId,{payload:{data:t}}):a.createAppDataRecord({recordType:"workspace_state",status:"draft",schemaVersion:1,clientUserId:e,payload:{data:t}})}export async function mount(e){c(e);await l("selected-client");return s("selected-client",{})}`;
+  const issues = analyzeAppDataContract({
+    manifest,
+    sourceFiles: files({ ...unrelatedSource, "src/plugin.tsx": plugin, "src/lib/workspace-state.ts": source }),
+    distFiles: files({ ...unrelatedArtifacts, "dist/assets/plugin.js": artifact }),
+    reachableSourceFiles: ["src/plugin.tsx", "src/lib/workspace-state.ts"]
+  });
+  assert.deepEqual(issues, []);
+});
+
 test("follows generic response helpers through filtered list selection and returned record aliases", () => {
   const source = `
     let transport;
@@ -449,7 +488,8 @@ test("artifact server-id evidence never suppresses fabricated source ids or ambi
     sourceFiles: files({ "src/store.ts": unresolved }),
     distFiles: files({ "dist/one.js": validArtifact, "dist/two.js": validArtifact })
   });
-  assert.ok(ambiguousIssues.some((issue) => issue.code === "app-data-analysis-indeterminate"));
+  assert.ok(ambiguousIssues.some((issue) => issue.code === "app-data-request-contract-invalid"));
+  assert.equal(ambiguousIssues.some((issue) => issue.code === "app-data-analysis-indeterminate"), false);
 });
 
 test("the public gateway source retains the strict app-data type contract", async () => {

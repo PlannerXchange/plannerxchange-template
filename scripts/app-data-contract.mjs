@@ -95,12 +95,34 @@ function enclosingNamedFunction(content, offset) {
   return enclosing;
 }
 
-function operationIsReachable(files, fact, sourceOperations, artifactOperations) {
+function isTopLevelOffset(content, offset) {
+  let depth = 0;
+  let quote;
+  for (let index = 0; index < Math.min(offset, content.length); index += 1) {
+    const current = content[index];
+    if (quote) {
+      if (current === "\\") index += 1;
+      else if (current === quote) quote = undefined;
+      continue;
+    }
+    if (current === '"' || current === "'" || current === "`") {
+      quote = current;
+      continue;
+    }
+    if (current === "{") depth += 1;
+    else if (current === "}") depth = Math.max(0, depth - 1);
+  }
+  return depth === 0;
+}
+
+function operationIsReachable(files, fact, artifactOperations) {
   const file = files.find((candidate) => candidate.path === fact.file);
   if (!file) return false;
   const content = maskComments(file.content);
+  if (artifactOperations.some((artifactOperation) => artifactMatches(fact, artifactOperation))) return true;
   const enclosing = enclosingNamedFunction(content, fact.offset);
-  if (!enclosing || enclosing.name === "mount") return true;
+  if (!enclosing) return isTopLevelOffset(content, fact.offset);
+  if (enclosing.name === "mount") return true;
   const reference = new RegExp(`(?:\\b${escapeRegex(enclosing.name)}\\s*\\(|<${escapeRegex(enclosing.name)}\\b|on[A-Za-z]+\\s*=\\s*\\{\\s*${escapeRegex(enclosing.name)}\\s*\\})`);
   const explicitlyReferenced = files.some((candidate) => {
     const candidateContent = maskComments(candidate.content);
@@ -108,13 +130,7 @@ function operationIsReachable(files, fact, sourceOperations, artifactOperations)
     return reference.test(candidateContent.slice(0, enclosing.start) + " ".repeat(enclosing.end - enclosing.start) + candidateContent.slice(enclosing.end));
   });
   if (explicitlyReferenced) return true;
-  if (!enclosing.exported) return false;
-  const functionOperations = sourceOperations.filter((candidate) =>
-    candidate.file === fact.file && candidate.offset >= enclosing.start && candidate.offset < enclosing.end
-  );
-  return functionOperations.some((sourceOperation) =>
-    artifactOperations.some((artifactOperation) => artifactMatches(sourceOperation, artifactOperation))
-  );
+  return false;
 }
 
 function maskComments(content) {
@@ -796,13 +812,6 @@ const artifactMatches = (source, artifact) => signature(source) === signature(ar
   fieldsCompatible(source, artifact) &&
   fieldListsCompatible(source.queryFields, artifact.queryFields);
 
-function diagnosticMayResolveToFile(diagnostic, file) {
-  const specifier = diagnostic.slice(diagnostic.lastIndexOf(":") + 1).trim().replace(/^['"]|['"]$/g, "");
-  const normalizedSpecifier = specifier.replace(/^[~@]\//, "").replace(/^\.\//, "").replace(/\\/g, "/").replace(/\.(?:[cm]?[jt]sx?)$/i, "");
-  const normalizedFile = file.replace(/\\/g, "/").replace(/\.(?:[cm]?[jt]sx?)$/i, "");
-  return normalizedSpecifier.length > 0 && (normalizedFile.endsWith(`/${normalizedSpecifier}`) || normalizedFile === normalizedSpecifier);
-}
-
 const APP_DATA_ARTIFACT_ANCHOR = /\/app-data(?=$|[/?#"'\`\\])|\b(?:listAppData|getAppDataRecord|createAppDataRecord|updateAppDataRecord|deleteAppDataRecord)\s*\(|(?:\.|\[\s*["'])authenticatedFetch(?:\b|["']\s*\])/;
 
 export function selectAppDataArtifactFiles(files) {
@@ -812,21 +821,16 @@ export function selectAppDataArtifactFiles(files) {
   );
 }
 
-export function analyzeAppDataContract({ manifest, sourceFiles, distFiles, reachableSourceFiles, relevantResolverDiagnostics = [], traversalBounded = false }) {
+export function analyzeAppDataContract({ manifest, sourceFiles, distFiles, reachableSourceFiles }) {
   const issues = [];
   const reachable = new Set(reachableSourceFiles ?? sourceFiles.map((file) => file.path));
   const allSource = analyzeAppDataOperations(sourceFiles, "source");
   const artifact = analyzeAppDataOperations(selectAppDataArtifactFiles(distFiles), "dist");
-  const source = allSource.filter((fact) => reachable.has(fact.file) && operationIsReachable(sourceFiles, fact, allSource, artifact));
-  const unreachable = allSource.filter((fact) => !source.includes(fact));
-  for (const diagnostic of relevantResolverDiagnostics) {
-    if (unreachable.some((fact) => diagnosticMayResolveToFile(diagnostic, fact.file))) issues.push({ code: "app-data-analysis-indeterminate", file: "plannerxchange.app.json", message: `${diagnostic}. Configure a unique local path mapping so app-data calls can be verified.` });
-  }
-  if (traversalBounded && unreachable.length > 0) issues.push({ code: "app-data-analysis-indeterminate", file: "plannerxchange.app.json", message: "App-data source traversal exceeded its bounded review limit." });
+  const source = allSource.filter((fact) => reachable.has(fact.file) && operationIsReachable(sourceFiles, fact, artifact));
   const available = new Map();
   for (const fact of artifact) {
     if (fact.issues.includes("gateway adapter is unresolved")) {
-      issues.push({ code: "app-data-analysis-indeterminate", file: fact.file, message: "Committed app-data gateway provenance could not be resolved." });
+      issues.push({ code: "app-data-request-contract-invalid", file: fact.file, message: "request_not_statically_reviewable: committed app-data gateway provenance could not be resolved. Use the matching PX SDK method or a locally static shell gateway call." });
       continue;
     }
     const provenIssues = fact.issues.filter((issue) => !/dynamic request contract|provenance is unresolved/.test(issue));
@@ -845,23 +849,28 @@ export function analyzeAppDataContract({ manifest, sourceFiles, distFiles, reach
   });
   for (const fact of reconciledSource) {
     if (fact.issues.includes("gateway adapter is unresolved")) {
-      issues.push({ code: "app-data-analysis-indeterminate", file: fact.file, message: "App-data gateway provenance could not be resolved." });
+      issues.push({ code: "app-data-request-contract-invalid", file: fact.file, message: "request_not_statically_reviewable: app-data gateway provenance could not be resolved. Use the matching PX SDK method or a locally static shell gateway call." });
       continue;
     }
     if (fact.issues.includes("request shape resolution unavailable")) {
-      issues.push({ code: "app-data-analysis-indeterminate", file: fact.file, message: "An action-bearing app-data request shape could not be resolved statically. Make its route, method, envelope, type, spread, and record-ID source explicit." });
+      issues.push({ code: "app-data-request-contract-invalid", file: fact.file, message: "request_not_statically_reviewable: make the action-bearing app-data route, method, envelope, type, spread, response, and record-ID source locally static, or use the matching PX SDK method." });
       continue;
     }
     const unresolvedProvenance = fact.issues.includes("record id provenance is unresolved");
     const provenIssues = fact.issues.filter((issue) => issue !== "record id provenance is unresolved");
     if (provenIssues.length > 0) issues.push({ code: "app-data-request-contract-invalid", file: fact.file, message: `${fact.method} ${fact.endpoint} app-data operation: ${provenIssues.join(", ")}.` });
-    else if (unresolvedProvenance) issues.push({ code: "app-data-analysis-indeterminate", file: fact.file, message: `${fact.method} ${fact.endpoint} app-data record ID provenance could not be resolved. Use an explicit recordId or appRecordId parameter.` });
+    else if (unresolvedProvenance) issues.push({ code: "app-data-request-contract-invalid", file: fact.file, message: `request_not_statically_reviewable: ${fact.method} ${fact.endpoint} app-data record ID provenance could not be resolved. Use the matching PX SDK method or an explicit server-issued recordId or appRecordId parameter.` });
   }
   for (const fact of reconciledSource.filter((entry) => entry.issues.length === 0 && !entry.artifactMatched)) {
     const matches = available.get(signature(fact)) ?? [];
     const matchIndex = matches.findIndex((candidate) => artifactMatches(fact, candidate));
     if (matchIndex >= 0) matches.splice(matchIndex, 1);
     else issues.push({ code: "app-data-build-artifact-missing", file: fact.file, message: `Valid ${fact.operation} app-data operation is missing from committed build output.` });
+  }
+  for (const facts of available.values()) {
+    for (const fact of facts) {
+      issues.push({ code: "app-data-request-contract-invalid", file: fact.file, message: "committed_operation_source_unresolved: committed app-data operation has no unique reviewable source operation. Remove stale output or restore and simplify the matching source, then rebuild and regenerate provenance." });
+    }
   }
   const permissions = new Set(Array.isArray(manifest?.permissions) ? manifest.permissions : []);
   if (source.some((fact) => fact.operation === "list" || fact.operation === "get") && !permissions.has("app_data.read")) issues.push({ code: "app-data-read-scope-missing", file: "plannerxchange.app.json", message: "App-data reads require app_data.read." });

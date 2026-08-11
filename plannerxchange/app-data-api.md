@@ -6,11 +6,22 @@
 application keys. There is no `PUT` route or `{ value }` compatibility shape;
 app-owned content is read and written through `payload`.
 
-Small local adapters are supported. Preflight and publication review trace
+Prefer the current PX SDK methods `listAppData`, `getAppDataRecord`,
+`createAppDataRecord`, `updateAppDataRecord`, and `deleteAppDataRecord`. They are
+the simplest publication-reviewable path because they encode the route and
+method contract. Small local adapters are also supported. Preflight and publication review trace
 `authenticatedFetch` through initializer parameters, assignments,
 module/object storage, and local wrappers. Keep those edges and `/app-data`
 routes statically resolvable; renaming or storing the capability does not change
 the request contract.
+
+An executable operation whose adapter, route, method, envelope, response
+projection, or server-issued record-ID origin is dynamic or opaque receives the
+blocking `app-data-request-contract-invalid` finding. That is a builder-code
+reviewability problem even if the browser could execute it. Use the matching SDK
+method or simplify the wrapper until those parts are locally static. Only a true
+PlannerXchange collector, analyzer execution, evidence, or provider failure is
+reported as a platform-owned review failure.
 
 Production minification may rename the transport, place its runtime-property
 capture far from the app-data calls, and compress assignments onto one line.
@@ -488,11 +499,11 @@ PlannerXchange-hosted app-data records are governed and exportable but are not c
   sort `page.items`, return the selected record, and cache that record in browser
   memory. Keep the helper return expression and later `recordId` access
   statically traceable; do not replace the server ID with the cache key.
-- Keep routes, methods, request objects, type aliases, and spreads statically
-  resolvable. `dynamic_request_contract` is a builder finding: replace an
-  untyped/dynamic method or body with a literal or statically typed request.
-  `request_shape_resolution_unavailable` is a PlannerXchange processing failure,
-  not an instruction to redesign a valid app.
+- Keep adapters, routes, methods, request objects, response projections, type
+  aliases, spreads, and server-issued ID flow statically resolvable.
+  `dynamic_request_contract` and `request_not_statically_reviewable` are builder
+  findings: use the matching PX SDK method or replace an opaque method/body/path
+  with a literal or statically typed local request.
 - Source and committed-build operations are matched independently. A committed
   operation can resolve only a sole scanner uncertainty about server-issued ID
   provenance when it is the one unique compatible operation and independently
