@@ -239,6 +239,32 @@ test("excludes comparison-heavy vendor artifacts from app-data preflight", () =>
   assert.deepEqual(selected.map((entry) => entry.path), ["dist/app.js", "dist/runtime.js"]);
 });
 
+test("dense application chunks inspect app-data anchors instead of every function call", () => {
+  const unrelatedCalls = Array.from(
+    { length: 5_400 },
+    (_, index) => "render" + index + "(value" + index + ");"
+  ).join("");
+  const artifact = [
+    "let send;",
+    unrelatedCalls,
+    "export async function persist(payload) {",
+    "await send(\"/app-data?recordType=workspace_state\");",
+    "const response = await send(\"/app-data\", { method: \"POST\", body: JSON.stringify({ recordType: \"workspace_state\", status: \"draft\", schemaVersion: 1, payload }) });",
+    "const created = await response.json();",
+    "await send(\"/app-data/\" + encodeURIComponent(created.recordId), { method: \"PATCH\", body: JSON.stringify({ payload }) });",
+    "return send(\"/app-data/\" + encodeURIComponent(created.recordId), { method: \"DELETE\" });",
+    "}",
+    "export function mount(context) { send = context.authenticatedFetch; return persist({}); }"
+  ].join("\n");
+
+  const startedAt = Date.now();
+  const facts = analyzeAppDataOperations(files({ "dist/app.js": artifact }), "dist");
+  const elapsedMs = Date.now() - startedAt;
+
+  assert.deepEqual(facts.map((fact) => fact.operation), ["list", "create", "update", "delete"]);
+  assert.ok(elapsedMs < 10_000, "dense app-data artifact analysis took " + elapsedMs + "ms");
+});
+
 test("runtime comparisons do not hide later app-data request fields", () => {
   const shape = resolveAppDataRequestShape({
     expression: `{ recordType: "state", payload: { data: left < right ? left >> 1 : right, label: "<ImportPanel />" }, status: "draft", schemaVersion: 1 }`,
@@ -345,6 +371,29 @@ test("treats a deliberately dynamic create body as an app-owned preflight findin
   assert.ok(issues.some((issue) => issue.code === "app-data-request-contract-invalid"));
   assert.equal(issues.some((issue) => issue.code === "app-data-analysis-indeterminate"), false);
   assert.match(issues.map((issue) => issue.message).join(" "), /dynamic request contract/);
+});
+
+test("a context-keyed cache preserves the server origin of its stored record ID", () => {
+  const operations = analyzeAppDataOperations(files({
+    "src/store.ts": `
+      let send;
+      const recordIds = new Map();
+      async function locate(clientUserId) {
+        const page = await send("/app-data?recordType=state&clientUserId=" + clientUserId);
+        const listedRecordId = page.items[0]?.recordId;
+        if (listedRecordId) recordIds.set(clientUserId, listedRecordId);
+        const recordId = recordIds.get(clientUserId);
+        if (recordId) return send("/app-data/" + recordId);
+      }
+      export function mount(context) {
+        send = context.authenticatedFetch;
+        void locate("selected-client");
+      }
+    `
+  }), "source");
+  const get = operations.find((operation) => operation.operation === "get");
+  assert.equal(get?.recordIdProvenance, "server", JSON.stringify(operations));
+  assert.deepEqual(get?.issues, [], JSON.stringify(operations));
 });
 
 test("accepts all five app-data operations with a distant server-id cache and erased artifact types", () => {

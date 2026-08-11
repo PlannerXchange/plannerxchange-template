@@ -254,16 +254,55 @@ function resolveStaticRouteExpression(expression, prefix) {
   return assignments.at(-1)?.[2];
 }
 
+const APP_DATA_CALL_LOOKBACK_CHARS = 4_096;
+const APP_DATA_CALLS_PER_ANCHOR_MAX = 8;
+const APP_DATA_ROUTE_BINDING_MAX = 256;
+const GATEWAY_INVOCATION_PATTERN_SOURCE =
+  "(?<![A-Za-z0-9_$])([A-Za-z_$][A-Za-z0-9_$]*(?:(?:\\?\\.)?\\.[A-Za-z_$][A-Za-z0-9_$]*)*)\\s*\\(";
+
 function gatewayCallCandidates(content) {
   const candidates = [];
-  for (const match of content.matchAll(/(?<![A-Za-z0-9_$])([A-Za-z_$][\w$]*(?:(?:\?\.)?\.[A-Za-z_$][\w$]*)*)\s*\(/g)) {
-    const start = match.index ?? 0;
-    const open = start + match[0].lastIndexOf("(");
+  const candidateSeeds = new Map();
+  for (const anchor of content.matchAll(/\/app-data/g)) {
+    const anchorOffset = anchor.index ?? 0;
+    const windowStart = Math.max(0, anchorOffset - APP_DATA_CALL_LOOKBACK_CHARS);
+    const window = content.slice(windowStart, anchorOffset + "/app-data".length);
+    const nearbyCalls = [...window.matchAll(new RegExp(GATEWAY_INVOCATION_PATTERN_SOURCE, "g"))]
+      .slice(-APP_DATA_CALLS_PER_ANCHOR_MAX);
+    for (const match of nearbyCalls) {
+      const start = windowStart + (match.index ?? 0);
+      const open = start + match[0].lastIndexOf("(");
+      if (callEnd(content, open) <= anchorOffset) continue;
+      candidateSeeds.set(start, match[1]);
+    }
+  }
+  const routeBindings = new Set();
+  for (const binding of content.matchAll(
+    /\b(?:const|let|var)\s+([A-Za-z_$][A-Za-z0-9_$]*)(?:\s*:\s*[^=;\n]+)?\s*=\s*(["'\x60])([^"'\x60]*\/app-data[^"'\x60]*)\2/g
+  )) {
+    routeBindings.add(binding[1]);
+    if (routeBindings.size > APP_DATA_ROUTE_BINDING_MAX) {
+      throw new Error("App-data route-binding candidate budget exceeded.");
+    }
+  }
+  if (routeBindings.size > 0) {
+    const routeSymbolPattern = [...routeBindings].map(escapeRegex).join("|");
+    const boundCallPattern = new RegExp(
+      GATEWAY_INVOCATION_PATTERN_SOURCE + "\\s*(" + routeSymbolPattern + ")\\b",
+      "g"
+    );
+    for (const match of content.matchAll(boundCallPattern)) {
+      candidateSeeds.set(match.index ?? 0, match[1]);
+    }
+  }
+  for (const [start, symbol] of [...candidateSeeds.entries()].sort(([left], [right]) => left - right)) {
+    const open = content.indexOf("(", start + symbol.length);
+    if (open < 0) continue;
     const end = callEnd(content, open);
     const call = content.slice(start, end);
     const route = callArguments(call)[0] ?? "";
     const routeValue = resolveStaticRouteExpression(route, content.slice(0, start));
-    if (routeValue?.includes("/app-data")) candidates.push({ symbol: match[1], start, end, call, route, routeValue });
+    if (routeValue?.includes("/app-data")) candidates.push({ symbol, start, end, call, route, routeValue });
   }
   return candidates;
 }
@@ -544,14 +583,22 @@ function queryFields(route, prefix = "") {
   return [...fields].sort();
 }
 
+const APP_DATA_PROVENANCE_TRAVERSAL_MAX = 12;
+const APP_DATA_RECORD_ID_CLASSIFICATION_MAX = 12;
+const APP_DATA_PROVENANCE_LOOKBACK_CHARS = 32_768;
+const APP_DATA_PROVENANCE_EXPRESSION_MAX_CHARS = 8_192;
+const APP_DATA_PROVENANCE_IDENTIFIERS_MAX = 32;
+
 function lastAssignedValue(prefix, identifier) {
-  const match = [...prefix.matchAll(new RegExp(`(?<![A-Za-z0-9_$])(?:const|let|var)?\\s*${escapeRegex(identifier)}\\s*=\\s*(?!=|>)`, "g"))].at(-1);
+  const search = prefix.slice(-APP_DATA_PROVENANCE_LOOKBACK_CHARS);
+  const match = [...search.matchAll(new RegExp(`(?<![A-Za-z0-9_$])(?:const|let|var)?\\s*${escapeRegex(identifier)}\\s*=\\s*(?!=|>)`, "g"))].at(-1);
   if (!match) return undefined;
   const start = (match.index ?? 0) + match[0].length;
   let depth = 0;
   let quote;
-  for (let index = start; index < prefix.length; index += 1) {
-    const current = prefix[index];
+  const limit = Math.min(search.length, start + APP_DATA_PROVENANCE_EXPRESSION_MAX_CHARS);
+  for (let index = start; index < limit; index += 1) {
+    const current = search[index];
     if (quote) {
       if (current === "\\") index += 1;
       else if (current === quote) quote = undefined;
@@ -560,13 +607,14 @@ function lastAssignedValue(prefix, identifier) {
     if (current === '"' || current === "'" || current === "`") quote = current;
     else if ("([{".includes(current)) depth += 1;
     else if (")]}".includes(current)) depth = Math.max(0, depth - 1);
-    else if (depth === 0 && (current === "," || current === ";" || current === "\n" || current === "\r")) return prefix.slice(start, index).trim();
+    else if (depth === 0 && (current === "," || current === ";" || current === "\n" || current === "\r")) return search.slice(start, index).trim();
   }
-  return prefix.slice(start).trim();
+  return undefined;
 }
 
 function isExplicitFunctionParameter(prefix, identifier) {
-  const signatures = [...prefix.matchAll(/(?:function\s*[A-Za-z_$]*\s*|(?:async\s*)?)(?:\(([^)]*)\)|([A-Za-z_$][\w$]*))\s*(?:=>|\{)/g)];
+  const search = prefix.slice(-APP_DATA_PROVENANCE_LOOKBACK_CHARS);
+  const signatures = [...search.matchAll(/(?:function\s*[A-Za-z_$]*\s*|(?:async\s*)?)(?:\(([^)]*)\)|([A-Za-z_$][\w$]*))\s*(?:=>|\{)/g)];
   const parameters = signatures.at(-1)?.[1] ?? signatures.at(-1)?.[2] ?? "";
   return new RegExp(`(?:^|[,\\s])${escapeRegex(identifier)}(?:\\s*[:?=,]|$)`).test(parameters);
 }
@@ -624,37 +672,47 @@ function localInvocationArguments(expression, symbol) {
   return callArguments(expression.slice(match.index ?? 0, callEnd(expression, openParen)));
 }
 
-function expressionComesFromAppData(expression, prefix, visited = new Set(), depth = 0) {
-  if (depth > 12) return false;
+function expressionComesFromAppData(
+  expression,
+  prefix,
+  visited = new Set(),
+  depth = 0,
+  budget = { remaining: APP_DATA_PROVENANCE_TRAVERSAL_MAX }
+) {
+  if (depth > 12 || budget.remaining <= 0) return false;
+  budget.remaining -= 1;
   if (/\b(?:listAppData|getAppDataRecord|createAppDataRecord|updateAppDataRecord)\s*\(|["'`]\/app-data(?:[/?"'`]|$)/.test(expression)) return true;
+  const boundedPrefix = prefix.slice(-APP_DATA_PROVENANCE_LOOKBACK_CHARS);
   const mapGet = /(?<![A-Za-z0-9_$])([A-Za-z_$][\w$]*)\s*\.\s*get\s*\(/.exec(expression)?.[1];
   if (mapGet) {
-    const setCalls = [...prefix.matchAll(new RegExp(`(?<![A-Za-z0-9_$])${escapeRegex(mapGet)}\\s*\\.\\s*set\\s*\\(`, "g"))];
+    const setCalls = [...boundedPrefix.matchAll(new RegExp(`(?<![A-Za-z0-9_$])${escapeRegex(mapGet)}\\s*\\.\\s*set\\s*\\(`, "g"))];
     for (const setCall of setCalls.reverse()) {
       const open = (setCall.index ?? 0) + setCall[0].lastIndexOf("(");
-      const end = callEnd(prefix, open);
-      const stored = callArguments(prefix.slice(Math.max(0, open - mapGet.length - 5), end))[1];
-      if (stored && expressionComesFromAppData(stored, prefix.slice(0, setCall.index ?? 0), visited, depth + 1)) return true;
+      const end = callEnd(boundedPrefix, open);
+      const stored = callArguments(boundedPrefix.slice(Math.max(0, open - mapGet.length - 5), end))[1];
+      if (stored && expressionComesFromAppData(stored, boundedPrefix.slice(0, setCall.index ?? 0), visited, depth + 1, budget)) return true;
     }
   }
-  const ignored = new Set(["await", "return", "const", "let", "var", "new", "undefined", "null", "true", "false", "recordId", "items", "payload", "json"]);
-  for (const match of expression.matchAll(/(?<![A-Za-z0-9_$])([A-Za-z_$][\w$]*)(?![A-Za-z0-9_$])/g)) {
+  const ignored = new Set(["await", "return", "const", "let", "var", "new", "undefined", "null", "true", "false", "recordId", "items", "payload", "json", "encodeURIComponent", "decodeURIComponent", "encodeURI", "decodeURI", "String", "Number", "Boolean", "Object", "Array", "JSON", "Math", "Promise"]);
+  const expressionIdentifiers = [...expression.matchAll(/(?<![A-Za-z0-9_$])([A-Za-z_$][\w$]*)(?![A-Za-z0-9_$])/g)];
+  if (expressionIdentifiers.length > APP_DATA_PROVENANCE_IDENTIFIERS_MAX) return false;
+  for (const match of expressionIdentifiers) {
     const symbol = match[1];
     if (ignored.has(symbol) || visited.has(symbol)) continue;
     const nextVisited = new Set(visited).add(symbol);
-    const assigned = lastAssignedValue(prefix, symbol);
-    if (assigned && expressionComesFromAppData(assigned, prefix, nextVisited, depth + 1)) return true;
-    const helper = localFunctionDefinition(prefix, symbol);
+    const assigned = lastAssignedValue(boundedPrefix, symbol);
+    if (assigned && expressionComesFromAppData(assigned, boundedPrefix, nextVisited, depth + 1, budget)) return true;
+    const helper = localFunctionDefinition(boundedPrefix, symbol);
     const invocationArguments = localInvocationArguments(expression, symbol);
     if (helper && invocationArguments) {
       for (const returned of returnedExpressions(helper.body)) {
-        const helperPrefix = prefix.slice(0, helper.bodyOffset) + helper.body.slice(0, returned.offset);
-        if (expressionComesFromAppData(returned.expression, helperPrefix, nextVisited, depth + 1)) return true;
+        const helperPrefix = boundedPrefix.slice(0, helper.bodyOffset) + helper.body.slice(0, returned.offset);
+        if (expressionComesFromAppData(returned.expression, helperPrefix, nextVisited, depth + 1, budget)) return true;
         for (let index = 0; index < helper.parameters.length; index += 1) {
           const parameter = helper.parameters[index];
           if (!new RegExp(`(?<![A-Za-z0-9_$])${escapeRegex(parameter)}(?![A-Za-z0-9_$])`).test(returned.expression)) continue;
           const argument = invocationArguments[index];
-          if (argument && expressionComesFromAppData(argument, prefix, nextVisited, depth + 1)) return true;
+          if (argument && expressionComesFromAppData(argument, boundedPrefix, nextVisited, depth + 1, budget)) return true;
         }
       }
     }
@@ -662,15 +720,23 @@ function expressionComesFromAppData(expression, prefix, visited = new Set(), dep
   return false;
 }
 
-function recordIdProvenance(expression, prefix = "", visited = new Set()) {
-  if (expressionComesFromAppData(expression, prefix)) return "server";
-  if (/\b(?:clientId|clientUserId|householdId|accountId|storageKey|cacheKey|key)\b|px-[a-z0-9_-]+/i.test(expression)) return "fabricated";
+function recordIdProvenance(
+  expression,
+  prefix = "",
+  visited = new Set(),
+  budget = { remaining: APP_DATA_RECORD_ID_CLASSIFICATION_MAX }
+) {
+  if (!expression || budget.remaining <= 0) return "unresolved";
+  budget.remaining -= 1;
   if (/^\s*["'`][^$]+["'`]\s*$/.test(expression)) return "fabricated";
   const property = /\b([A-Za-z_$][\w$]*)\??(?:\.recordId\b|\[["']recordId["']\])/.exec(expression);
   if (property) {
     const root = property[1];
     const assignment = lastAssignedValue(prefix, root);
-    if (expressionComesFromAppData(expression, prefix) || (assignment && expressionComesFromAppData(assignment, prefix))) return "server";
+    if (
+      (assignment && expressionComesFromAppData(assignment, prefix, new Set([root]))) ||
+      expressionComesFromAppData(root, prefix, new Set([root]))
+    ) return "server";
     if (isExplicitFunctionParameter(prefix, root) && /(?:route|params?)/i.test(root)) return "parameter";
     return "unresolved";
   }
@@ -681,12 +747,25 @@ function recordIdProvenance(expression, prefix = "", visited = new Set()) {
     if (assignment) return recordIdProvenance(
       assignment,
       prefix.slice(0, Math.max(0, prefix.lastIndexOf(assignment))),
-      new Set(visited).add(identifier)
+      new Set(visited).add(identifier),
+      budget
     );
     if (isExplicitFunctionParameter(prefix, identifier)) return "parameter";
   }
-  const ignored = new Set(["await", "encodeURIComponent", "get", "return", "undefined", "null", "true", "false"]);
-  for (const match of expression.matchAll(/(?<![A-Za-z0-9_$])([A-Za-z_$][\w$]*)(?![A-Za-z0-9_$])/g)) {
+  if (expressionComesFromAppData(expression, prefix)) return "server";
+  if (/\b(?:clientId|clientUserId|householdId|accountId|storageKey|cacheKey|key)\b|px-[a-z0-9_-]+/i.test(expression)) return "fabricated";
+  const ignored = new Set([
+    "await", "break", "case", "catch", "class", "const", "continue", "decodeURI",
+    "decodeURIComponent", "delete", "do", "else", "encodeURI", "encodeURIComponent",
+    "extends", "false", "finally", "for", "function", "get", "if", "in", "instanceof",
+    "let", "new", "null", "of", "return", "set", "static", "super", "switch", "this",
+    "throw", "true", "try", "typeof", "undefined", "var", "void", "while", "with", "yield",
+    "Array", "Boolean", "Date", "Error", "JSON", "Map", "Math", "Number", "Object",
+    "Promise", "RegExp", "Set", "String", "URL", "URLSearchParams"
+  ]);
+  const expressionIdentifiers = [...expression.matchAll(/(?<![A-Za-z0-9_$])([A-Za-z_$][\w$]*)(?![A-Za-z0-9_$])/g)];
+  if (expressionIdentifiers.length > APP_DATA_PROVENANCE_IDENTIFIERS_MAX) return "unresolved";
+  for (const match of expressionIdentifiers) {
     const symbol = match[1];
     if (ignored.has(symbol) || visited.has(symbol)) continue;
     const assignment = lastAssignedValue(prefix, symbol);
@@ -696,7 +775,8 @@ function recordIdProvenance(expression, prefix = "", visited = new Set()) {
     const resolved = recordIdProvenance(
       assignment,
       offset >= 0 ? prefix.slice(0, offset) : prefix,
-      new Set(visited).add(symbol)
+      new Set(visited).add(symbol),
+      budget
     );
     if (resolved !== "unresolved") return resolved;
   }
@@ -869,6 +949,10 @@ export function analyzeAppDataContract({ manifest, sourceFiles, distFiles, reach
   }
   for (const facts of available.values()) {
     for (const fact of facts) {
+      const compilerDuplicate = reconciledSource.some((sourceFact) =>
+        sourceFact.issues.length === 0 && artifactMatches(sourceFact, fact)
+      );
+      if (compilerDuplicate) continue;
       issues.push({ code: "app-data-request-contract-invalid", file: fact.file, message: "committed_operation_source_unresolved: committed app-data operation has no unique reviewable source operation. Remove stale output or restore and simplify the matching source, then rebuild and regenerate provenance." });
     }
   }
