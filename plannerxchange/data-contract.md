@@ -144,6 +144,28 @@ Worked canonical transaction-import declaration:
 
 The matching user action launches `csv-bank-transactions-import`. After the user returns from the PX wizard, read `/transactions` or `/accounts/{accountId}/transactions` through `authenticatedFetch`; the declaration alone does not replace the required `canonical.transaction.read` permission or the actual canonical read call.
 
+## Canonical import and consumption are separate contracts
+
+A PX-owned import session only proves that the app can launch governed ingest.
+It does not grant the app read access and does not load imported records into
+the app. For every canonical category the app actually presents or consumes:
+
+1. Request the exact category-level read permission.
+2. Add one matching `canonicalDataAccessDeclarations` item with `read` scope.
+3. Load the category through the documented PX SDK/gateway or current live
+   `authenticatedFetch` route.
+4. Select and join records by PX-returned canonical IDs, never display names,
+   email addresses, or locally generated IDs.
+5. Keep canonical facts in PX. Persist only builder-owned overlays in app-data,
+   linked to canonical IDs.
+6. Rebuild and commit `distRoot`, `plannerxchange.publish.json`, and
+   `plannerxchange.build-provenance.json` so review can prove the operation in
+   the published artifact.
+
+An import-only utility does not need a category read merely because it launches
+the wizard. The full read contract becomes required when the app also renders a
+working surface for that imported category or otherwise claims/uses it.
+
 Additional declaration patterns (each item still needs its own matching `openDataImportSession` call and committed artifact marker):
 
 ```json

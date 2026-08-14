@@ -275,7 +275,7 @@ The following issues are common causes of publication rejection. Check for them 
     pin `px_canonical_demo_v1` plus a literal scenario, or omits the shared
     fixture adapter from committed output. Fix the exact evidence gap; this
     affects Demo eligibility only.
-28. **Canonical-looking freeform field** - a Client, Household, or Account control accepts app-local text without PX-backed selection or governed creation. Integrate it through PX or rename it as an app-local concept. This is a nonblocking recommendation.
+28. **Incomplete canonical working surface** - a Client, Household, or Account control uses app-local text/identity, or a canonical category workspace lacks its exact read permission, `canonicalDataAccessDeclarations` entry, reachable PX read, or committed artifact. Import handoff and canonical consumption are separate contracts. These findings block the Data capability while leaving unrelated Draft/marketplace outcomes independently evaluated. Use PX-backed selection and stable IDs, store only overlays in app-data, rebuild committed output, and follow the exact finding remediation.
 
 ## PX Approved badge direction
 

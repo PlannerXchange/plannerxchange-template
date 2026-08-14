@@ -111,6 +111,13 @@
       "type": "app-data-contract"
     },
     {
+      "id": "canonical-integration-contract",
+      "severity": "error",
+      "title": "Canonical data working surfaces use the complete PX contract",
+      "description": "Canonical-looking selectors and working surfaces must have exact permissions, category declarations, reachable PX reads, canonical IDs, committed artifact evidence, and app-data overlays rather than shadow records.",
+      "type": "canonical-integration-contract"
+    },
+    {
       "id": "build-output-exists",
       "severity": "error",
       "title": "Build output exists",

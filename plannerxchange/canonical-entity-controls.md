@@ -102,4 +102,37 @@ The UI appears to represent a household, client, or account, but review cannot s
 - If it is canonical, implement the selector/create flow above and retain the PX ID.
 - If it is app-local, rename the label and model so it does not imply a PX entity.
 
-This is a nonblocking recommendation. An inconclusive semantic assessment is not a builder-code finding.
+This is a required Data-capability finding when review proves that a rendered
+canonical-looking control is free text, generates or stores an app-local
+identity, and has no matching PX read. It does not by itself block unrelated
+Draft or marketplace outcomes. An ambiguous control remains platform-owned
+review uncertainty rather than a guessed builder finding.
+
+### `canonical-data-integration-incomplete`
+
+The app claims a canonical category through an actual PX read, portable-data
+intent plus a category working surface, or a PX import plus a working surface
+for the same category. Complete all three layers independently:
+
+1. Request the exact `canonical.*.read` permission.
+2. Add the matching `canonicalDataAccessDeclarations` category and `read` scope.
+3. Perform a reachable PX SDK/gateway or `authenticatedFetch` read and retain
+   returned canonical IDs.
+
+An import launcher alone is valid for an import-only utility. When the app also
+shows a transaction, client, account, position, cost-basis, security, model, or
+sleeve workspace, the import declaration does not replace the read contract.
+
+### `canonical-data-build-artifact-missing`
+
+The source read is valid but is absent from the committed artifact reachable
+from `plannerxchange.publish.json`. Rebuild and commit `distRoot` plus
+`plannerxchange.build-provenance.json`; an unrelated chunk cannot satisfy the
+finding.
+
+### `canonical-data-shadow-storage`
+
+The app stores a second copy of a claimed canonical category in app-data. Read
+the canonical record through PX and keep only builder-owned overlays, such as
+categories, confirmations, annotations, or preferences, linked to the canonical
+ID through top-level associations or `sourceRefs`.
