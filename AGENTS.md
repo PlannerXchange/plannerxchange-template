@@ -30,7 +30,9 @@ Core rules:
 - Canonical-data Demo apps use `canonicalDataUsageDeclarations` only for exact
   field-level review evidence. This does not enable Demo mode or replace
   permissions and `canonicalDataAccessDeclarations`; follow
-  `plannerxchange/canonical-demo-data.md` and do not use custom fields.
+  `plannerxchange/canonical-demo-data.md`, use the public
+  `/canonical-demo/*` API through the dependency-free starter helper, and do
+  not install a Demo package or use custom fields.
 - Public landing pages are enabled from PlannerXchange after review eligibility; they are not currently builder manifest fields.
 - PlannerXchange owns auth, routing, shell context, disclosure, publication review, and app installation identity.
 - Use `ShellRuntimeContext.authenticatedFetch` for protected PlannerXchange API calls.
@@ -103,6 +105,10 @@ Core rules:
   Demo stays off and the rest of the review completes. Do not change app code
   unless the review also returns a direct Demo violation or another required
   finding. Do not treat Demo verification uncertainty as an app-wide blocker.
+- A required canonical-data finding is different: when an app declares or uses
+  PX canonical data, the reviewed candidate cannot be published, activated,
+  installed, or launched until that finding is corrected. A prior compliant
+  published version remains active.
 - Fix only the current required fix group returned for the selected goal,
   then rebuild, commit, push, and run the watch command again.
 - Before telling the builder that a PlannerXchange API, SDK helper, runtime

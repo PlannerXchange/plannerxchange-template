@@ -483,6 +483,32 @@ function runManifestCanonicalDemoUsageCheck(check) {
     }
   }
 
+  if (manifest.canonicalDataUsageDeclarations.length > 0) {
+    const boundary = getAppBoundary();
+    const sourcePrefix = boundary.appRoot === "." ? "src/" : `${boundary.appRoot}/src/`;
+    const distPrefix = `${boundary.distRoot}/`;
+    const files = walkDir(ROOT, { includeDist: true })
+      .map((filePath) => ({ path: toRelativePath(filePath), content: readFileSync(filePath, "utf-8") }));
+    const source = files.filter((file) => file.path.startsWith(sourcePrefix));
+    const dist = files.filter((file) => file.path.startsWith(distPrefix));
+    const hasApi = (file) => /createPlannerXchangeDemoDataClient\s*\(|["'`]\/canonical-demo(?:\/|["'`])/.test(file.content);
+    const sourceApi = source.find(hasApi);
+    const distApi = dist.find(hasApi);
+    if (!sourceApi) {
+      issues.push("canonical Demo declarations require createPlannerXchangeDemoDataClient or the PX public /canonical-demo API in source");
+    } else {
+      if (!/scenario\s*:\s*["'`](?:smoke|standard|edge)["'`]/.test(sourceApi.content)) {
+        issues.push("canonical Demo source must use a literal smoke, standard, or edge scenario");
+      }
+      if (!/catalogVersion\s*:\s*["'`]px_canonical_demo_v1["'`]/.test(sourceApi.content)) {
+        issues.push("canonical Demo source must pin px_canonical_demo_v1");
+      }
+      if (!distApi) {
+        issues.push("committed dist must retain createPlannerXchangeDemoDataClient or /canonical-demo");
+      }
+    }
+  }
+
   report(check, issues.length === 0, issues.length > 0 ? issues.slice(0, 8).join("; ") : undefined);
 }
 

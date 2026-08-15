@@ -118,11 +118,46 @@ test("canonical facts stored as app-data are rejected while overlays are not", (
     },
     source: {
       "src/routes.tsx": `<a href="/transactions">Transactions</a>`,
-      "src/data.ts": `ctx.authenticatedFetch("/transactions"); createAppDataRecord({recordType:"cashflow_transactions"})`
+      "src/data.ts": `ctx.authenticatedFetch("/transactions"); createAppDataRecord({recordType:"cashflow_state",status:"draft",schemaVersion:1,payload:{transactionId:transaction.id,date:transaction.date,amount:transaction.amount}})`
     },
     dist: { "dist/app.js": `ctx.authenticatedFetch("/transactions")` }
   });
   assert.ok(issues.some((entry) => entry.code === "canonical-data-shadow-storage"));
+});
+
+test("record type names do not matter when app-data stores only builder-owned overlays", () => {
+  const issues = analyze({
+    manifest: {
+      dataPortabilityMode: "plannerxchange_portable",
+      permissions: ["canonical.transaction.read"],
+      canonicalDataAccessDeclarations: [transactionDeclaration]
+    },
+    source: {
+      "src/routes.tsx": `<a href="/transactions">Transactions</a>`,
+      "src/data.ts": `ctx.authenticatedFetch("/transactions"); createAppDataRecord({recordType:"transactions",status:"draft",schemaVersion:1,payload:{transactionId:transaction.id,categoryOverride:"Housing",confirmed:true}})`
+    },
+    dist: { "dist/app.js": `ctx.authenticatedFetch("/transactions")` }
+  });
+  assert.deepEqual(issues, []);
+});
+
+test("canonical facts copied through a statically assigned payload are rejected", () => {
+  const issues = analyze({
+    manifest: {
+      dataPortabilityMode: "plannerxchange_portable",
+      permissions: ["canonical.transaction.read"],
+      canonicalDataAccessDeclarations: [transactionDeclaration]
+    },
+    source: {
+      "src/routes.tsx": `<a href="/transactions">Transactions</a>`,
+      "src/data.ts": `ctx.authenticatedFetch("/transactions"); const savedState={transactionId:transaction.id,description:transaction.description,amount:transaction.amount}; createAppDataRecord({recordType:"cashflow_state",status:"draft",schemaVersion:1,payload:savedState})`
+    },
+    dist: { "dist/app.js": `ctx.authenticatedFetch("/transactions")` }
+  });
+  const finding = issues.find((entry) => entry.code === "canonical-data-shadow-storage");
+  assert.ok(finding);
+  assert.match(finding.message, /amount/);
+  assert.match(finding.message, /description/);
 });
 
 test("artifact evidence follows the published entry graph and rejects unrelated chunks", () => {

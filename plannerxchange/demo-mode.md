@@ -28,21 +28,22 @@ The public context has `runtimeMode: "public_demo"`, `isDemoMode: true`, and `de
 - Enter the useful app experience with deterministic synthetic data already loaded.
 - Skip onboarding that asks for an end-client name, email, phone, address, password, account identifier, or file.
 - Keep optional, non-identifying visitor scenario changes in component memory only and discard them when the demo ends.
-- Do not read or write `/app-data`, canonical APIs, provider integrations, browser storage, cookies, caches, analytics identifiers, or app-owned backends.
+- Do not read or write `/app-data`, authenticated canonical APIs, provider integrations, browser storage, cookies, caches, analytics identifiers, or app-owned backends. The only canonical endpoint allowed in this branch is the public, read-only `/canonical-demo/*` API.
 - Do not request sign-in or treat an empty token as an authenticated session.
 - Keep all people, firms, accounts, and emails obviously synthetic; use `@example.test` where an email must appear in the scenario.
 
 ## Canonical-data apps
 
-When the authenticated app reads PX canonical data, use the shared read-only
-fixture adapter in the public branch so Demo behavior stays aligned with the
-live SDK interface:
+When the authenticated app reads PX canonical data, use the PX-owned public
+canonical Demo API in the public branch so Demo behavior stays aligned with
+the live SDK interface:
 
 ```ts
-import { createPlannerXchangeDemoDataClient } from "@plannerxchange/demo-data";
+import { createPlannerXchangeDemoDataClient } from "./plannerxchange";
 
 const api = isPublicDemo(ctx)
   ? createPlannerXchangeDemoDataClient({
+      apiBaseUrl: ctx.apiBaseUrl,
       scenario: "standard",
       catalogVersion: "px_canonical_demo_v1"
     })
@@ -91,10 +92,12 @@ If PlannerXchange cannot verify Demo mode after its automatic retries, the full 
 
 Direct, specific Demo findings are different. If the review proves that the public Demo path performs a protected request, accesses app data, saves information, requires identity entry, or lacks loaded synthetic data, fix that Demo-only finding before enabling Demo.
 
-For canonical-data apps, also fix missing or invalid field declarations,
-custom/computed field access, an unpinned scenario/catalog version, or a Demo
-fixture adapter that is missing from committed build output. These findings
-remain Demo-only and do not grant or revoke authenticated canonical access.
+For canonical-data apps, use the public `/canonical-demo/*` API through
+`createPlannerXchangeDemoDataClient`. Also fix missing or invalid field
+declarations, custom/computed field access, an unpinned scenario/catalog
+version, or a Demo API operation missing from committed build output. A
+required canonical-data finding blocks the candidate version until corrected;
+it does not grant authenticated canonical access.
 
 PlannerXchange may also return the recommended Demo-only suggestion
 `demo-page-synthetic-coverage` when code-review evidence clearly shows a

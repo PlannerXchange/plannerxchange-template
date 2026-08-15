@@ -14,6 +14,7 @@
  */
 
 import {
+  createPlannerXchangeDemoDataClient,
   isPublicDemo,
   isShellHosted,
   type PlannerXchangeApiRequestInit,
@@ -279,7 +280,7 @@ export function createPxGateway(ctx: ShellRuntimeContext): PxGateway {
   // `publicationEnvironment: "dev"` means the real PlannerXchange dev tier,
   // not "offline / mock mode".
   if (isPublicDemo(ctx)) {
-    return publicDemoGateway();
+    return publicDemoGateway(ctx);
   }
   if (!isShellHosted(ctx)) {
     return mockGateway();
@@ -287,8 +288,13 @@ export function createPxGateway(ctx: ShellRuntimeContext): PxGateway {
   return liveGateway(ctx);
 }
 
-function publicDemoGateway(): PxGateway {
+function publicDemoGateway(ctx: ShellRuntimeContext): PxGateway {
   const gateway = mockGateway();
+  const demo = createPlannerXchangeDemoDataClient({
+    apiBaseUrl: ctx.apiBaseUrl,
+    scenario: "standard",
+    catalogVersion: "px_canonical_demo_v1"
+  });
   const rejectWrite = async (): Promise<never> => {
     throw new Error(
       "Public demo mode is synthetic and non-persistent. Keep visitor changes in component memory only."
@@ -297,6 +303,37 @@ function publicDemoGateway(): PxGateway {
 
   return {
     ...gateway,
+    isLive: false,
+    async getHouseholds(query: CanonicalEntityListQuery = {}) {
+      const page = await demo.listHouseholds({ limit: query.limit, cursor: query.cursor });
+      const search = query.search?.trim().toLowerCase();
+      return (page.items as unknown as HouseholdSummary[]).filter(
+        (household) => !search || household.name.toLowerCase().includes(search)
+      );
+    },
+    async getClients(query: CanonicalClientListQuery = {}) {
+      const page = await demo.listClients({
+        limit: query.limit,
+        cursor: query.cursor,
+        householdId: query.householdId
+      });
+      const search = query.search?.trim().toLowerCase();
+      return (page.items as unknown as ClientSummary[]).filter((client) => {
+        const display = client.displayName ?? `${client.firstName ?? ""} ${client.lastName ?? ""}`;
+        return !search || display.toLowerCase().includes(search);
+      });
+    },
+    async getAccounts(query: CanonicalAccountListQuery = {}) {
+      const page = await demo.listAccounts({
+        limit: query.limit,
+        cursor: query.cursor,
+        householdId: query.householdId
+      });
+      const search = query.search?.trim().toLowerCase();
+      return (page.items as unknown as AccountSummary[]).filter(
+        (account) => !search || account.accountName.toLowerCase().includes(search)
+      );
+    },
     createHousehold: rejectWrite,
     updateHousehold: rejectWrite,
     softDeleteHousehold: rejectWrite,
@@ -306,6 +343,7 @@ function publicDemoGateway(): PxGateway {
     createAccount: rejectWrite,
     updateAccount: rejectWrite,
     softDeleteAccount: rejectWrite,
+    getAppData: rejectWrite,
     createAppData: rejectWrite,
     updateAppData: rejectWrite,
     softDeleteAppData: rejectWrite

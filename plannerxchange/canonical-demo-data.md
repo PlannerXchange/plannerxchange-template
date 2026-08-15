@@ -1,14 +1,45 @@
 # Canonical Demo Data
 
-Use `@plannerxchange/demo-data` only in the `public_demo` branch when the
-installed app normally reads PX canonical data. The current catalog version is
-`px_canonical_demo_v1`; its deterministic scenarios are `smoke`, `standard`,
-and `edge`.
+Use the PX-owned public `/canonical-demo/*` API only in the `public_demo`
+branch when the installed app normally reads PX canonical data. The current
+catalog version is `px_canonical_demo_v1`; its deterministic scenarios are
+`smoke`, `standard`, and `edge`. Do not install
+`@plannerxchange/demo-data` or request a package/tarball.
 
-The package implements the same `PlannerXchangeCanonicalReadClient` interface
-as the authenticated SDK client. It is local, read-only, synthetic,
-unauthenticated, and non-persistent. Never use it as an authenticated-runtime
-fallback for missing live data.
+The dependency-free `createPlannerXchangeDemoDataClient` helper in
+`src/plannerxchange.ts` implements the same read surface over the public API.
+It is read-only, synthetic, unauthenticated, and non-persistent. Never use it
+as an authenticated-runtime fallback for missing live data.
+
+The helper calls `GET /canonical-demo/<category>` with the literal `scenario`
+and `catalogVersion`. It supports the same list-oriented categories documented
+below, including households, clients, accounts, positions, transactions, cost
+basis, securities, models, sleeves, CRM notes, and CRM tasks. Builders should
+use the helper instead of constructing those URLs unless a direct public API
+call is necessary.
+
+```ts
+import {
+  createPlannerXchangeDemoDataClient,
+  isPublicDemo,
+  type ShellRuntimeContext
+} from "../plannerxchange";
+
+export async function loadTransactions(ctx: ShellRuntimeContext) {
+  if (isPublicDemo(ctx)) {
+    const demo = createPlannerXchangeDemoDataClient({
+      apiBaseUrl: ctx.apiBaseUrl,
+      scenario: "standard",
+      catalogVersion: "px_canonical_demo_v1"
+    });
+    return (await demo.listTransactions({ limit: 100 })).items;
+  }
+  if (!ctx.authenticatedFetch) throw new Error("PX data access is unavailable.");
+  const response = await ctx.authenticatedFetch(`${ctx.apiBaseUrl}/transactions`);
+  if (!response.ok) throw new Error("PX transaction read failed.");
+  return ((await response.json()) as { items: unknown[] }).items;
+}
+```
 
 ## Manifest declaration
 
@@ -59,8 +90,8 @@ field paths. Nested paths must be declared exactly. `customFields` is excluded.
 
 ## Review failures
 
-Demo remains unavailable when canonical Demo usage is undeclared, uses an
+The candidate cannot publish when canonical Demo usage is undeclared, uses an
 unsupported/custom field, uses unresolved computed property access, fails to
 pin a supported scenario and catalog version, or is absent from the committed
-artifact. These are Demo-only findings. Keep authenticated data access and
+artifact while canonical intent is present. Keep authenticated data access and
 first-launch consent governed by the existing permission and sharing contracts.

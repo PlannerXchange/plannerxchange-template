@@ -1,4 +1,5 @@
 import { CANONICAL_IMPORT_ENTITY_CATALOG } from "./import-session-contract.mjs";
+import { analyzeAppDataOperations } from "./app-data-contract.mjs";
 
 const CATEGORY_SPECS = [
   ["households", "canonical.household.read", "household", ["household", "households"], ["listHouseholds", "getHouseholds", "getHousehold"], ["/households"]],
@@ -21,7 +22,23 @@ const ENTITY_CATEGORY = new Map([
 const APP_LOCAL_LABEL = /\b(?:scenario|hypothetical|sample|demo)\s+(?:participant|person|household|client|account)\b/i;
 const LOCAL_ID = /\b(?:crypto\s*\.\s*randomUUID|randomUUID|nanoid|uuidv4|Math\s*\.\s*random|Date\s*\.\s*now|function\s+uid\b|const\s+uid\s*=)\b/;
 const APP_DATA_IDENTITY = /\b(?:setClientLabel|client[_-]?labels?|household[_-]?labels?|account[_-]?labels?|(?:list|create|update|get|delete)AppData(?:Record)?s?)\b|\/app-data\b/i;
-const OVERLAY_RECORD = /\b(?:overlays?|overrides?|annotations?|preferences?|settings?|category[_-]?memor(?:y|ies)|confirmations?|contexts?|notes?|budgets?)\b/i;
+const CANONICAL_FACT_FIELDS = {
+  households: ["name", "externalId", "taxFilingStatus", "taxState", "status"],
+  clients: ["firstName", "lastName", "displayName", "emailPrimary", "phonePrimary", "dateOfBirth", "householdId"],
+  accounts: ["accountNumber", "accountName", "custodianName", "accountType", "taxType", "taxTreatment", "accountBalance", "householdId", "ownerClientIds"],
+  positions: ["accountId", "asOfDate", "securityId", "cusip", "symbol", "quantity", "price", "marketValue", "currencyCode"],
+  transactions: ["accountId", "date", "tradeDate", "settleDate", "description", "quantity", "price", "amount", "currencyCode", "netAmount", "fees", "commission"],
+  cost_basis: ["accountId", "symbol", "cusip", "description", "acquisitionDate", "quantity", "marketValue", "costBasisAmount", "gainLoss", "holdingPeriod"],
+  securities: ["ticker", "symbol", "cusip", "sedol", "isin", "securityName", "securityType", "maturityDate", "yield", "taxStatus"],
+  models: ["name", "description", "assetManager", "status", "visibility", "modelId", "securityId", "weight", "taxSetting"],
+  sleeves: ["name", "description", "status", "sleeveId", "modelId", "weight", "taxSetting"]
+};
+const CATEGORY_VARIABLES = {
+  households: ["household", "households"], clients: ["client", "clients"], accounts: ["account", "accounts"],
+  positions: ["position", "positions", "holding", "holdings"], transactions: ["transaction", "transactions", "txn", "txns"],
+  cost_basis: ["costBasis", "taxLot", "taxLots", "lot", "lots"], securities: ["security", "securities"],
+  models: ["model", "models", "modelHolding", "modelHoldings"], sleeves: ["sleeve", "sleeves", "sleeveAllocation", "sleeveAllocations"]
+};
 
 function issue(code, message, file, line) {
   return { code, message, file, line };
@@ -152,16 +169,55 @@ function artifactHasUsage(usage, distFiles, publishManifest) {
   );
 }
 
-function shadowStorage(files, spec) {
-  const category = new RegExp(`\\b(?:${spec.labels.map(escapeRegex).join("|")})\\b`, "i");
-  for (const file of files) {
-    if (!isCodeFile(file.path) || !/\/app-data\b|\b(?:list|create|update|get|delete)AppData(?:Record)?s?\b/i.test(file.content)) continue;
-    for (const match of file.content.matchAll(/(?:\brecordType\s*[:=]\s*|\b(?:list|get|create|update|delete)AppData(?:Record)?s?\s*\(\s*)["'`]([A-Za-z0-9_.:-]{3,120})["'`]/g)) {
-      const value = match[1].replace(/[_:.-]+/g, " ");
-      if (category.test(value) && !OVERLAY_RECORD.test(value)) return { file: file.path, line: lineNumber(file.content, match.index), recordType: match[1] };
+function readPayloadExpression(content, offset) {
+  const start = Math.max(0, offset - 32);
+  const window = content.slice(start, Math.min(content.length, offset + 12000));
+  const match = /\bpayload\s*:\s*/.exec(window);
+  if (!match) return undefined;
+  const expressionStart = match.index + match[0].length;
+  if (window[expressionStart] !== "{") {
+    const identifier = /^[A-Za-z_$][\w$]*/.exec(window.slice(expressionStart))?.[0];
+    if (!identifier) return undefined;
+    const assignment = new RegExp(`\\b(?:const|let|var)\\s+${escapeRegex(identifier)}\\s*=\\s*`, "g");
+    let nearest;
+    let assignmentMatch;
+    while ((assignmentMatch = assignment.exec(content)) !== null && assignmentMatch.index < offset) nearest = assignmentMatch;
+    if (!nearest) return undefined;
+    return readObjectAt(content, nearest.index + nearest[0].length);
+  }
+  return readObjectAt(window, expressionStart);
+}
+
+function readObjectAt(content, expressionStart) {
+  if (content[expressionStart] !== "{") return undefined;
+  let depth = 0;
+  let quote = "";
+  let escaped = false;
+  for (let index = expressionStart; index < Math.min(content.length, expressionStart + 12000); index += 1) {
+    const char = content[index];
+    if (quote) {
+      if (escaped) escaped = false;
+      else if (char === "\\") escaped = true;
+      else if (char === quote) quote = "";
+      continue;
     }
+    if (char === "\"" || char === "'" || char === "`") { quote = char; continue; }
+    if (char === "{") depth += 1;
+    if (char === "}" && --depth === 0) return content.slice(expressionStart, index + 1);
   }
   return undefined;
+}
+
+function copiedCanonicalFields(expression, category) {
+  const variables = CATEGORY_VARIABLES[category];
+  const variablePattern = variables.map(escapeRegex).join("|");
+  const copied = new Set();
+  if (new RegExp(`\\.\\.\\.\\s*(?:${variablePattern})\\b`, "i").test(expression)) copied.add("<canonical_record_spread>");
+  if (new RegExp(`\\b(?:${variablePattern})\\s*:\\s*(?:${variablePattern})\\b`, "i").test(expression)) copied.add("<canonical_record>");
+  for (const field of CANONICAL_FACT_FIELDS[category]) {
+    if (new RegExp(`\\b${escapeRegex(field)}\\s*:\\s*(?:${variablePattern})(?:\\?\\.)?\\.${escapeRegex(field)}\\b`, "i").test(expression)) copied.add(field);
+  }
+  return [...copied].sort();
 }
 
 export function analyzeCanonicalIntegrationContract({ manifest = {}, publishManifest, sourceFiles = [], distFiles = [], reachableSourceFiles }) {
@@ -173,6 +229,7 @@ export function analyzeCanonicalIntegrationContract({ manifest = {}, publishMani
   const claims = renderedClaims(relevantSourceFiles);
   const imports = importedCategories(manifest);
   const usages = canonicalUsages(relevantSourceFiles);
+  const appDataOperations = analyzeAppDataOperations(relevantSourceFiles, "source");
   const claimedCategories = new Set(usages.map((usage) => usage.category));
   for (const category of imports) if (claims.has(category)) claimedCategories.add(category);
   if (manifest.dataPortabilityMode === "plannerxchange_portable") for (const category of claims.keys()) claimedCategories.add(category);
@@ -204,8 +261,19 @@ export function analyzeCanonicalIntegrationContract({ manifest = {}, publishMani
     } else if (!artifactHasUsage(usage, distFiles, publishManifest)) {
       issues.push(issue("canonical-data-build-artifact-missing", `The canonical ${category} source read '${usage.symbol}' is absent from the mapped committed build. Rebuild dist and plannerxchange.build-provenance.json from the reviewed source.`, usage.file, usage.line));
     }
-    const shadow = shadowStorage(relevantSourceFiles, spec);
-    if (shadow) issues.push(issue("canonical-data-shadow-storage", `App-data record type '${shadow.recordType}' shadows canonical ${category}. Read PX canonical records and persist only app-owned overlays linked to canonical IDs, then rebuild.`, shadow.file, shadow.line));
+  }
+  for (const operation of appDataOperations.filter((entry) => ["create", "update"].includes(entry.operation) && entry.requestFields?.includes("payload"))) {
+    const file = relevantSourceFiles.find((entry) => entry.path === operation.file);
+    const offset = operation.requestFieldOffsets?.payload;
+    const expression = file && offset !== undefined ? readPayloadExpression(file.content, offset) : undefined;
+    if (!expression && claimedCategories.size > 0) {
+      issues.push(issue("canonical-data-overlay-analysis-incomplete", "The reachable app-data payload could not be resolved. Make the payload a static object so PX can verify that only app-owned overlays are stored.", operation.file, operation.line));
+      continue;
+    }
+    for (const category of claimedCategories) {
+      const copied = copiedCanonicalFields(expression ?? "", category);
+      if (copied.length) issues.push(issue("canonical-data-shadow-storage", `The app-data payload copies canonical ${category} facts (${copied.join(", ")}). Keep only builder-owned overlay fields plus a canonical record ID, then rebuild.`, operation.file, operation.line));
+    }
   }
   return issues;
 }
