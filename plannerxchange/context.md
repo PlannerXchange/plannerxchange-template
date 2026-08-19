@@ -9,6 +9,8 @@ PlannerXchange owns:
 - branding and legal framing
 - publication governance
 - tenant and firm context
+- app installation/update permission approval and administrator-managed
+  canonical-data restrictions
 
 Builder apps should not:
 
@@ -17,6 +19,7 @@ Builder apps should not:
 - implement invite redemption, email verification, password setup, password reset, or onboarding entry flows
 - assume control of the top-level domain
 - bypass PlannerXchange publication rules
+- show their own first-launch data permission or record-sharing consent screen
 - hardcode one firm's logo, favicon, or color palette when the app is meant to inherit PlannerXchange private-label settings
 
 The `framework` field in the manifest is descriptive metadata for review and support context.
@@ -207,6 +210,13 @@ Integration identity direction:
 Canonical request transport:
 
 - for protected PlannerXchange API calls, use `ShellRuntimeContext.authenticatedFetch`
+- ordinary installed-app launch is non-interactive at the shell boundary. The
+  app should query approved canonical APIs immediately; it owns workflow/client
+  selection UI while PX enforces reviewed authority, firm restrictions, and
+  actor access
+- installation access defaults to every currently and subsequently accessible
+  record within the reviewed declarations. Firm administrators can narrow this
+  later in PlannerXchange App restrictions
 - the shell-managed fetch attaches user auth and `x-plannerxchange-app-installation-id` for the installed app
 - hosted apps should not read, store, or manually send raw bearer tokens
 - hosted apps should not pass `appInstallationId` in query strings, route params, or manually assembled URLs

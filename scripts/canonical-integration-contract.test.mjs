@@ -72,6 +72,30 @@ test("complete selector read contract and mapped committed artifact pass", () =>
   assert.deepEqual(issues, []);
 });
 
+test("client summary read supports a human selector while retaining canonical ids", () => {
+  const issues = analyze({
+    manifest: {
+      permissions: ["canonical.client.summary.read"],
+      canonicalDataAccessDeclarations: [{
+        id: "workflow-client",
+        category: "clients",
+        required: true,
+        scopes: ["read"],
+        selectionEntity: "client",
+        purpose: "Select the client whose workflow is being prepared."
+      }]
+    },
+    publishManifest: { entryPoints: { "src/plugin.tsx": { file: "assets/plugin.js" } } },
+    source: {
+      "src/client.tsx": `const page = await ctx.authenticatedFetch("/clients?limit=100"); return <select>{page.items.map((client) => <option value={client.id}>{client.displayName}</option>)}</select>;`
+    },
+    dist: {
+      "dist/assets/plugin.js": `x.authenticatedFetch("/clients?limit=100");items.map(e=>e.id+e.displayName)`
+    }
+  });
+  assert.deepEqual(issues, []);
+});
+
 test("import-only utility does not create a canonical read obligation", () => {
   assert.deepEqual(analyze({
     manifest: { dataIngressDeclarations: [transactionImport] },

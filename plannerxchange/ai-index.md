@@ -30,7 +30,7 @@ the current context pack, SDK, or review export documents it as available.
 | Add or change API access | `plannerxchange/api-reference.md`, `plannerxchange/data-contract.md` | `plannerxchange.app.json`, app API calls |
 | Save app-owned work product | [`plannerxchange/app-data-api.md#required-create-fields`](app-data-api.md#required-create-fields), [`#complete-typescript-record-lifecycle`](app-data-api.md#complete-typescript-record-lifecycle), [`#server-issued-record-id-provenance`](app-data-api.md#server-issued-record-id-provenance), [`#review-remediation-checklist`](app-data-api.md#review-remediation-checklist) | Prefer SDK app-data methods; otherwise use the exact list/create/get/update/delete lifecycle, retain server-issued record IDs, read/write `payload`, and rebuild committed output after changes |
 | Read clients, households, accounts, positions, transactions, CRM, or tax data | `plannerxchange/api-reference.md`, `plannerxchange/data-contract.md`, `plannerxchange/pii-and-security.md` | `plannerxchange.app.json`, app API calls |
-| Add or fix a Client, Household, or Account field | `plannerxchange/canonical-entity-controls.md`, `plannerxchange/api-reference.md`, `plannerxchange/data-contract.md` | field UI/model, `plannerxchange.app.json`, `src/lib/px-gateway.ts` |
+| Add or fix a Client, Household, or Account field | `plannerxchange/canonical-entity-controls.md`, `plannerxchange/api-reference.md`, `plannerxchange/data-contract.md` | Use a PX-backed searchable selector and stable ID. Do not add a first-launch consent screen; PX handles installation approval and administrator restrictions. |
 | Create, update, or soft-delete PX canonical records | `plannerxchange/api-reference.md`, `plannerxchange/data-contract.md`, `plannerxchange/pii-and-security.md` | `plannerxchange.app.json`, `src/lib/px-gateway.ts`, app API calls |
 | Add white-label branding or disclosures | `plannerxchange/branding-and-legal-api.md` | UI components, `plannerxchange.app.json` scopes |
 | Check access grants or feature entitlements | `plannerxchange/app-access.md` | runtime access checks |
@@ -175,6 +175,11 @@ Request only the scopes the app actually uses.
 - Treat `egressDeclarations` as review evidence, not approval. There is no non-enterprise Day 1 self-serve exception for external PX/client data egress.
 - Do not manually attach bearer tokens.
 - Do not pass `appInstallationId` in query strings.
+- Do not wait for a shell-owned client picker or data-selection modal on ordinary
+  launch. PX handles permission approval during installation and later in
+  administrator App restrictions. Query the approved canonical APIs immediately,
+  render human-readable selector labels, retain stable IDs, and refetch after
+  canonical writes.
 - Treat `/app-data` as a record API, not a key-value store. Use `GET /app-data` to list, `POST /app-data` to create, and the returned `recordId` with `GET`, `PATCH`, or `DELETE /app-data/{recordId}`. Store app-owned content in `payload`; never use `PUT`, locally fabricated record IDs, `{ value }`, or a top-level `.value` response.
 - Prefer PX SDK app-data methods: `listAppData`, `getAppDataRecord`, `createAppDataRecord`, `updateAppDataRecord`, and `deleteAppDataRecord`. A local initializer or wrapper may store `authenticatedFetch` when parameter forwarding, assignment, and calls remain statically traceable. Do not hide app-data routes or methods behind dynamic module resolution.
 - A local response helper may return parsed JSON or a selected `page.items`

@@ -17,8 +17,24 @@ A freeform `Client` or `Client email` field is not a canonical integration.
 - Load records through the PX SDK/gateway or documented installed-app route.
 - Present a searchable selector with loading, empty, and error states.
 - Store the returned canonical ID. Display text is not identity.
-- For clients, use `canonical.client.summary.read` for selection. Fetch email, phone, address, date of birth, or other protected details only after selection through `canonical.client.sensitive.read`.
+- For clients, use `canonical.client.summary.read` for a human-readable name list.
+  Fetch email, phone, address, date of birth, or other protected details only
+  after selection through `canonical.client.sensitive.read`.
 - Put `clientUserId`, `householdId`, `accountId`, or `sourceRefs` at the top level of related app-data records.
+
+## Installation and launch ownership
+
+PlannerXchange obtains firm-administrator approval for the app's reviewed
+permissions during marketplace installation. Approved canonical categories
+start with `all_accessible`, which includes current records, future records,
+and records created by the app. A firm administrator may later narrow that
+access in PlannerXchange App restrictions.
+
+Builder apps must not implement a first-launch permission or record-selection
+screen and must not wait for the shell to select a working client. On ordinary
+launch, call the approved canonical APIs, render human-facing selectors from
+their results, keep the returned stable IDs as identity, and refetch after
+canonical mutations so the user sees current shared data.
 
 Client read declaration:
 
@@ -93,7 +109,9 @@ The manifest declares a canonical category and operation, but reviewed source do
 - Integrate through the documented SDK/gateway method or route for that category and operation, or
 - remove the unused declaration and permission.
 
-This finding is required only for the data-persistence goal. It does not block Draft, marketplace, or private-label publication by itself.
+This finding blocks publication, activation, installation, and launch of the
+candidate version because the app declared canonical-data intent that it does
+not correctly implement. The last previously approved version may remain active.
 
 ### `canonical-entity-control-not-integrated`
 
@@ -102,11 +120,11 @@ The UI appears to represent a household, client, or account, but review cannot s
 - If it is canonical, implement the selector/create flow above and retain the PX ID.
 - If it is app-local, rename the label and model so it does not imply a PX entity.
 
-This is a required Data-capability finding when review proves that a rendered
+This is a required finding when review proves that a rendered
 canonical-looking control is free text, generates or stores an app-local
-identity, and has no matching PX read. It does not by itself block unrelated
-Draft or marketplace outcomes. An ambiguous control remains platform-owned
-review uncertainty rather than a guessed builder finding.
+identity, and has no matching PX read. It blocks publication of the candidate
+version. An ambiguous control remains platform-owned review uncertainty rather
+than a guessed builder finding.
 
 ### `canonical-data-integration-incomplete`
 
