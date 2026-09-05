@@ -352,3 +352,44 @@ Shell-owned provider review rule:
 - Apps must treat provider import jobs, refresh diagnostics, staging payloads, OAuth state, provider object IDs, and tax-lot identifiers as shell-internal governance data, not app data.
 - Account UI may show both specific account type and tax treatment. Use `accountType` for product/registration display and generic `taxTreatment` labels (`Taxable`, `Tax-advantaged pre-tax`, `Tax-advantaged post-tax`, `Tax-advantaged pre-and-post`, `Unknown`) for tax classification.
 - Apps must not call providers directly, ask for partner API keys/OAuth tokens, call `/integrations/*`, build app-owned partner sync/matching flows, cache CRM/investment content in browser storage, or send CRM/client/account/investment content to Tavily, OpenAI, Anthropic, Gemini, external AI/search providers, or third-party APIs in Day 1 publication.
+
+## Builder feedback loop and remediation rules
+
+- Before using PX CLI review feedback, update the CLI with `px --update dev`
+  for the dev shell or `px --update` for production. If that command is not
+  recognized, use the install block copied from Creator Studio.
+- After pushing to GitHub, use the PlannerXchange CLI when available:
+  `px feedback --env dev --goal <selected-goal> --commit HEAD --format markdown`.
+  Treat `px feedback` as the canonical builder-agent feedback loop command. The
+  `--goal` value only filters findings from the latest full review; it does not
+  start a review, rerun a goal-specific review, or select individual review
+  steps. The CLI is read-only.
+- If the builder already stated what they want the app to do, map that outcome
+  to the internal goal without asking again. Otherwise ask with plain choices:
+  try it privately; list it for other advisors; let anyone try a sample using
+  made-up information; show a public information page; match each firm's
+  branding; use PlannerXchange information; or check every app outcome. Do not
+  show internal goal IDs or platform implementation jargon unless the builder
+  asks. Internally map the answer to `draft`, `marketplace`, `demo_mode`,
+  `landing_page`, `private_label`, `data_persistence`, or `all`.
+- A pushed commit queues the full review pipeline. Creator Studio's `Run fresh
+  review` action can queue the full pipeline for the current commit. PX CLI
+  cannot queue review work.
+- Human-facing retry feedback says that PlannerXchange is retrying
+  automatically and that no action is needed. Internal attempt counts may
+  appear only in machine-readable JSON for agents or support; they are not a
+  limit on builder code changes, commits, or future full-review requests.
+- If PlannerXchange cannot verify only Demo mode after its automatic retries,
+  Demo stays off and the rest of the review completes. Do not change app code
+  unless the review also returns a direct Demo violation or another required
+  finding. Do not treat Demo verification uncertainty as an app-wide blocker.
+- A required canonical-data finding is different: when an app declares or uses
+  PX canonical data, the reviewed candidate cannot be published, activated,
+  installed, or launched until that finding is corrected. A prior compliant
+  published version remains active.
+- Fix only the current required fix group returned for the selected goal,
+  then rebuild and recheck within existing resource approval; commit/push only when authorized and fetch feedback for the resulting commit.
+- Before telling the builder that a PlannerXchange API, SDK helper, runtime
+  context field, manifest contract, or review remediation path is unavailable,
+  refresh this public context pack and the local `@plannerxchange/sdk` or
+  `src/plannerxchange.ts` shim, then verify against the latest review export.

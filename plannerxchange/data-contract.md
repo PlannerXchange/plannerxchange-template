@@ -1,4 +1,4 @@
-﻿# Data Contract Notes
+# Data Contract Notes
 
 Use these rules while building:
 
@@ -885,3 +885,34 @@ const masked =
 - respect `verificationStatus` on securities: `unverified` or `review_needed` securities may have incomplete or incorrect identity metadata, but classification and return expectation should still come from PlannerXchange's firm-resolved fields rather than app-local fallback logic
 - do not build student-app workflows around platform-only routes such as hard-delete cleanup, provider OAuth secret management, destructive import repair, or auto-classify
 - if the app renders household or account totals, the firm's data may be partial Ã¢â‚¬â€ do not imply completeness unless the firm confirms it
+
+## Import handoff and remediation rules
+
+- For high-risk CSV import sessions, `ctx.openDataImportSession({ declarationId, mode: "canonical_store" })` is a launch-only handoff and returns `{ mode: "canonical_store", status: "launched" }`. Do not wait for `completed`, `completed_with_errors`, `cancelled`, `importJobId`, `canonicalRefs`, or `mappingSummary`; after the user returns to the app, refresh approved canonical read APIs.
+- Do not invent a Creator Studio column-mapping-template prerequisite for `px_import_session`. The PlannerXchange import wizard owns upload, suggested field mapping, skipped fields, user confirmation, validation, audit, and canonical import.
+- Do not tell builders to split a valid account CSV only because it contains multiple custodians. PX import sessions support mixed-custodian account files when a custodian column is mapped or the advisor supplies per-account custodians during review.
+- If the PX import wizard URL opens but the wizard screen is blank, do not tell
+  the builder to configure a mapping template or redesign app CSV code. Treat it
+  as a PlannerXchange shell/runtime issue or stale deployed shell, capture the
+  URL and console logs, refresh the current PX CLI/context, and report the PX
+  platform issue.
+- If the PX import wizard says the current workspace plan does not support CSV
+  import or hosted data storage, do not tell an installed app user to upgrade.
+  Treat it as a publisher/workspace-admin configuration issue and direct the
+  builder to the Creator Studio publish checklist, workspace billing, or a
+  platform admin for dev-tier enablement.
+- If Creator Studio says a paid platform capability is not available on the
+  builder workspace's plan, do not redesign correct `px_import_session` app
+  code unless the builder chooses to remove the capability. The builder must
+  either upgrade the builder workspace or remove the paid feature before
+  publication.
+- Any import-specific route, navigation item, page, or primary action must call
+  `ctx.openDataImportSession` with the matching stable declaration ID. Launch
+  immediately on navigation or from the page's primary action. App UI may show
+  only a transient launching state or a recoverable error; an informational-only
+  import page is a blocking contract violation.
+- A local wrapper is supported when review can statically trace relative imports,
+  configured local `tsconfig`/`jsconfig` path aliases, parameter forwarding,
+  assignments, and aliases from that user action to the matching runtime helper
+  and declaration ID. Prefer a direct call when a wrapper adds no application
+  value. Ambiguous or unresolved local aliases cannot prove integration.
