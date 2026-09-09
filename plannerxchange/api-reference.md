@@ -206,7 +206,7 @@ Common error codes:
 | `not_found` | 404 | Requested resource does not exist in the current firm context |
 | `validation_error` | 400 | Request body failed validation |
 | `rate_limited` | 429 | Too many requests — back off and retry |
-| `internal_error` | 500 | Platform error — retryable |
+| `internal_error` | 500 | Platform error; retry only when the operation contract makes retry safe. Current app-email sends can be uncertain and must not be automatically retried; see [email-api.md](email-api.md). |
 
 ## Tier availability rule
 
@@ -273,7 +273,7 @@ If your app is calling the live backend today, use the current live platform pat
 | `app_data.write` | `/app-data` (POST), `/app-data/{id}` (PATCH/DELETE) | Create, update, and soft-delete builder-owned work-product |
 | `canonical.import.read` | approved import-session/job routes | Read PX-owned import-session state |
 | `canonical.import.write` | approved import-session routes | Launch or advance PX-owned import-session workflow; not direct database writes |
-| `email.send` | `/app-email/send` | Send transactional email through PX relay |
+| `email.send` | `/app-email/send` | Current HTML/text transactional email; see [email-api.md](email-api.md) for exact fields and limits. PDF/link delivery remains planned. |
 
 Important:
 
@@ -449,3 +449,13 @@ Builder apps should **not** call platform-managed APIs for:
 - publication, review, or deployment workflows
 
 These are PlannerXchange-managed operations. Builder apps consume the results (through `/shell/bootstrap`, `/app-access/me`, `/feature-entitlements/me`) but do not invoke the provisioning flows.
+
+### Optional standard record form
+
+`ShellRuntimeContext.openCanonicalRecordForm` has a local implementation for
+household/client creation; deployment is pending. Feature-detect the actual host
+and follow [canonical-entity-controls.md](canonical-entity-controls.md#standard-form-call-and-continuation)
+for requests, results, permissions and refresh/selection. Both user authority and
+reviewed app write scopes/declarations apply. No accounts form or read-only write
+exception is included. Do not call private workspace transports or substitute
+form-launch evidence for the app's own canonical reads.

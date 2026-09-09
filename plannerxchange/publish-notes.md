@@ -70,6 +70,7 @@ Review guidance:
 - PlannerXchange runs CodeQL for the exact linked commit and fails closed when PX CodeQL finds blocking issues or PX-owned evidence cannot be produced
 - CodeQL findings copied from PlannerXchange review feedback should be fixed in source code before requesting another review
 - apps built to PX canonical data contracts get stricter checks for PX data access patterns
+- plan the empty-firm path for every required PX record workflow before review, even if the builder did not request it. Follow `plannerxchange/canonical-entity-controls.md`: implement authorized Add recovery inside the app, handle household prerequisites in the same form, preserve work, and refresh/select the saved PX ID. `canonical-empty-state-dead-end` is nonblocking semantic repair feedback with source and mapped-artifact evidence; an optional import link or honest access restriction alone is not a violation. Existing permission/security gates remain enforced
 - nonportable apps do not get a self-serve right to store PX/client/subscriber data in builder-owned backends; PX-governed public demo mode is synthetic and non-persistent, while app-managed storage for real PX data requires enterprise exception review
 - app-owned identity UX such as custom invite redemption, email verification, or password-setup flows will be treated as governance findings because PlannerXchange owns auth and onboarding
 - public landing pages may use YouTube or Vimeo embeds, but app-owned signup, sign-in, password, checkout, billing, lead-capture, provider-connect, upload, protected API, or token-handling behavior will be treated as landing-page findings or broader blockers
@@ -353,6 +354,32 @@ Shell-owned provider review rule:
 - Account UI may show both specific account type and tax treatment. Use `accountType` for product/registration display and generic `taxTreatment` labels (`Taxable`, `Tax-advantaged pre-tax`, `Tax-advantaged post-tax`, `Tax-advantaged pre-and-post`, `Unknown`) for tax classification.
 - Apps must not call providers directly, ask for partner API keys/OAuth tokens, call `/integrations/*`, build app-owned partner sync/matching flows, cache CRM/investment content in browser storage, or send CRM/client/account/investment content to Tavily, OpenAI, Anthropic, Gemini, external AI/search providers, or third-party APIs in Day 1 publication.
 
+## Email and report-delivery remediation
+
+Read [the email guide](email-api.md) before changing a workflow that sends mail.
+Current text email is supported through `email.send` and `/app-email/send`.
+PDF attachments, secure report storage/links and the proposed PX send dialog
+remain planned until the environment and released SDK/shim document support.
+
+A finding about app-owned SMTP/provider credentials, backend sending or unsafe
+report egress should identify the reachable transport and supported replacement.
+Keep the requested completion/recipient/report UX while replacing that transport.
+Do not delete the whole feature to make the finding disappear, bypass a security
+rule, or change the app brief to claim the builder never requested email.
+
+Distinguish three cases: a proven app violation needs a source fix; an unavailable
+PX capability needs a truthful unavailable state and platform follow-up; failed
+analysis needs the existing platform retry/support path. Proposed future email
+finding codes are not current CLI contracts. Keep public Demo synthetic with zero
+sends, and use exact source SHA plus committed-build evidence before claiming a fix.
+
+When an older export names the fix group `remove_custom_sharing_or_email`, treat
+that ID as compatibility metadata. Replace the cited unsupported transport while
+preserving the requested outcome. A download/unavailable fallback must be reported
+as incomplete email delivery, and must never be described as a restored send flow.
+Updated platform exports can refresh this advice while preserving the original
+finding evidence and reviewed commit; refreshed wording is not a fresh review.
+
 ## Builder feedback loop and remediation rules
 
 - Before using PX CLI review feedback, update the CLI with `px --update dev`
@@ -393,3 +420,13 @@ Shell-owned provider review rule:
   context field, manifest contract, or review remediation path is unavailable,
   refresh this public context pack and the local `@plannerxchange/sdk` or
   `src/plannerxchange.ts` shim, then verify against the latest review export.
+
+### Optional standard record form
+
+`ShellRuntimeContext.openCanonicalRecordForm` has a local implementation for
+household/client creation; deployment is pending. Feature-detect the actual host
+and follow [canonical-entity-controls.md](canonical-entity-controls.md#standard-form-call-and-continuation)
+for requests, results, permissions and refresh/selection. Both user authority and
+reviewed app write scopes/declarations apply. No accounts form or read-only write
+exception is included. Do not call private workspace transports or substitute
+form-launch evidence for the app's own canonical reads.

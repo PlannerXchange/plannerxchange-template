@@ -235,16 +235,15 @@ Provenance-aware UI guidance:
 
 Outbound email guidance:
 
-- if the app needs to send transactional email (questionnaire links, workflow confirmations, report delivery), declare `email.send` in the manifest `permissions` array
-- call `POST /app-email/send` through the PlannerXchange API Ã¢â‚¬â€ the app never holds sending credentials
-- PlannerXchange resolves the sending identity: firm-verified address if configured, otherwise `noreply@plannerxchange.ai`
-- do not use the outbound email API for identity invitations, verification links, password setup, password reset, or onboarding access links; those are PlannerXchange-owned auth flows
-- pass the recipient's email from PX canonical client data when available; require `canonical.client.sensitive.read` if the app auto-fills the email from PX canonical client detail
-- pass `clientUserId` and `appRecordId` in the email request for audit traceability
-- the reply-to address defaults to the active user's email; override it explicitly if the firm wants replies routed elsewhere
-- PlannerXchange appends the firm's disclosure footer to all outbound HTML email automatically
-- do not use the email endpoint for bulk marketing, cold outreach, or recurring newsletters unrelated to a specific workflow event
-- read `docs/builder-spec/outbound-email-v1.md` for the full contract including rate limits, review requirements, and the Phase 2 linked Gmail/Outlook account path
+- use the current public [email contract](email-api.md) for exact fields, status/retry behavior and acceptance
+- current text email requires `email.send` and `POST /app-email/send` through shell-authenticated transport; no app provider credentials or backend
+- report/PDF delivery is planned; do not send attachments or invent a secure recipient URL from an app route or record ID
+- PX uses its configured platform sender and appends disclosure; linked advisor mailboxes and firm-specific sending identity selection are not current guarantees
+- canonical client email autofill requires `canonical.client.sensitive.read`; one-off delivery input must not masquerade as a canonical Client record or force client creation
+- optional `clientUserId` and `appRecordId` must be real references of the correct kind; do not pass the advisor user ID as a recipient client-user ID
+- recipient data and PDFs must not enter browser storage, analytics, logs, an unapproved app-data shape or external provider storage
+- keep completion, recipient intent and download when remediating transport; do not automatically retry uncertain legacy sends
+- public Demo sends nothing; bulk marketing, cold outreach, app-owned schedules and identity-lifecycle email are unsupported
 
 White-label UI guidance:
 

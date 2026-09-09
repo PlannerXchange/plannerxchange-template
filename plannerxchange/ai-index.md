@@ -21,6 +21,10 @@ public context pack and the local `@plannerxchange/sdk` or
 `src/plannerxchange.ts` shim, then verify against the latest PlannerXchange
 review export. Do not describe a capability as future-state or missing when
 the current context pack, SDK, or review export documents it as available.
+Only an explicitly current/released entry establishes availability. A planned
+feature, internal target symbol or example of a future request does not.
+If the documents and target host disagree, report that exact mismatch; do not
+invent a shim, route or provider workaround.
 
 ## Common Tasks
 
@@ -30,11 +34,11 @@ the current context pack, SDK, or review export documents it as available.
 | Add or change API access | `plannerxchange/api-reference.md`, `plannerxchange/data-contract.md` | `plannerxchange.app.json`, app API calls |
 | Save app-owned work product | [`plannerxchange/app-data-api.md#required-create-fields`](app-data-api.md#required-create-fields), [`#complete-typescript-record-lifecycle`](app-data-api.md#complete-typescript-record-lifecycle), [`#server-issued-record-id-provenance`](app-data-api.md#server-issued-record-id-provenance), [`#review-remediation-checklist`](app-data-api.md#review-remediation-checklist) | Prefer SDK app-data methods; otherwise use the exact list/create/get/update/delete lifecycle, retain server-issued record IDs, read/write `payload`, and rebuild committed output after changes |
 | Read clients, households, accounts, positions, transactions, CRM, or tax data | `plannerxchange/api-reference.md`, `plannerxchange/data-contract.md`, `plannerxchange/pii-and-security.md` | `plannerxchange.app.json`, app API calls |
-| Add or fix a Client, Household, or Account field | `plannerxchange/canonical-entity-controls.md`, `plannerxchange/api-reference.md`, `plannerxchange/data-contract.md` | Use a PX-backed searchable selector and stable ID. Do not add a first-launch consent screen; PX handles installation approval and administrator restrictions. |
+| Add or fix a Client, Household, or Account field | `plannerxchange/canonical-entity-controls.md`, `plannerxchange/api-reference.md`, `plannerxchange/data-contract.md` | Use a PX-backed searchable selector, stable ID, and in-app Add recovery for an empty firm. Check household prerequisites, access failures, cancellation, and refresh/selection after save. Do not add a first-launch consent screen; PX handles installation approval and administrator restrictions. |
 | Create, update, or soft-delete PX canonical records | `plannerxchange/api-reference.md`, `plannerxchange/data-contract.md`, `plannerxchange/pii-and-security.md` | `plannerxchange.app.json`, `src/lib/px-gateway.ts`, app API calls |
 | Add white-label branding or disclosures | `plannerxchange/branding-and-legal-api.md` | UI components, `plannerxchange.app.json` scopes |
 | Check access grants or feature entitlements | `plannerxchange/app-access.md` | runtime access checks |
-| Send workflow email | `plannerxchange/email-api.md` | `plannerxchange.app.json`, email call site |
+| Send workflow email, deliver a PDF, or fix an email review finding | [`plannerxchange/email-api.md`](email-api.md), `plannerxchange/publish-notes.md` | Use only the current released contract; preserve completion/recipient UX, distinguish planned PDF support, and verify builder acceptance |
 | Handle CSV or file uploads | `plannerxchange/app-data-api.md`, `plannerxchange/data-contract.md`, `plannerxchange/pii-and-security.md` | `plannerxchange.app.json`, upload flow |
 | Add or fix a PX-owned canonical CSV import and canonical read | [`plannerxchange/data-contract.md#canonical-import-and-consumption-are-separate-contracts`](data-contract.md#canonical-import-and-consumption-are-separate-contracts), supported-entity matrix, [`plannerxchange/canonical-entity-controls.md#review-findings`](canonical-entity-controls.md#review-findings), `plannerxchange/api-reference.md`, `plannerxchange/publish-notes.md` | Complete each category independently: import declaration/call if used, exact read permission, matching access declaration, PX-backed selector when applicable, reachable canonical read, stable returned IDs, app-data overlays only, committed dist and provenance |
 | Fix auth/session review findings | `plannerxchange/context.md`, `plannerxchange/api-reference.md` | remove app-owned auth code |

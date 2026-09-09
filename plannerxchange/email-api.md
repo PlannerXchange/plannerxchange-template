@@ -1,30 +1,45 @@
 # PlannerXchange Outbound Email API
 
-This document defines how builder apps send transactional email through PlannerXchange.
+Status: current text-email contract clarified 2026-09-08. PDF attachments,
+PX-hosted secure report links, recipient verification, and the proposed report
+dialog are **planned, not available through this contract yet**. A plan is not
+a callable API. Refresh the current context pack, SDK/shim and target environment
+before integration; do not describe a planned entry as released.
 
 ## Core rule
 
-Builder apps do not hold email credentials. All outbound email is sent through the PlannerXchange-managed relay. The app declares `email.send` in the manifest, calls a single API endpoint, and PlannerXchange handles transport, compliance audit, and sending-identity resolution.
+Keep the app's legitimate workflow trigger, recipient experience and report
+generation. Use PlannerXchange's governed transport for supported transactional
+email. Apps must not hold SMTP/provider credentials, create email backends,
+upload reports to third-party services, or implement recipient authentication.
 
-## When to use
+Read this guide before adding or removing an email feature. It is available in
+this public repository; access to the private platform repo is not required.
 
-Use this API for transactional email only:
+## Current capability and limits
 
-- deliver a questionnaire link to a client
-- confirm receipt of a completed workflow step
-- send a scheduled report or projection PDF
-- notify a client that a recommendation is ready for review
+| Capability | Current status |
+| --- | --- |
+| One HTML/text workflow message | `POST /app-email/send` with `email.send` |
+| Authentication and installation context | Shell-owned `authenticatedFetch` |
+| Platform sender, reply-to default, disclosure footer | Implemented |
+| PDF attachment request field | Not supported |
+| Private report upload or secure recipient link | Not supported by this endpoint |
+| PX report-send dialog or recipient code verification | Planned; no current hook to invent |
+| Scheduled/background jobs, bulk mail, marketing | Not supported for ordinary shell apps |
+| Linked Gmail/Outlook or firm mailbox OAuth | Future direction; not current sending behavior |
+| Application idempotency and documented per-app quotas | Hardening pending; do not assume enforcement |
+| Delivery/bounce status API | Not part of the current builder contract |
 
-Do **not** use this API for:
+A working email transport does not make a link accessible to an external
+recipient. An app route or app-data ID does not create a public questionnaire,
+client account, report grant, or secure PDF URL.
 
-- bulk marketing or promotional campaigns
-- cold outreach not connected to a specific workflow event
-- recurring newsletters unrelated to a specific app event
-- identity lifecycle emails (invite, verification, password reset) — PlannerXchange owns those
+## Manifest and transport
 
-## Manifest declaration
-
-The app manifest (`plannerxchange.app.json`) must include `"email.send"` in the `permissions` array:
+Add `"email.send"` to the manifest's existing `permissions` array only when
+the app uses transactional email. Do not invent `email`, `email.enabled`,
+`attachments`, or `capabilities` manifest fields.
 
 ```json
 {
@@ -32,146 +47,185 @@ The app manifest (`plannerxchange.app.json`) must include `"email.send"` in the 
 }
 ```
 
-Apps that call the email API without `email.send` declared receive `403 Forbidden`.
+Call `POST /app-email/send` through `ShellRuntimeContext.authenticatedFetch`.
+The shell attaches user authentication and installation/runtime context.
+Do not read/store tokens, add auth headers, use frontend provider keys,
+hardcode an API base URL, or create `/api/send-email` in the app.
 
-Declaring `email.send` triggers an enhanced review step evaluating:
+The actor must have an active authorized installation in the current firm.
+The server checks the existing permission and access policy. A successful
+local mock or a manifest permission alone does not prove deployed availability.
 
-- whether the email use case is transactional
-- whether the payload appropriately identifies the sending app
-- whether the content type complies with firm-level disclosure rules
-- whether a reply-to or contact path is provided
-
-## Sending identity resolution
-
-PlannerXchange resolves the sending identity at runtime:
-
-1. **Firm-verified sending address** — if the firm completed SES identity verification, email is sent from that verified address
-2. **PlannerXchange platform relay** — otherwise, email is sent from `noreply@plannerxchange.ai` with the firm name or app name in the display label
-3. *(Phase 2)* **Linked Gmail or Outlook account** — if the firm or advisor linked an OAuth-based mailbox, that mailbox is used as the sending account
-
-The `reply-to` may be set to the advisor's email so client replies route back to the advisor. The app should not assume a specific from address.
-
-## `POST /app-email/send`
-
-Send a single transactional email on behalf of the app.
-
-**Authentication:** use `ShellRuntimeContext.authenticatedFetch`. The shell attaches user auth and `x-plannerxchange-app-installation-id`.
-
-**Request body:**
+## Exact current request
 
 ```json
 {
-  "to": "client@example.test",
+  "to": "recipient@example.test",
   "toName": "Avery Example",
-  "subject": "Your onboarding questionnaire is ready",
-  "htmlBody": "<p>Hi Avery, please complete your questionnaire at the link below.</p>",
-  "textBody": "Hi Avery, please complete your questionnaire at: https://...",
-  "replyTo": "advisor@example.test",
-  "fromLabel": "Aditi Kapadia via REWealth Financial",
-  "clientUserId": "client_456",
-  "appRecordId": "appdata_789",
-  "templateSlug": null
+  "subject": "Your workflow is complete",
+  "htmlBody": "<p>Your requested workflow is complete.</p>",
+  "textBody": "Your requested workflow is complete."
 }
 ```
 
-### Field rules
+The address above is synthetic documentation data, not a real delivery target.
 
-| Field | Required | Notes |
-|-------|----------|-------|
-| `to` | yes | Recipient email address. Synthetic test values blocked in prod. |
-| `toName` | no | Recipient display name for the greeting. |
-| `subject` | yes | Plain text, max 200 characters. |
-| `htmlBody` | yes | Full HTML body. PlannerXchange appends a firm disclosure footer. |
-| `textBody` | no | Plain-text fallback. Auto-generated from `htmlBody` if omitted. |
-| `replyTo` | no | Defaults to active user's email. |
-| `fromLabel` | no | Display name for the from field. Cannot impersonate unrelated brands. |
-| `clientUserId` | no | Links email to a client user for audit. |
-| `appRecordId` | no | Links to an app-data record for audit traceability. |
-| `templateSlug` | no | Reserved for Phase 2 platform templates. Pass `null`. |
+| Field | Required | Current contract |
+| --- | --- | --- |
+| `to` | Yes | One recipient email address |
+| `toName` | No | Recipient display name |
+| `subject` | Yes | Nonempty plain text, at most 200 characters |
+| `htmlBody` | Yes | Nonempty HTML; PX appends its disclosure footer |
+| `textBody` | No | Text alternative; otherwise generated from HTML |
+| `replyTo` | No | Authorized reply address; defaults to the active advisor's email |
+| `fromLabel` | No | Honest app/firm display label; defaults to the app name |
+| `clientUserId` | No | Actual existing PX client-user reference, if applicable |
+| `appRecordId` | No | Actual server-issued app-data record reference, if applicable |
 
-### Success response `200`
+No other request fields are currently supported. Do not send `templateSlug`,
+`unsubscribeToken`, `includeUnsubscribeFooter`, `attachments`,
+`documentId`, `deliveryMode`, or an invented idempotency field. Do not rely
+on an older handler ignoring an unknown field as evidence that it works.
+
+A recipient is not automatically a PX client user. Never set `clientUserId`
+to `runtimeContext.userId` merely because the advisor triggered the send, and
+never substitute a canonical client ID or email address for a client-user ID.
+Omit optional references when they do not exist. Sending once does not require
+creating a new canonical client or a PX account.
+
+When deriving the address from canonical client detail, use the authorized
+`canonical.client.sensitive.read` path. Summary-safe client records do not
+contain an implied usable email address. A one-off recipient field is delivery
+input, not a replacement for a canonical Client selector.
+
+## Sender, content, and data handling
+
+PX currently uses its configured platform sender, normally
+`noreply@plannerxchange.ai`. Do not claim it sends from a connected advisor
+mailbox or that the message appears in that mailbox's Sent folder.
+Firm-specific sending identities and linked Gmail/Outlook remain future work.
+
+Prefer default sender/reply-to behavior. An override must identify the actual
+authorized advisor/firm; never impersonate another sender. Escape dynamic
+HTML/attributes, keep headers plain and free of control characters, and do not
+put client names, questionnaire answers, account data, or report contents into
+the subject. Use a plain-text alternative. Do not embed PDF/base64 data in HTML.
+
+Never persist recipient data or report bytes in browser storage, analytics,
+logs, source fixtures or an app-owned backend. Any app-data persistence must
+follow the separate approved data contract; a generic app payload is not
+permission to store a plaintext recipient directory.
+
+Only send a transactional message tied to an explicit user workflow.
+Do not use this API for cold outreach, campaigns, newsletters, autonomous
+retry loops, or platform identity invitations/password/verification flows.
+
+## Response, UI and retry behavior
+
+The current success response is HTTP `200`:
 
 ```json
 {
-  "messageId": "ses-abc123",
-  "sentAt": "2026-03-22T14:30:00.000Z",
+  "messageId": "provider-message-id",
+  "sentAt": "2026-09-08T12:00:00.000Z",
   "sendingIdentity": "noreply@plannerxchange.ai",
   "status": "queued"
 }
 ```
 
-### Error responses
+Here `queued` means the provider accepted the send request. It is not
+confirmation that the recipient received or read the message.
 
-| Status | Meaning |
-|--------|---------|
-| `400` | Invalid payload — missing required field or malformed email |
-| `403` | App does not have `email.send` permission or installation not found |
-| `429` | Rate limit exceeded |
-| `451` | Recipient on unsubscribe or suppression list |
-| `500` | Platform relay error — retryable |
+| Observation | Builder UI / action |
+| --- | --- |
+| `200` with current success shape | Show accepted/submitted status, not Delivered or Read |
+| Missing/invalid recipient, subject or HTML (`400`) | Show a friendly correction; preserve completed work |
+| Missing permission, disabled/inactive access (`403`) | Explain unavailability; inspect the manifest/current review |
+| Missing installation (`404`), missing context, payment/auth failure | Use shell access recovery; do not implement login in the app |
+| Network timeout or server failure | Sending may be uncertain; do not blindly retry |
+| Public Demo / local synthetic mock | Simulate and clearly indicate that no message was sent |
 
-## Code example
+Block repeat clicks while the request is pending. The current endpoint does
+not provide durable idempotency, so an automatic retry can duplicate a message.
+Do not catch a failed send and then display success. Preserve the questionnaire
+and local PDF download. Show safe user-facing errors, not raw API/provider text.
 
-```typescript
-async function sendQuestionnaireEmail(
-  runtimeContext: ShellRuntimeContext,
-  recipientEmail: string,
-  recipientName: string,
-  questionnaireLink: string
-) {
-  if (!runtimeContext.authenticatedFetch) {
-    throw new Error("PlannerXchange authenticatedFetch is not available.");
-  }
+Older docs advertised `429` application quotas and `451` suppression responses.
+Those outcomes and the 20/min, 200/hour, 1,000/day application limits are target
+hardening, not a current guarantee. SES/environment controls may independently
+reject delivery. Do not create a builder-side mass-mail queue as a workaround.
 
-  const response = await runtimeContext.authenticatedFetch(
-    "/app-email/send",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        to: recipientEmail,
-        toName: recipientName,
-        subject: "Your onboarding questionnaire is ready",
-        htmlBody: `<p>Hi ${recipientName},</p>
-                   <p>Please complete your onboarding questionnaire:</p>
-                   <p><a href="${questionnaireLink}">Open questionnaire</a></p>`,
-        clientUserId: runtimeContext.userId,
-      }),
-    }
-  );
+## Planned report delivery - do not implement a guessed API
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(error.message ?? `Email send failed: ${response.status}`);
-  }
+The intended released flow is:
 
-  return response.json();
-}
-```
+1. Complete the questionnaire and generate the PDF in the app.
+2. Open a host-provided PX report-send dialog with the PDF.
+3. Confirm a one-off recipient or select an authorized canonical contact in PX.
+4. Receive an accepted delivery ID; PX handles private storage, transport and status.
+5. Recipient verifies mailbox access and views/downloads one expiring report.
 
-Do not re-authenticate, store bearer tokens, or manually attach auth headers. The shell-managed fetch owns authenticated PlannerXchange transport.
+The exact hook, input/result types, limits, cancellation, availability and
+status/retry rules will be published with the implementation. The permission
+remains `email.send`; do not invent a new manifest flag or shim implementation.
 
-## Rate limits
+The platform now contains internal `AppReportDocumentPrepareInput`,
+`AppReportDocumentUploadInput` and `AppReportDocumentSummary` foundation types.
+They do not expose an upload endpoint or a host capability. Do not pass these
+objects to `/app-email/send`, invent a report route, or implement a shim hook.
+Continue to preserve PDF generation/download until the released host contract
+and target environment explicitly provide report delivery. Platform-owned
+encrypted-storage code does not grant apps upload, bucket or decrypt access;
+its internal protected-data fields are not manifest permissions or app-data schemas.
 
-| Window | Limit |
-|--------|-------|
-| Per minute | 20 emails |
-| Per hour | 200 emails |
-| Per day | 1,000 emails |
 
-Apps that systematically reach day-level limits trigger a review flag.
+Until the target environment and released SDK/shim support the flow, retain
+report generation/download and an honest unavailable state for report email.
+Do not substitute a public object URL, standalone app route, external provider,
+mailto attachment trick, backend worker, or custom code-verification screen.
 
-## Required email hygiene
+## Builder-agent implementation and remediation checklist
 
-- Subject and body must identify the sending app or advisor firm — no misleading subject lines
-- Provide a reply path (`replyTo` address, support contact, or unsubscribe link)
-- For scheduled or recurring emails, include a visible unsubscribe mechanism
-- Do not use the `to` address to send PX data to third-party collection endpoints
-- PlannerXchange automatically appends the firm's disclosure footer to all outbound HTML emails
-- Do not use the email endpoint for bulk marketing or cold outreach
+- [ ] Read this guide, the current shim/SDK, target-environment availability,
+  and latest review export. Distinguish current, planned and processing-failed.
+- [ ] Identify the actual user action, intended recipient and report/message.
+  Preserve the requested business workflow and completed questionnaire.
+- [ ] For current text mail, use the exact fields above and `email.send`.
+  For report delivery, wait for its released contract; do not guess methods.
+- [ ] Remove reachable app-owned transport/credentials while keeping legitimate
+  presentation, PDF generation and recipient intent. Do not disable a security
+  rule or use a direct provider workaround to obtain a passing review.
+- [ ] Use existing authorized canonical reads when selecting a client; label
+  one-off delivery input clearly and do not manufacture record/user IDs.
+- [ ] Branch on public Demo before protected initialization. Use synthetic
+  recipients/results and make zero real sends/uploads/protected requests.
+- [ ] Handle cancel, pending, accepted, failure and uncertain outcomes honestly.
+  Keep download available; do not automatically resend the legacy endpoint.
+- [ ] Rebuild only with the applicable resource approval, and include fresh
+  committed `distRoot`/provenance in an authorized review commit.
+- [ ] Obtain feedback for that exact commit and selected outcome through the
+  existing read-only PX CLI loop; fix proven app findings, not platform outages.
+- [ ] Record acceptance evidence below before calling the email feature complete.
 
-## Audit trail
+If review says to remove email, inspect its exact file/line, sink and reason.
+A provider/credential finding calls for replacing transport, not deleting the
+user's completion workflow. If the needed PX capability is unavailable or the
+analyzer failed, preserve a safe unavailable state and report the platform
+dependency. Do not rewrite the app spec to erase the requested feature.
 
-PlannerXchange records a redacted audit entry for every send attempt including app slug, timestamp, outcome, linked `clientUserId`, linked `appRecordId`, sending identity, and message ID. Recipient email addresses are hashed, not stored in plaintext.
+## Builder acceptance evidence
+
+| Check | Evidence required |
+| --- | --- |
+| Workflow retained | Questionnaire completion still reaches the intended report/download/send experience |
+| Correct integration | Exact current permission, request/hook and source call site; no provider secrets/backend |
+| Recipient correctness | Confirmed intended recipient; no forced hidden copy, fake IDs or wrong-firm record |
+| Repeat/error handling | Double-click does not create concurrent calls; failure/timeout preserves work and never displays false success |
+| Demo isolation | Synthetic branch performs zero real sends, uploads and protected requests |
+| Artifact parity | Reviewed SHA and committed build contain the tested completion and error paths |
+| Real delivery | Only an explicitly authorized test mailbox; provider acceptance separated from actual received-message evidence |
+| Future secure report | Once released: exact PDF, recipient without PX account, expired/revoked/forwarded-link denial and accurate status |
+
+These are app acceptance checks, not a claim that the platform's new report
+service already passed its acceptance matrix. Public-template docs, platform
+deployment, app review/publication and production acceptance are separate gates.

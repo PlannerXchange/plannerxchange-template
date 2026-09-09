@@ -22,6 +22,7 @@ Core rules:
 - Use `dataPortabilityMode: "plannerxchange_portable"` for portable-data intent.
 - Use exact scope strings in `permissions` for PlannerXchange API access.
 - Before adding a field named Client, Household, or Account, read `plannerxchange/canonical-entity-controls.md`. Canonical entities use PX-backed search/selection, stable PX IDs, and governed creation; app-local freeform concepts must use distinct labels and models.
+- For every required PX record selector, design and verify the empty-firm path without waiting for the builder to request it. Read `plannerxchange/canonical-entity-controls.md`: keep governed Add actions inside the app, handle household prerequisites in the same flow, and distinguish empty results from denied access or failed reads. Do not make a trip to Core Data the only recovery.
 - Demo mode is enabled from Creator Studio after review eligibility; it is not currently a builder manifest field.
 - Canonical-data Demo apps use `canonicalDataUsageDeclarations` only for exact
   field-level review evidence. This does not enable Demo mode or replace
@@ -32,6 +33,7 @@ Core rules:
 - Public landing pages are enabled from PlannerXchange after review eligibility; they are not currently builder manifest fields.
 - PlannerXchange owns auth, routing, shell context, disclosure, publication review, and app installation identity.
 - Use `ShellRuntimeContext.authenticatedFetch` for protected PlannerXchange API calls.
+- Before adding or removing workflow email/report delivery, read `plannerxchange/email-api.md`. Do not delete the legitimate completion/recipient UX to satisfy a transport finding; replace the unsupported transport or preserve an honest unavailable state. Do not invent attachments, a report-send hook, secure URLs, or recipient-auth APIs from a planned feature. Current text email uses `email.send` and `POST /app-email/send`; public Demo sends nothing.
 - Treat `/app-data` as a statically reviewable record API. Keep methods and
   request bodies literal or statically typed, retain server-issued record IDs,
   and read/write `payload`. A `dynamic_request_contract` review result is an app

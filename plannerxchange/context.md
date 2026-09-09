@@ -134,13 +134,13 @@ Boundary rule:
 
 Outbound email:
 
-- if the app sends email (questionnaire links, completion confirmations, report delivery), declare `email.send` in the manifest permissions
-- call `POST /app-email/send` through `ShellRuntimeContext.authenticatedFetch`
-- the app does not manage sending credentials or provider configuration — PlannerXchange owns that
-- see `docs/builder-spec/outbound-email-v1.md` for the full API contract and required manifest declaration
-- builders should never assume cross-firm data access
-
-- do not use app email for sign-in links, invite acceptance, verification, password setup, password reset, or identity onboarding
+- read [`plannerxchange/email-api.md`](email-api.md) before writing or removing email behavior
+- current text workflow email uses `email.send` and `POST /app-email/send` through `ShellRuntimeContext.authenticatedFetch`
+- PDF attachments, private report links and a PX report-send dialog are planned; do not infer a callable hook from the plan
+- preserve questionnaire completion, recipient intent and PDF download when replacing unsupported transport; show unavailable honestly until the target environment supports report sending
+- sending credentials, provider configuration and identity/recipient authentication belong to PX; apps must not implement them
+- never assume cross-firm data access; public Demo uses synthetic data and sends nothing
+- do not use app email for sign-in links, invite acceptance, verification, password setup, password reset or identity onboarding
 
 Auth lifecycle:
 
@@ -208,6 +208,14 @@ Integration identity direction:
 - builder apps should not assume `externalId` identifies the provider or can hold more than one external mapping
 
 Canonical request transport:
+
+When a workflow requires a PX record, its first-use design must handle a firm
+with no records. Follow `canonical-entity-controls.md` even if the builder did
+not specify an empty state: provide an authorized in-app Add flow, preserve
+work, and select the saved canonical ID. A message directing the user to Core
+Data is not a complete recovery. Read-only analysis does not require arbitrary
+edit/delete features; request only the operations needed by the actual workflow.
+
 
 - for protected PlannerXchange API calls, use `ShellRuntimeContext.authenticatedFetch`
 - ordinary installed-app launch is non-interactive at the shell boundary. The
@@ -473,3 +481,13 @@ Rules:
 - if live server-side Python is essential, stop and ask PlannerXchange whether
   the work belongs in an enterprise exception or an approved AI Connector path;
   do not design a self-serve shell-published app around live server-side Python
+
+### Optional standard record form
+
+`ShellRuntimeContext.openCanonicalRecordForm` has a local implementation for
+household/client creation; deployment is pending. Feature-detect the actual host
+and follow [canonical-entity-controls.md](canonical-entity-controls.md#standard-form-call-and-continuation)
+for requests, results, permissions and refresh/selection. Both user authority and
+reviewed app write scopes/declarations apply. No accounts form or read-only write
+exception is included. Do not call private workspace transports or substitute
+form-launch evidence for the app's own canonical reads.

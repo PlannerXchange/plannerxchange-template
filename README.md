@@ -71,6 +71,7 @@ Important:
 - external AI/search/provider calls such as Tavily, OpenAI, Anthropic, Gemini, analytics, support, or vendor APIs are not non-enterprise self-serve exceptions; `egressDeclarations` document the request but do not approve PX/client data leaving the shell
 - CSV/file imports must be declared; high-risk client/account/custodian CSVs must use declared PX import sessions (`px_import_session` + `ctx.openDataImportSession`), not app-owned parsers, import routes, or parent-matching logic. Every Import Data route, navigation item, page, or primary action must launch the matching PX session immediately or through its primary action; informational-only terminal pages are prohibited. Only a transient launching state or recoverable error may remain in app UI. Statically traceable local wrappers and configured `tsconfig`/`jsconfig` path aliases are supported when they resolve uniquely, though the direct runtime-helper call is the recommended simplest pattern. `openDataImportSession({ declarationId, mode: "canonical_store" })` returns only `{ mode: "canonical_store", status: "launched" }`; do not wait for completed-result fields. If TypeScript says `openDataImportSession` is missing, refresh `src/plannerxchange.ts` from the current template before changing the app architecture.
 - canonical creates, updates, and soft-deletes must use governed PlannerXchange canonical APIs with matching `canonical.*.write` scopes; app-data remains for app-owned work product
+- when the app requires a PX record, its agent must plan and implement empty-firm recovery inside the app without waiting for the builder to ask. Follow `plannerxchange/canonical-entity-controls.md` for governed Add actions, household prerequisites, permissions, and refresh/selection after save; Core Data navigation alone does not complete this workflow
 - canonical import and canonical consumption are separate contracts. If an app imports and then presents a canonical category, it must also request the exact read permission, declare the category/read scope, perform a reachable PX read, retain canonical IDs, store only overlays in app-data, and commit the rebuilt artifact/provenance. A free-text Client, Household, or Account field backed by a local ID does not select PX data and blocks Data approval until integrated or honestly relabeled as app-local.
 - platform review and product entitlements are handled inside PlannerXchange, not in this repo
 
@@ -91,6 +92,8 @@ For AI coding agents, start with `AGENTS.md` and `plannerxchange/ai-index.md`. T
 If you have access to the PlannerXchange platform repo, review the corresponding `docs/builder-spec/` files for the full contract.
 
 The template context pack also includes current guidance for:
+
+- transactional email and report-delivery planning in [the email guide](plannerxchange/email-api.md), including exact current payloads, safe retry/status handling, feature-preserving review remediation and builder acceptance; secure report delivery remains planned
 
 - canonical household, client, and account controls, including PX-backed selection, governed `Add new`, stable IDs, and app-local naming boundaries
 - household tax reads through household summary fields plus year-scoped tax-filing records

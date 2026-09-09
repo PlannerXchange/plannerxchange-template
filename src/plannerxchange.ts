@@ -271,6 +271,17 @@ export type PlannerXchangeNavigate = (
   options?: PlannerXchangeNavigationOptions
 ) => void;
 
+/** Optional host capability; feature-detect deployed support. */
+export type CanonicalRecordFormRequest =
+  | { operation: "create"; entity: "household" }
+  | { operation: "create"; entity: "client"; householdId?: string };
+export type CanonicalRecordFormResult =
+  | { status: "completed"; record:
+      | { kind: "household"; householdId: string }
+      | { kind: "client"; householdId: string; clientId: string } }
+  | { status: "cancelled" }
+  | { status: "unavailable"; reason: "permission_required" | "public_demo" | "busy" | "invalid_request" | "context_changed" };
+
 export interface ShellRuntimeContext {
   runtimeMode?: "authenticated" | "public_demo";
   isDemoMode?: boolean;
@@ -303,6 +314,8 @@ export interface ShellRuntimeContext {
    * for completed import statuses, importJobId, canonicalRefs, or mappingSummary.
    */
   openDataImportSession?: PlannerXchangeOpenDataImportSession;
+  /** PX owns fields/save; refresh approved reads and select returned IDs after completion. */
+  openCanonicalRecordForm?: (request: CanonicalRecordFormRequest) => Promise<CanonicalRecordFormResult>;
   /**
    * The base URL for PlannerXchange API calls in the current environment.
    * Apps should use this instead of hardcoding API URLs so they work across
