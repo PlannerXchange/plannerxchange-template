@@ -354,6 +354,42 @@ Shell-owned provider review rule:
 - Account UI may show both specific account type and tax treatment. Use `accountType` for product/registration display and generic `taxTreatment` labels (`Taxable`, `Tax-advantaged pre-tax`, `Tax-advantaged post-tax`, `Tax-advantaged pre-and-post`, `Unknown`) for tax classification.
 - Apps must not call providers directly, ask for partner API keys/OAuth tokens, call `/integrations/*`, build app-owned partner sync/matching flows, cache CRM/investment content in browser storage, or send CRM/client/account/investment content to Tavily, OpenAI, Anthropic, Gemini, external AI/search providers, or third-party APIs in Day 1 publication.
 
+
+## Actionable review feedback and acceptance
+
+Read the **Current Task For AI Agent** as a focused diagnosis. It must retain
+the reviewed commit, exact file/line and related locations, observed behavior,
+why it fails, the minimal correction, and verification steps. Keep required
+security findings across goal selections. A fix-group title alone is insufficient.
+
+1. Check the reviewed SHA and timestamp before editing. Historical copies stay
+   attached to that snapshot; a stale result is not evidence about HEAD.
+2. Trace the cited action through its helper, serialized request, response and
+   visible result. Correct the wire contract and affected callers, not only a type.
+3. Preserve the requested questionnaire, completion, recipient and results/download
+   workflow. Do not delete a feature, swallow an error or return false success to
+   satisfy review. Unrelated recommendations can wait.
+4. Verify with synthetic data: intended success, empty selection, cancellation,
+   denied permission, unavailable host, rejection and timeout. Reproduce the
+   original defect and assert the corrected boundary. Do not send real email in tests.
+5. Separate the candidate manifest and artifact from the installed release,
+   permission approval and target environment. Source review does not establish
+   installation readiness. State the owner of any remaining release or platform gate.
+6. Rebuild after source corrections and follow the existing authorized commit/push
+   process. Use the read-only `px feedback --env <dev|prod> --goal <selected-goals>
+   --commit HEAD --format markdown` loop. Do not invent scripts or request a no-op commit.
+7. On repetition, compare retained evidence across reviewed SHAs. “Same evidence”
+   means the diagnosis remained the same, not that the source files are byte-identical.
+   “Changed evidence” identifies changed location/detail/remediation/severity;
+   inspect the actual revisions before broadening a repair. Missing or ambiguous
+   history is explicitly unavailable, never proof of resolution.
+
+If the CLI reports a changed review or an unavailable Markdown timestamp, use
+`--format json` for the pinned completed review; do not edit from another snapshot.
+If an older copy contains only generic instructions, obtain the full matching
+JSON/Markdown export before inferring the API or deleting the feature. Builder
+agents must distinguish static predictions from observed runtime failures.
+
 ## Email and report-delivery remediation
 
 Read [the email guide](email-api.md) before changing a workflow that sends mail.

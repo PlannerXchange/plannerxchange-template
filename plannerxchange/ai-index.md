@@ -13,7 +13,9 @@ Read these first:
 3. `plannerxchange/publish-notes.md` - manifest, review, build, and publication rules
 4. `plannerxchange/api-reference.md` - live route paths and permission scopes
 
-Then read only the file needed for the current task.
+Then read only the file needed for the current task. For a failed or repeated review,
+read `plannerxchange/publish-notes.md` (Actionable review feedback and acceptance);
+for `html`/`text` request mismatches read `plannerxchange/email-api.md` (Repairing legacy request fields).
 
 Before declaring that a PlannerXchange API, SDK helper, runtime context field,
 manifest contract, or review remediation path is unavailable, refresh this

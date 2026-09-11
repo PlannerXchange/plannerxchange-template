@@ -16,6 +16,7 @@ Use `plannerxchange/ai-index.md` to find the relevant topic. Read `README.md` fo
 Core rules:
 
 - If you create or follow a plan/spec/checklist and execution changes materially, update that artifact before finishing. Record what actually happened, why the path changed, current status, and any verification or blocker evidence. If you cannot safely update it, name the exact path as a follow-up.
+- Before acting on review feedback, read the Current Task evidence, exact correction and verification steps in `plannerxchange/publish-notes.md`. Match the reviewed SHA; do not infer a fix from a group title, rename only a type, delete the requested feature, or use a no-op commit to address a platform/installation gate.
 - Use the exact `plannerxchange.app.json` schema already in this repo.
 - Do not invent manifest fields from review labels. Do not add `capabilities`, `marketplace`, `portableData`, `demoMode`, `demoModeEnabled`, `supportsDemoMode`, `landingPage`, `landing_page`, `publicLandingPage`, `landingPageEnabled`, or `supportsLandingPage`.
 - Use `visibility: "marketplace_listed"` for marketplace intent.

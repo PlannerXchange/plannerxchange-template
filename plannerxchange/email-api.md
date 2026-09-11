@@ -6,6 +6,49 @@ dialog are **planned, not available through this contract yet**. A plan is not
 a callable API. Refresh the current context pack, SDK/shim and target environment
 before integration; do not describe a planned entry as released.
 
+
+## Repairing legacy request fields
+
+A helper that serializes `{ to, subject, html, text }` verbatim does not satisfy
+this endpoint. Keep the supported transport and map its wire fields:
+
+```ts
+const body = {
+  to: input.to,
+  subject: input.subject,
+  htmlBody: input.html,
+  ...(input.text === undefined ? {} : { textBody: input.text }),
+};
+const response = await runtimeContext.authenticatedFetch!(
+  `${runtimeContext.apiBaseUrl}/app-email/send`,
+  { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body) },
+);
+```
+
+This excerpt shows the field mapping only. Before calling it, check installed
+host availability, `email.send`, public Demo mode and explicit recipient
+confirmation. Check `response.ok` before consuming JSON; the result is
+`{ messageId, sentAt, sendingIdentity, status: "queued" }`. Label that outcome
+“Accepted for sending,” not confirmed delivery. Preserve results on failure.
+A timeout can follow acceptance; do not retry automatically.
+`app_email_send_failed` also means the send could not be confirmed, not proof that
+nothing was sent.
+
+An otherwise authorized call without `htmlBody` would receive
+`400 missing_html_body`. That is a predicted contract result unless an observed
+response proves it. Renaming the helper type without correcting serialization
+and callers does not fix the request. Capture the safe API error code/request ID
+for support; never copy recipient addresses, subjects, report contents or tokens
+into logs or review feedback.
+
+Review may report `email-request-contract-invalid` for a proven local
+request-shape violation, `email-permission-missing` for the candidate declaration,
+or recommended `email-request-contract-unresolved` when values or cross-file
+activation need further evidence. `email-contract-evidence-incomplete` is
+informational analyzer coverage, not a code violation. None of these checks
+proves PDF delivery, recipient receipt, or installed-release readiness.
+
 ## Core rule
 
 Keep the app's legitimate workflow trigger, recipient experience and report
