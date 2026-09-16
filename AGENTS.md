@@ -24,7 +24,7 @@ Core rules:
 - Use exact scope strings in `permissions` for PlannerXchange API access.
 - Before adding a field named Client, Household, or Account, read `plannerxchange/canonical-entity-controls.md`. Canonical entities use PX-backed search/selection, stable PX IDs, and governed creation; app-local freeform concepts must use distinct labels and models.
 - For every required PX record selector, design and verify the empty-firm path without waiting for the builder to request it. Read `plannerxchange/canonical-entity-controls.md`: keep governed Add actions inside the app, handle household prerequisites in the same flow, and distinguish empty results from denied access or failed reads. Do not make a trip to Core Data the only recovery.
-- Demo mode is enabled from Creator Studio after review eligibility; it is not currently a builder manifest field.
+- Do not add a Demo manifest field. Eligible listed releases default Demo mode on at publication when no choice is saved; preserve a saved Off choice. Change it in Creator Studio > Marketplace Listing > Details > Demo mode > Save details. A newer passing review does not update the public demo until that reviewed release is published.
 - Canonical-data Demo apps use `canonicalDataUsageDeclarations` only for exact
   field-level review evidence. This does not enable Demo mode or replace
   permissions and `canonicalDataAccessDeclarations`; follow

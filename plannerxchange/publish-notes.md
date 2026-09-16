@@ -34,7 +34,7 @@ Manifest schema guardrail:
 - marketplace intent is expressed with `visibility: "marketplace_listed"`
 - portable-data intent is expressed with `dataPortabilityMode: "plannerxchange_portable"`
 - data/API access is expressed with exact scope strings in the `permissions` array
-- demo mode is enabled in Creator Studio after eligibility review; it is not currently a builder manifest field
+- eligible listed releases default Demo mode on at publication when no choice is saved; a saved Off choice survives later publishes. Use Creator Studio > Marketplace Listing > Details > Demo mode > Save details to override it. Publish the currently reviewed release for public availability; do not add a Demo manifest field
 - `canonicalDataUsageDeclarations` is allowed only as exact field-level review
   evidence for canonical Demo fixtures; it does not enable Demo mode or replace
   canonical permissions and access declarations

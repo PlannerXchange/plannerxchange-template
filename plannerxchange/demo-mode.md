@@ -2,6 +2,20 @@
 
 Public demo mode is an optional Creator Studio capability for marketplace-listed apps. It is declared by selecting the `demo_mode` review goal or requesting enablement in Creator Studio. It is not a `plannerxchange.app.json` field.
 
+## Publication and the Demo setting
+
+Publishing and listing a release with current passing Demo evidence turns Demo
+mode on if no choice is saved. An explicit Off choice remains off on later
+publishes. Change the setting in Creator Studio > Marketplace Listing > Details
+> Demo mode, then Save details. The automatic default appears as On when published
+until saved or applied at publication.
+
+Available in Review & Eligibility means the reviewed source is eligible. It does
+not mean the public demo is live. The active published release must have current
+passing evidence for its exact source and artifact. If a saved On setting has no
+public button, check the production published release and its review evidence;
+a newer repository review or a dev demo does not update production automatically.
+
 ## Runtime contract
 
 Branch on runtime context before authenticated app initialization:
