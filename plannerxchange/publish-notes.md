@@ -2,6 +2,10 @@
 
 All PlannerXchange-published apps go through the same governed pipeline.
 
+For AI and third-party API intent, read `plannerxchange/ai-and-connections.md`. Agents may interview builders and record non-secret plans now. The app-AI/Connections runtime remains planned; no new manifest field, SDK method, CLI goal or direct-provider exception is enabled by that guide.
+
+Public live links and iframe questionnaires are under implementation; read `plannerxchange/public-app-access.md` before planning them. The local publicApp declaration and mountPublic contract require coordinated deployment and explicit dev pilot enrollment. No new review goal or anonymous email endpoint is released. Existing Demo and landing-page rules remain in force.
+
 Current publication concepts:
 
 - environments: `dev`, `prod`

@@ -7,6 +7,15 @@ a callable API. Refresh the current context pack, SDK/shim and target environmen
 before integration; do not describe a planned entry as released.
 
 
+## Public-use implementation boundary
+
+Email remains a separately declared capability. The planned public runtime does
+not implicitly grant `email.send` or make this authenticated route public.
+Builder-authored HTML must honor effective private-label branding in its body,
+including logo, colors, firm identity and required disclosures. See
+[public-app-access.md](public-app-access.md) for current availability; no public
+results-email method is released yet.
+
 ## Repairing legacy request fields
 
 A helper that serializes `{ to, subject, html, text }` verbatim does not satisfy

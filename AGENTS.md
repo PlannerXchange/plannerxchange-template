@@ -20,6 +20,7 @@ Core rules:
 - Use the exact `plannerxchange.app.json` schema already in this repo.
 - Do not invent manifest fields from review labels. Do not add `capabilities`, `marketplace`, `portableData`, `demoMode`, `demoModeEnabled`, `supportsDemoMode`, `landingPage`, `landing_page`, `publicLandingPage`, `landingPageEnabled`, or `supportsLandingPage`.
 - Use `visibility: "marketplace_listed"` for marketplace intent.
+- Do not add external-listing URLs or Marketing membership fields to `plannerxchange.app.json`, fabricate a repo or installation, or bypass hosted review. The separate external marketplace listing flow is under implementation and unavailable; its feature-gated shell editor does not release a builder API. Do not add analytics manifest fields, PX visitor identifiers or a tracking pixel for this flow; local referral reports belong to Creator Studio and do not verify arrivals or sales. See `plannerxchange/context.md`.
 - Use `dataPortabilityMode: "plannerxchange_portable"` for portable-data intent.
 - Use exact scope strings in `permissions` for PlannerXchange API access.
 - Before adding a field named Client, Household, or Account, read `plannerxchange/canonical-entity-controls.md`. Canonical entities use PX-backed search/selection, stable PX IDs, and governed creation; app-local freeform concepts must use distinct labels and models.
@@ -32,6 +33,9 @@ Core rules:
   `/canonical-demo/*` API through the dependency-free starter helper, and do
   not install a Demo package or use custom fields.
 - Public landing pages are enabled from PlannerXchange after review eligibility; they are not currently builder manifest fields.
+- Before planning AI or another external integration, read `plannerxchange/ai-and-connections.md`. Interview for purpose, data, payer/funding, budgets and review; explain builder-paid Metronome and attributable Stripe payment/billing fees and no additional PX margin in MVP. Once released, retrieve current models/costs through the documented PX catalog/CLI and obtain builder approval; Creator Studio Payment/Pricing will own the app-wide active model. Do not hardcode model catalogs, promise unsupported perpetual credits, request platform vendor keys, or invent a manifest field, SDK helper or CLI command; the capability remains planned.
+- For public live links or iframe questionnaires, read `plannerxchange/public-app-access.md`. Do not invent publicAccess, publicRuntime, iframe or permission scopes, or repurpose Demo. The implemented publicApp/mountPublic calculator contract is restricted to explicitly enrolled dev pilots after coordinated deployment; follow the guide and do not assume it is available in production. Email remains separately declared and its HTML must honor effective private-label branding.
+
 - PlannerXchange owns auth, routing, shell context, disclosure, publication review, and app installation identity.
 - Use `ShellRuntimeContext.authenticatedFetch` for protected PlannerXchange API calls.
 - Before adding or removing workflow email/report delivery, read `plannerxchange/email-api.md`. Do not delete the legitimate completion/recipient UX to satisfy a transport finding; replace the unsupported transport or preserve an honest unavailable state. Do not invent attachments, a report-send hook, secure URLs, or recipient-auth APIs from a planned feature. Current text email uses `email.send` and `POST /app-email/send`; public Demo sends nothing.

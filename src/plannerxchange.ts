@@ -212,7 +212,21 @@ export interface LegalProfile {
   termsUrl?: string;
 }
 
+/** Dev pilot only; requires coordinated public host release and operator enrollment. */
+export interface PublicAppDeclaration { schemaVersion: 1; embedding: boolean; resultsEmail: boolean; }
+export interface PublicAppRuntimeContext {
+  runtimeMode: "public";
+  publicId: string;
+  appName: string;
+  branding: { displayName: string; primaryColor: string; secondaryColor?: string; fontColor?: string; logoUrl?: string; };
+  legal: { disclosureText: string; privacyPolicyUrl?: string; termsUrl?: string; };
+  availableOperations: Array<"calculate" | "email_results">;
+}
+export type PublicAppMount = (options: { container: HTMLElement; context: PublicAppRuntimeContext }) =>
+  void | (() => void) | Promise<void | (() => void)>;
+
 export interface PlannerXchangeManifest {
+  publicApp?: PublicAppDeclaration;
   slug: string;
   name: string;
   version: string;

@@ -2,6 +2,13 @@
   "version": 1,
   "checks": [
     {
+      "id": "public-app-declaration-invalid",
+      "severity": "error",
+      "title": "Public calculator declaration uses the exact contract",
+      "description": "Optional publicApp requires schemaVersion 1 and explicit embedding/resultsEmail booleans; pilot access is separately approved.",
+      "type": "manifest-public-app"
+    },
+    {
       "id": "no-real-email",
       "severity": "error",
       "title": "No real email addresses in source",

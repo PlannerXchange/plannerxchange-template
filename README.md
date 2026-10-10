@@ -194,6 +194,8 @@ Before writing code, ask me these questions and wait for my answers:
 
 6. Do you want a public PlannerXchange landing page for this app? If yes, I will read `plannerxchange/landing-page.md`, keep it public-safe, use only synthetic data in screenshots and fixtures, allow only YouTube or Vimeo video embeds, and route sign in, sign up, install, checkout, review, follow, and demo actions through PlannerXchange-owned handoffs.
 
+7. Will your app use AI or another external API? If yes, read plannerxchange/ai-and-connections.md and interview for purpose, data, model payer, BYOK/managed funding, budgets, recharge and review. Explain builder-paid Metronome and attributable Stripe payment/billing fees, no additional PX margin in MVP, and actual credit validity. When model discovery ships, retrieve current compatible models/rates through the documented PX catalog/CLI, explain estimated costs and obtain builder approval; Creator Studio Payment/Pricing will own app-wide model settings. Never request keys, use a static model catalog, or invent fields/commands. Record unsupported capabilities as planned.
+
 After I answer:
 
 Phase 1 — Build a fully working local app first:

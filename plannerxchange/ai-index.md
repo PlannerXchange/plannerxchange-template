@@ -13,6 +13,8 @@ Read these first:
 3. `plannerxchange/publish-notes.md` - manifest, review, build, and publication rules
 4. `plannerxchange/api-reference.md` - live route paths and permission scopes
 
+For AI or external-service intent, read `plannerxchange/ai-and-connections.md` before the builder interview. It covers payer/funding, builder-paid Metronome costs, planned live model/rate discovery through PX CLI, builder approval and Studio Payment/Pricing control. Do not hardcode model catalogs or invent a manifest field or CLI command; check current availability.
+
 Then read only the file needed for the current task. For a failed or repeated review,
 read `plannerxchange/publish-notes.md` (Actionable review feedback and acceptance);
 for `html`/`text` request mismatches read `plannerxchange/email-api.md` (Repairing legacy request fields).
@@ -32,6 +34,7 @@ invent a shim, route or provider workaround.
 
 | Task | Read | Edit |
 | --- | --- | --- |
+| Public live app links, iframe questionnaires or anonymous results email | `plannerxchange/public-app-access.md`, `plannerxchange/email-api.md` | Record intent in the app plan; the public runtime is not released and no new manifest field or SDK hook is supported |
 | Fix manifest or review metadata | `plannerxchange/publish-notes.md`, this file | `plannerxchange.app.json` |
 | Add or change API access | `plannerxchange/api-reference.md`, `plannerxchange/data-contract.md` | `plannerxchange.app.json`, app API calls |
 | Save app-owned work product | [`plannerxchange/app-data-api.md#required-create-fields`](app-data-api.md#required-create-fields), [`#complete-typescript-record-lifecycle`](app-data-api.md#complete-typescript-record-lifecycle), [`#server-issued-record-id-provenance`](app-data-api.md#server-issued-record-id-provenance), [`#review-remediation-checklist`](app-data-api.md#review-remediation-checklist) | Prefer SDK app-data methods; otherwise use the exact list/create/get/update/delete lifecycle, retain server-issued record IDs, read/write `payload`, and rebuild committed output after changes |

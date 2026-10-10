@@ -690,6 +690,14 @@ for (const check of checks) {
     case "grep":
       runGrepCheck(check);
       break;
+    case "manifest-public-app": {
+      const p = readManifest()?.publicApp;
+      const valid = p === undefined || (p && typeof p === "object" && !Array.isArray(p) && p.schemaVersion === 1 &&
+        typeof p.embedding === "boolean" && typeof p.resultsEmail === "boolean" &&
+        Object.keys(p).every(key => ["schemaVersion", "embedding", "resultsEmail"].includes(key)));
+      report(check, Boolean(valid), valid ? undefined : "Use the publicApp declaration documented in plannerxchange/public-app-access.md.");
+      break;
+    }
     case "manifest-field":
       runManifestFieldCheck(check);
       break;
